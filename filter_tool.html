@@ -30,6 +30,20 @@
   }
   .wrap{max-width:980px;margin:0 auto;}
 
+  .sitenav{display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1.5rem;}
+  .sitenav a{
+    font-size:0.82rem;
+    font-weight:600;
+    color:var(--navy);
+    text-decoration:none;
+    padding:0.35rem 0.75rem;
+    border:1px solid var(--line);
+    border-radius:20px;
+    background:#fff;
+  }
+  .sitenav a:hover{border-color:var(--navy);}
+  .sitenav a.active{background:var(--navy);color:#fff;border-color:var(--navy);}
+
   header{margin-bottom:2rem;}
   header .kicker{
     font-size:0.85rem;
@@ -213,6 +227,12 @@
 <body>
 <div class="wrap">
 
+  <nav class="sitenav">
+    <a href="fft_tool.html">FFT Quick-Look</a>
+    <a href="filter_tool.html" class="active">Filter Lab</a>
+    <a href="derivative_tool.html">Derivative Lab</a>
+  </nav>
+
   <header>
     <p class="kicker">SES 619 — Signal Processing</p>
     <h1>Filter Lab</h1>
@@ -316,6 +336,7 @@
 
   <footer>
     Notes: filters are designed directly as digital IIR filters (Butterworth via pole placement + bilinear transform; notch via a standard 2nd-order band-stop) — no external DSP library. "Zero-phase" runs the filter forward, then backward, and removes the time-shift that a single causal pass would introduce, at the cost of not being usable in real time; this is the standard treatment for kinematic/force data. The ends of the signal are padded by reflection before filtering to reduce edge transients, then trimmed back to your original length before being handed back to you.
+    <p style="margin-top:1rem;color:var(--muted)">Created by Abbie Ferris, PhD — University of Northern Colorado</p>
   </footer>
 
 </div>

@@ -30,6 +30,20 @@
   }
   .wrap{max-width:980px;margin:0 auto;}
 
+  .sitenav{display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1.5rem;}
+  .sitenav a{
+    font-size:0.82rem;
+    font-weight:600;
+    color:var(--navy);
+    text-decoration:none;
+    padding:0.35rem 0.75rem;
+    border:1px solid var(--line);
+    border-radius:20px;
+    background:#fff;
+  }
+  .sitenav a:hover{border-color:var(--navy);}
+  .sitenav a.active{background:var(--navy);color:#fff;border-color:var(--navy);}
+
   header{margin-bottom:2rem;}
   header .kicker{
     font-size:0.85rem;
@@ -194,6 +208,12 @@
 <body>
 <div class="wrap">
 
+  <nav class="sitenav">
+    <a href="fft_tool.html" class="active">FFT Quick-Look</a>
+    <a href="filter_tool.html">Filter Lab</a>
+    <a href="derivative_tool.html">Derivative Lab</a>
+  </nav>
+
   <header>
     <p class="kicker">SES 619 — Signal Processing</p>
     <h1>FFT Quick-Look</h1>
@@ -238,6 +258,7 @@
 
   <footer>
     Notes for interpreting the result: data is zero-padded up to the next power of two before transforming, which smooths the frequency axis but does not add information — amplitude is still scaled by your actual sample count. Unless a frequency happens to complete a whole number of cycles in your recording, its energy will spread across a couple of neighboring bins rather than landing in one exactly (spectral leakage) — that's expected, not an error, and it's the same behavior you'd see in MATLAB, Python, or any other FFT. If your two-column paste has uneven time spacing, the sampling rate is estimated from the median spacing; very uneven sampling will distort the result, since the FFT assumes even spacing.
+    <p style="margin-top:1rem;color:var(--muted)">Created by Abbie Ferris, PhD — University of Northern Colorado</p>
   </footer>
 
 </div>

@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Derivative Lab — SES 619</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root{
+    --ink:#16232C;
+    --muted:#5C7080;
+    --line:#D8E2E7;
+    --panel:#FFFFFF;
+    --bg:#F3F6F8;
+    --navy:#0B3D91;
+    --navy-dark:#082C6B;
+    --teal:#1C7293;
+    --amber:#E8871E;
+    --green:#1B8A5A;
+    --red:#D64545;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+    line-height:1.45;
+    padding:2.5rem 1.25rem 4rem;
+  }
+  .wrap{max-width:980px;margin:0 auto;}
+
+  .sitenav{display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1.5rem;}
+  .sitenav a{
+    font-size:0.82rem;
+    font-weight:600;
+    color:var(--navy);
+    text-decoration:none;
+    padding:0.35rem 0.75rem;
+    border:1px solid var(--line);
+    border-radius:20px;
+    background:#fff;
+  }
+  .sitenav a:hover{border-color:var(--navy);}
+  .sitenav a.active{background:var(--navy);color:#fff;border-color:var(--navy);}
+
+  header{margin-bottom:2rem;}
+  header .kicker{
+    font-size:0.85rem;
+    color:var(--teal);
+    font-weight:600;
+    margin:0 0 0.35rem;
+  }
+  h1{
+    font-size:1.9rem;
+    margin:0 0 0.5rem;
+    letter-spacing:-0.01em;
+  }
+  header p{
+    color:var(--muted);
+    max-width:64ch;
+    margin:0;
+    font-size:0.98rem;
+  }
+
+  section.panel{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:1.5rem;
+    margin-bottom:1.5rem;
+  }
+  section.panel h2{
+    font-size:1.05rem;
+    margin:0 0 0.6rem;
+  }
+
+  label{
+    display:block;
+    font-size:0.85rem;
+    font-weight:600;
+    color:var(--ink);
+    margin-bottom:0.4rem;
+  }
+  .hint{
+    font-size:0.83rem;
+    color:var(--muted);
+    margin:0.35rem 0 0.9rem;
+  }
+
+  textarea{
+    width:100%;
+    min-height:180px;
+    resize:vertical;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:0.88rem;
+    padding:0.75rem;
+    border:1px solid var(--line);
+    border-radius:8px;
+    background:#FBFCFD;
+    color:var(--ink);
+  }
+  textarea:focus{outline:2px solid var(--navy);outline-offset:1px;}
+  textarea[readonly]{background:#F7F9FA;min-height:140px;}
+
+  .row{
+    display:flex;
+    gap:1.25rem;
+    flex-wrap:wrap;
+    align-items:flex-end;
+    margin-top:1rem;
+  }
+  .field{min-width:170px;}
+  select,input[type="number"]{
+    width:100%;
+    padding:0.5rem 0.6rem;
+    border:1px solid var(--line);
+    border-radius:6px;
+    font-size:0.95rem;
+    font-family:inherit;
+    background:#fff;
+    color:var(--ink);
+  }
+  .checkline{
+    display:flex;
+    align-items:center;
+    gap:0.5rem;
+    font-size:0.9rem;
+    color:var(--ink);
+    padding-bottom:0.55rem;
+  }
+  .checkline input{width:16px;height:16px;}
+  .checkline label{margin:0;font-weight:500;}
+
+  .actions{
+    display:flex;
+    gap:0.75rem;
+    align-items:center;
+    margin-left:auto;
+  }
+  button{
+    font-family:inherit;
+    font-size:0.92rem;
+    font-weight:600;
+    padding:0.6rem 1.1rem;
+    border-radius:7px;
+    border:1px solid transparent;
+    cursor:pointer;
+  }
+  button.primary{
+    background:var(--navy);
+    color:#fff;
+  }
+  button.primary:hover{background:var(--navy-dark);}
+  button.ghost{
+    background:transparent;
+    color:var(--navy);
+    border-color:var(--line);
+  }
+  button.ghost:hover{border-color:var(--navy);}
+
+  #status{
+    font-size:0.87rem;
+    color:var(--red);
+    margin-top:0.75rem;
+    min-height:1.2em;
+  }
+  #status.ok{color:var(--green);}
+  #filterStatus{
+    font-size:0.87rem;
+    color:var(--red);
+    margin-top:0.75rem;
+    min-height:1.2em;
+  }
+  #filterStatus.ok{color:var(--green);}
+  #copyStatus{
+    font-size:0.83rem;
+    color:var(--green);
+    margin-top:0.6rem;
+    min-height:1.2em;
+  }
+
+  .stats{
+    display:flex;
+    flex-wrap:wrap;
+    gap:0;
+    border:1px solid var(--line);
+    border-radius:8px;
+    overflow:hidden;
+    margin-bottom:1.5rem;
+  }
+  .stat{
+    flex:1 1 140px;
+    padding:0.8rem 1rem;
+    border-right:1px solid var(--line);
+    background:var(--panel);
+  }
+  .stat:last-child{border-right:none;}
+  .stat .v{font-size:1.15rem;font-weight:700;color:var(--navy);}
+  .stat .l{font-size:0.78rem;color:var(--muted);margin-top:0.15rem;}
+
+  .legend-note{
+    display:flex;
+    gap:1.5rem;
+    flex-wrap:wrap;
+    font-size:0.82rem;
+    color:var(--muted);
+    margin:0 0 0.9rem;
+  }
+  .legend-note span{display:inline-flex;align-items:center;gap:0.4rem;}
+  .swatch{width:14px;height:3px;border-radius:2px;display:inline-block;}
+
+  .chart-holder{
+    position:relative;
+    height:260px;
+  }
+  #results{display:none;}
+
+  .reveal-wrap{position:relative;}
+  .reveal-overlay{
+    position:absolute;
+    inset:0;
+    background:rgba(243,246,248,0.94);
+    -webkit-backdrop-filter:blur(2px);
+    backdrop-filter:blur(2px);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:0.75rem;
+    text-align:center;
+    padding:1rem;
+    border-radius:8px;
+    z-index:2;
+  }
+  .reveal-overlay p{color:var(--muted);font-size:0.85rem;max-width:38ch;margin:0;}
+
+  footer{
+    margin-top:2rem;
+    font-size:0.82rem;
+    color:var(--muted);
+    max-width:64ch;
+  }
+  footer a{color:var(--navy);}
+
+  @media (max-width:600px){
+    body{padding:1.5rem 1rem 3rem;}
+    .actions{margin-left:0;width:100%;}
+    button{flex:1;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <nav class="sitenav">
+    <a href="fft_tool.html">FFT Quick-Look</a>
+    <a href="filter_tool.html">Filter Lab</a>
+    <a href="derivative_tool.html" class="active">Derivative Lab</a>
+  </nav>
+
+  <header>
+    <p class="kicker">SES 619 — Signal Processing</p>
+    <h1>Derivative Lab</h1>
+    <p>Paste raw position data and work out velocity and acceleration by hand first. Then use this page to check your work, see how noise gets amplified with each derivative, and explore where in the chain filtering actually helps. Runs entirely in your browser — nothing is uploaded anywhere.</p>
+  </header>
+
+  <section class="panel">
+    <label for="data">Your position data</label>
+    <textarea id="data" placeholder="Paste time,position pairs (recommended) — one sample per line, comma or tab separated. Or one column of position values with a sampling rate below."></textarea>
+    <p class="hint">Two columns = time and position (sampling interval is worked out automatically). One column = position only (set the sampling rate below).</p>
+
+    <div class="row">
+      <div class="field">
+        <label for="fs">Sampling rate (Hz)</label>
+        <input type="number" id="fs" value="50" min="0.001" step="any">
+      </div>
+      <div class="checkline">
+        <input type="checkbox" id="hideReveal" checked>
+        <label for="hideReveal">Hide velocity &amp; acceleration until revealed</label>
+      </div>
+      <div class="actions">
+        <button class="ghost" id="loadExample" type="button">Load example data</button>
+        <button class="primary" id="compute" type="button">Compute derivatives</button>
+      </div>
+    </div>
+    <div id="status"></div>
+  </section>
+
+  <section id="results">
+    <div class="stats" id="statsRow"></div>
+
+    <section class="panel">
+      <h2>Position</h2>
+      <div class="legend-note" id="posLegend"></div>
+      <div class="chart-holder"><canvas id="posChart"></canvas></div>
+    </section>
+
+    <section class="panel">
+      <h2>Velocity (1st derivative)</h2>
+      <p class="hint">Central difference: v[i] = (x[i+1] − x[i−1]) / (2·&Delta;t) — the same method you'd use by hand, with a simple forward/backward difference at the two endpoints.</p>
+      <div class="reveal-wrap">
+        <div class="legend-note" id="velLegend"></div>
+        <div class="chart-holder"><canvas id="velChart"></canvas></div>
+        <div class="reveal-overlay" id="velOverlay">
+          <p>Work out velocity by hand first, then check it here.</p>
+          <button class="primary" id="revealVel" type="button">Reveal velocity</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Acceleration (2nd derivative)</h2>
+      <p class="hint">The same central difference applied again, this time to velocity — watch what happens to the noise.</p>
+      <div class="reveal-wrap">
+        <div class="legend-note" id="accLegend"></div>
+        <div class="chart-holder"><canvas id="accChart"></canvas></div>
+        <div class="reveal-overlay" id="accOverlay">
+          <p>Work out acceleration by hand first, then check it here.</p>
+          <button class="primary" id="revealAcc" type="button">Reveal acceleration</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Filter</h2>
+      <p class="hint">Where you filter changes the result. Try "Position" (recommended — filter before differentiating) vs. "Acceleration" (filtering only after both derivatives) and compare the acceleration chart above.</p>
+      <div class="row">
+        <div class="field">
+          <label for="filterTarget">Apply filter to</label>
+          <select id="filterTarget">
+            <option value="none">None (raw only)</option>
+            <option value="position" selected>Position (before differentiating)</option>
+            <option value="velocity">Velocity</option>
+            <option value="acceleration">Acceleration</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="ftype">Filter type</label>
+          <select id="ftype">
+            <option value="low" selected>Low-pass (Butterworth)</option>
+            <option value="high">High-pass (Butterworth)</option>
+            <option value="notch">Notch (band-stop)</option>
+          </select>
+        </div>
+        <div class="field" id="orderField">
+          <label for="order">Order</label>
+          <select id="order">
+            <option value="1">1st order</option>
+            <option value="2">2nd order</option>
+            <option value="3">3rd order</option>
+            <option value="4" selected>4th order</option>
+          </select>
+        </div>
+        <div class="field" id="cutoffField">
+          <label for="cutoff">Cutoff frequency (Hz)</label>
+          <input type="number" id="cutoff" value="6" min="0.001" step="any">
+        </div>
+        <div class="field" id="notchFreqField" style="display:none">
+          <label for="notchFreq">Center frequency (Hz)</label>
+          <input type="number" id="notchFreq" value="60" min="0.001" step="any">
+        </div>
+        <div class="field" id="notchQField" style="display:none">
+          <label for="notchQ">Q factor</label>
+          <input type="number" id="notchQ" value="30" min="0.1" step="any">
+        </div>
+      </div>
+      <div class="row">
+        <div class="checkline">
+          <input type="checkbox" id="zerophase" checked>
+          <label for="zerophase">Zero-phase (filter forward + backward)</label>
+        </div>
+        <div class="actions">
+          <button class="primary" id="applyFilter" type="button">Apply filter</button>
+          <button class="ghost" id="clearFilter" type="button">Clear filter</button>
+        </div>
+      </div>
+      <div id="filterStatus"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Copy data out</h2>
+      <p class="hint">Includes a header row — time, position, velocity, acceleration, plus filtered columns once a filter is applied — so it pastes straight into Excel as a labeled table.</p>
+      <textarea id="output" readonly></textarea>
+      <div class="actions" style="margin-top:0.9rem;margin-left:0">
+        <button class="primary" id="copyBtn" type="button">Copy table</button>
+      </div>
+      <div id="copyStatus"></div>
+    </section>
+  </section>
+
+  <footer>
+    Notes: velocity and acceleration are computed with a central difference (forward/backward difference at the two endpoints) — the standard by-hand method, so the numbers here should match your own calculations. Differentiating amplifies high-frequency content, so position data that looks perfectly smooth can produce a visibly noisy acceleration trace — that's not a bug, it's the whole reason filtering matters for kinematic data. The reveal buttons exist so you can work out velocity and acceleration yourself before checking this page.
+    <p style="margin-top:1rem;color:var(--muted)">Created by Abbie Ferris, PhD — University of Northern Colorado</p>
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  const dataEl = document.getElementById('data');
+  const fsEl = document.getElementById('fs');
+  const hideRevealEl = document.getElementById('hideReveal');
+  const statusEl = document.getElementById('status');
+  const resultsEl = document.getElementById('results');
+  const statsRowEl = document.getElementById('statsRow');
+  const filterTargetEl = document.getElementById('filterTarget');
+  const ftypeEl = document.getElementById('ftype');
+  const orderFieldEl = document.getElementById('orderField');
+  const cutoffFieldEl = document.getElementById('cutoffField');
+  const notchFreqFieldEl = document.getElementById('notchFreqField');
+  const notchQFieldEl = document.getElementById('notchQField');
+  const orderEl = document.getElementById('order');
+  const cutoffEl = document.getElementById('cutoff');
+  const notchFreqEl = document.getElementById('notchFreq');
+  const notchQEl = document.getElementById('notchQ');
+  const filterStatusEl = document.getElementById('filterStatus');
+  const outputEl = document.getElementById('output');
+  const copyStatusEl = document.getElementById('copyStatus');
+  const velOverlayEl = document.getElementById('velOverlay');
+  const accOverlayEl = document.getElementById('accOverlay');
+
+  let posChart=null, velChart=null, accChart=null;
+  let times=null, position=null, fs=null, dt=null;
+  let rawVelocity=null, rawAcceleration=null;
+  let filteredPosition=null, filteredVelocity=null, filteredAcceleration=null;
+
+  // ---- filter-field UI toggling ----
+  function syncFilterFields(){
+    const isNotch = (ftypeEl.value === 'notch');
+    orderFieldEl.style.display = isNotch ? 'none' : '';
+    cutoffFieldEl.style.display = isNotch ? 'none' : '';
+    notchFreqFieldEl.style.display = isNotch ? '' : 'none';
+    notchQFieldEl.style.display = isNotch ? '' : 'none';
+  }
+  ftypeEl.addEventListener('change', syncFilterFields);
+  syncFilterFields();
+
+  // ---- example data: clean sinusoid + small noise, known analytic derivatives ----
+  // x(t) = A sin(2*pi*f*t)  ->  v(t) = A*2*pi*f*cos(2*pi*f*t)  ->  a(t) = -A*(2*pi*f)^2*sin(2*pi*f*t)
+  document.getElementById('loadExample').addEventListener('click', function(){
+    const fsv = 50, dur = 2, n = fsv*dur, A = 0.5, f = 1;
+    const lines = [];
+    for (let i=0;i<n;i++){
+      const t = i/fsv;
+      const v = A*Math.sin(2*Math.PI*f*t) + 0.004*(Math.random()*2-1);
+      lines.push(t.toFixed(4)+','+v.toFixed(5));
+    }
+    dataEl.value = lines.join('\n');
+    fsEl.value = fsv;
+    statusEl.textContent = '';
+    statusEl.className = '';
+    resultsEl.style.display = 'none';
+  });
+
+  // ---- parsing (same convention as the other two tools) ----
+  function parseInput(text){
+    const rawLines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+    if (rawLines.length < 4) return { error: 'Paste at least a few samples first.' };
+
+    const tokenized = rawLines.map(l => l.split(/[,\t ]+/).filter(x => x.length > 0));
+    const counts = new Set(tokenized.map(t => t.length));
+
+    if (counts.has(1) && counts.size === 1){
+      const values = tokenized.map(t => parseFloat(t[0]));
+      if (values.some(v => Number.isNaN(v))) return { error: 'Could not read one of the lines as a number. Check for stray text or headers.' };
+      return { mode: 'single', values };
+    }
+    if (counts.has(2) && counts.size === 1){
+      const t = tokenized.map(x => parseFloat(x[0]));
+      const values = tokenized.map(x => parseFloat(x[1]));
+      if (t.some(Number.isNaN) || values.some(Number.isNaN)) return { error: 'Could not read one of the lines as two numbers. Check for stray text or headers.' };
+      const diffs = [];
+      for (let i=1;i<t.length;i++) diffs.push(t[i]-t[i-1]);
+      diffs.sort((a,b)=>a-b);
+      const dtv = diffs[Math.floor(diffs.length/2)];
+      if (!(dtv > 0)) return { error: 'Time column does not look like it is increasing steadily.' };
+      return { mode: 'pair', values, times: t, fs: 1/dtv };
+    }
+    return { error: 'Each line should have either one number (value) or two numbers (time, value) — the lines you pasted are not consistent.' };
+  }
+
+  // ================= complex helpers =================
+  function cadd(a,b){ return {re:a.re+b.re, im:a.im+b.im}; }
+  function csub(a,b){ return {re:a.re-b.re, im:a.im-b.im}; }
+  function cmul(a,b){ return {re:a.re*b.re - a.im*b.im, im:a.re*b.im + a.im*b.re}; }
+  function cdiv(a,b){ const d=b.re*b.re+b.im*b.im; return {re:(a.re*b.re+a.im*b.im)/d, im:(a.im*b.re-a.re*b.im)/d}; }
+
+  function polyFromRoots(roots){
+    let coeffs = [{re:1,im:0}];
+    for (const r of roots){
+      const next = new Array(coeffs.length+1).fill(null).map(() => ({re:0,im:0}));
+      for (let i=0;i<coeffs.length;i++){
+        next[i] = cadd(next[i], coeffs[i]);
+        next[i+1] = cadd(next[i+1], cmul({re:-r.re, im:-r.im}, coeffs[i]));
+      }
+      coeffs = next;
+    }
+    return coeffs;
+  }
+  function evalPoly(coeffs, z){
+    let result = {re:0,im:0};
+    for (const c of coeffs) result = cadd(cmul(result, z), c);
+    return result;
+  }
+
+  // ================= Butterworth design =================
+  function designButterworth(order, cutoffHz, fsv, type){
+    const K = 2*fsv;
+    const wc = K * Math.tan(Math.PI * cutoffHz / fsv);
+    const proto = [];
+    for (let k=1;k<=order;k++){
+      const theta = Math.PI/2 + (2*k-1)*Math.PI/(2*order);
+      proto.push({re:Math.cos(theta), im:Math.sin(theta)});
+    }
+    let sPoles, zZeros;
+    if (type === 'low'){
+      sPoles = proto.map(p => ({re:p.re*wc, im:p.im*wc}));
+      zZeros = new Array(order).fill({re:-1,im:0});
+    } else {
+      sPoles = proto.map(p => cdiv({re:wc,im:0}, p));
+      zZeros = new Array(order).fill({re:1,im:0});
+    }
+    const zPoles = sPoles.map(s => cdiv(cadd({re:K,im:0}, s), csub({re:K,im:0}, s)));
+    const Apoly = polyFromRoots(zPoles);
+    const Bpoly = polyFromRoots(zZeros);
+    const zRef = type === 'low' ? {re:1,im:0} : {re:-1,im:0};
+    const Href = cdiv(evalPoly(Bpoly, zRef), evalPoly(Apoly, zRef));
+    const gain = 1/Href.re;
+    return { b: Bpoly.map(c => c.re*gain), a: Apoly.map(c => c.re) };
+  }
+
+  // ================= Notch design =================
+  function designNotch(f0, fsv, Q){
+    const w0 = 2*Math.PI*f0/fsv;
+    const alpha = Math.sin(w0)/(2*Q);
+    const cosw0 = Math.cos(w0);
+    const a0 = 1+alpha;
+    return { b: [1/a0, (-2*cosw0)/a0, 1/a0], a: [1, (-2*cosw0)/a0, (1-alpha)/a0] };
+  }
+
+  // ================= filtering =================
+  function applyFilterDF(b, a, x){
+    const N = x.length, nb = b.length, na = a.length;
+    const y = new Array(N).fill(0);
+    for (let n=0;n<N;n++){
+      let acc = 0;
+      for (let k=0;k<nb;k++) if (n-k>=0) acc += b[k]*x[n-k];
+      for (let k=1;k<na;k++) if (n-k>=0) acc -= a[k]*y[n-k];
+      y[n] = acc;
+    }
+    return y;
+  }
+  function filtfilt(b, a, x){
+    const order = Math.max(a.length, b.length) - 1;
+    const padLen = Math.max(0, Math.min(3*order, x.length-1));
+    if (padLen === 0) return applyFilterDF(b, a, x);
+    const left = x.slice(1, padLen+1).slice().reverse().map(v => 2*x[0]-v);
+    const right = x.slice(x.length-padLen-1, x.length-1).slice().reverse().map(v => 2*x[x.length-1]-v);
+    const padded = left.concat(x, right);
+    let y = applyFilterDF(b, a, padded);
+    y = y.slice().reverse();
+    y = applyFilterDF(b, a, y);
+    y = y.slice().reverse();
+    return y.slice(padLen, padLen + x.length);
+  }
+
+  // ================= central difference =================
+  function centralDiff(y, dtv){
+    const N = y.length;
+    const dy = new Array(N);
+    if (N < 2){ dy[0] = 0; return dy; }
+    dy[0] = (y[1]-y[0])/dtv;
+    dy[N-1] = (y[N-1]-y[N-2])/dtv;
+    for (let i=1;i<N-1;i++) dy[i] = (y[i+1]-y[i-1])/(2*dtv);
+    return dy;
+  }
+
+  function fmt(v, d=2){
+    if (!isFinite(v)) return '—';
+    return v.toLocaleString(undefined, {maximumFractionDigits:d, minimumFractionDigits:0});
+  }
+  function statBlock(value, label){
+    const div = document.createElement('div');
+    div.className = 'stat';
+    div.innerHTML = '<div class="v">'+value+'</div><div class="l">'+label+'</div>';
+    return div;
+  }
+  function setLegend(elId, hasFiltered, label){
+    const el = document.getElementById(elId);
+    if (hasFiltered){
+      el.innerHTML = '<span><span class="swatch" style="background:#C8D2D8"></span>Unfiltered</span>'
+                    + '<span><span class="swatch" style="background:#0B3D91"></span>Filtered</span>';
+    } else {
+      el.innerHTML = '<span><span class="swatch" style="background:#0B3D91"></span>'+label+'</span>';
+    }
+  }
+  function renderChart(existing, canvasId, tAxis, rawData, filteredData, yLabel){
+    const datasets = [];
+    if (filteredData){
+      datasets.push({ data: rawData, borderColor:'#C8D2D8', backgroundColor:'transparent', borderWidth:1.2, pointRadius:0, tension:0 });
+      datasets.push({ data: filteredData, borderColor:'#0B3D91', backgroundColor:'transparent', borderWidth:1.6, pointRadius:0, tension:0 });
+    } else {
+      datasets.push({ data: rawData, borderColor:'#0B3D91', backgroundColor:'transparent', borderWidth:1.4, pointRadius:0, tension:0 });
+    }
+    if (existing) existing.destroy();
+    return new Chart(document.getElementById(canvasId), {
+      type: 'line',
+      data: { labels: tAxis, datasets },
+      options: {
+        animation:false, responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ display:false } },
+        scales:{
+          x:{ type:'linear', title:{display:true, text:'Time (s)'}, ticks:{maxTicksLimit:10} },
+          y:{ title:{display:true, text:yLabel} }
+        }
+      }
+    });
+  }
+
+  function rebuildOutput(){
+    const header = ['time','position','velocity','acceleration'];
+    if (filteredPosition) header.push('position_filtered');
+    if (filteredVelocity) header.push('velocity_filtered');
+    if (filteredAcceleration) header.push('acceleration_filtered');
+    const lines = [header.join('\t')];
+    for (let i=0;i<position.length;i++){
+      const row = [times[i].toFixed(6), position[i].toFixed(6), rawVelocity[i].toFixed(6), rawAcceleration[i].toFixed(6)];
+      if (filteredPosition) row.push(filteredPosition[i].toFixed(6));
+      if (filteredVelocity) row.push(filteredVelocity[i].toFixed(6));
+      if (filteredAcceleration) row.push(filteredAcceleration[i].toFixed(6));
+      lines.push(row.join('\t'));
+    }
+    outputEl.value = lines.join('\n');
+  }
+
+  function rerenderAll(){
+    setLegend('posLegend', !!filteredPosition, 'Position');
+    setLegend('velLegend', !!filteredVelocity, 'Velocity');
+    setLegend('accLegend', !!filteredAcceleration, 'Acceleration');
+    posChart = renderChart(posChart, 'posChart', times, position, filteredPosition, 'Position');
+    velChart = renderChart(velChart, 'velChart', times, rawVelocity, filteredVelocity, 'Velocity');
+    accChart = renderChart(accChart, 'accChart', times, rawAcceleration, filteredAcceleration, 'Acceleration');
+    rebuildOutput();
+  }
+
+  document.getElementById('compute').addEventListener('click', function(){
+    statusEl.className = '';
+    const parsed = parseInput(dataEl.value);
+    if (parsed.error){
+      statusEl.textContent = parsed.error;
+      resultsEl.style.display = 'none';
+      return;
+    }
+
+    if (parsed.mode === 'pair'){
+      fs = parsed.fs;
+      dt = 1/fs;
+      times = parsed.times;
+      fsEl.value = fs.toFixed(4);
+      statusEl.textContent = 'Two columns detected — sampling interval estimated from the time column.';
+      statusEl.className = 'ok';
+    } else {
+      fs = parseFloat(fsEl.value);
+      if (!(fs > 0)){
+        statusEl.textContent = 'Enter a valid sampling rate (Hz) for single-column data.';
+        return;
+      }
+      dt = 1/fs;
+      times = parsed.values.map((_, i) => i*dt);
+      statusEl.textContent = 'Single column detected — using the sampling rate you entered.';
+      statusEl.className = 'ok';
+    }
+
+    position = parsed.values;
+    rawVelocity = centralDiff(position, dt);
+    rawAcceleration = centralDiff(rawVelocity, dt);
+    filteredPosition = null; filteredVelocity = null; filteredAcceleration = null;
+    filterStatusEl.textContent = '';
+    filterStatusEl.className = '';
+
+    const N = position.length;
+    statsRowEl.innerHTML = '';
+    statsRowEl.appendChild(statBlock(fmt(N,0), 'samples'));
+    statsRowEl.appendChild(statBlock(fmt(fs,2)+' Hz', 'sampling rate'));
+    statsRowEl.appendChild(statBlock(fmt(dt,4)+' s', 'Δt'));
+    statsRowEl.appendChild(statBlock(fmt(N*dt,3)+' s', 'duration'));
+
+    resultsEl.style.display = 'block';
+
+    const hide = hideRevealEl.checked;
+    velOverlayEl.style.display = hide ? 'flex' : 'none';
+    accOverlayEl.style.display = hide ? 'flex' : 'none';
+
+    rerenderAll();
+  });
+
+  document.getElementById('revealVel').addEventListener('click', function(){ velOverlayEl.style.display = 'none'; });
+  document.getElementById('revealAcc').addEventListener('click', function(){ accOverlayEl.style.display = 'none'; });
+
+  document.getElementById('applyFilter').addEventListener('click', function(){
+    if (!position){
+      filterStatusEl.textContent = 'Compute derivatives first.';
+      filterStatusEl.className = '';
+      return;
+    }
+    const nyquist = fs/2;
+    const target = filterTargetEl.value;
+
+    if (target === 'none'){
+      filteredPosition = null; filteredVelocity = null; filteredAcceleration = null;
+      filterStatusEl.textContent = 'No filter applied — showing raw derivatives.';
+      filterStatusEl.className = 'ok';
+      rerenderAll();
+      return;
+    }
+
+    let b, a, label;
+    if (ftypeEl.value === 'notch'){
+      const f0 = parseFloat(notchFreqEl.value);
+      const Q = parseFloat(notchQEl.value);
+      if (!(f0 > 0) || f0 >= nyquist){
+        filterStatusEl.textContent = 'Center frequency must be greater than 0 and less than the Nyquist frequency ('+fmt(nyquist,2)+' Hz).';
+        filterStatusEl.className = '';
+        return;
+      }
+      if (!(Q > 0)){
+        filterStatusEl.textContent = 'Q factor must be a positive number.';
+        filterStatusEl.className = '';
+        return;
+      }
+      ({b, a} = designNotch(f0, fs, Q));
+      label = 'notch (f0='+fmt(f0,2)+' Hz, Q='+fmt(Q,1)+')';
+    } else {
+      const order = parseInt(orderEl.value, 10);
+      const cutoff = parseFloat(cutoffEl.value);
+      if (!(cutoff > 0) || cutoff >= nyquist){
+        filterStatusEl.textContent = 'Cutoff frequency must be greater than 0 and less than the Nyquist frequency ('+fmt(nyquist,2)+' Hz).';
+        filterStatusEl.className = '';
+        return;
+      }
+      ({b, a} = designButterworth(order, cutoff, fs, ftypeEl.value));
+      label = (ftypeEl.value==='low'?'low-pass':'high-pass')+' Butterworth, order '+order+', '+fmt(cutoff,2)+' Hz';
+    }
+
+    const zeroPhase = document.getElementById('zerophase').checked;
+    const run = (x) => zeroPhase ? filtfilt(b, a, x) : applyFilterDF(b, a, x);
+
+    filteredPosition = null; filteredVelocity = null; filteredAcceleration = null;
+    if (target === 'position'){
+      filteredPosition = run(position);
+      filteredVelocity = centralDiff(filteredPosition, dt);
+      filteredAcceleration = centralDiff(filteredVelocity, dt);
+    } else if (target === 'velocity'){
+      filteredVelocity = run(rawVelocity);
+      filteredAcceleration = centralDiff(filteredVelocity, dt);
+    } else if (target === 'acceleration'){
+      filteredAcceleration = run(rawAcceleration);
+    }
+
+    filterStatusEl.textContent = 'Filter applied to '+target+' — '+label+(zeroPhase?' (zero-phase)':' (single-pass, causal)')+'.';
+    filterStatusEl.className = 'ok';
+    rerenderAll();
+  });
+
+  document.getElementById('clearFilter').addEventListener('click', function(){
+    if (!position) return;
+    filteredPosition = null; filteredVelocity = null; filteredAcceleration = null;
+    filterStatusEl.textContent = 'Filter cleared — showing raw derivatives.';
+    filterStatusEl.className = 'ok';
+    rerenderAll();
+  });
+
+  document.getElementById('copyBtn').addEventListener('click', function(){
+    if (!outputEl.value){ copyStatusEl.textContent = 'Nothing to copy yet — compute derivatives first.'; copyStatusEl.style.color = 'var(--red)'; return; }
+    const done = function(){ copyStatusEl.textContent = 'Copied to clipboard.'; copyStatusEl.style.color = 'var(--green)'; };
+    const failed = function(){
+      outputEl.select();
+      copyStatusEl.textContent = 'Could not use the clipboard automatically — text is selected, press Ctrl+C.';
+      copyStatusEl.style.color = 'var(--amber)';
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(outputEl.value).then(done).catch(failed);
+    } else {
+      failed();
+    }
+  });
+})();
+</script>
+</body>
+</html>
