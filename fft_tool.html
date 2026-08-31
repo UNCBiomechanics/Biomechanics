@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FFT Quick-Look — SES 619</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root{
+    --ink:#16232C;
+    --muted:#5C7080;
+    --line:#D8E2E7;
+    --panel:#FFFFFF;
+    --bg:#F3F6F8;
+    --navy:#0B3D91;
+    --navy-dark:#082C6B;
+    --teal:#1C7293;
+    --amber:#E8871E;
+    --green:#1B8A5A;
+    --red:#D64545;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+    line-height:1.45;
+    padding:2.5rem 1.25rem 4rem;
+  }
+  .wrap{max-width:980px;margin:0 auto;}
+
+  header{margin-bottom:2rem;}
+  header .kicker{
+    font-size:0.85rem;
+    color:var(--teal);
+    font-weight:600;
+    margin:0 0 0.35rem;
+  }
+  h1{
+    font-size:1.9rem;
+    margin:0 0 0.5rem;
+    letter-spacing:-0.01em;
+  }
+  header p{
+    color:var(--muted);
+    max-width:62ch;
+    margin:0;
+    font-size:0.98rem;
+  }
+
+  section.panel{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:1.5rem;
+    margin-bottom:1.5rem;
+  }
+
+  label{
+    display:block;
+    font-size:0.85rem;
+    font-weight:600;
+    color:var(--ink);
+    margin-bottom:0.4rem;
+  }
+  .hint{
+    font-size:0.83rem;
+    color:var(--muted);
+    margin:0.35rem 0 0.9rem;
+  }
+
+  textarea{
+    width:100%;
+    min-height:180px;
+    resize:vertical;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:0.88rem;
+    padding:0.75rem;
+    border:1px solid var(--line);
+    border-radius:8px;
+    background:#FBFCFD;
+    color:var(--ink);
+  }
+  textarea:focus{outline:2px solid var(--navy);outline-offset:1px;}
+
+  .row{
+    display:flex;
+    gap:1.5rem;
+    flex-wrap:wrap;
+    align-items:flex-end;
+    margin-top:1rem;
+  }
+  .field{min-width:180px;}
+  input[type="number"]{
+    width:100%;
+    padding:0.5rem 0.6rem;
+    border:1px solid var(--line);
+    border-radius:6px;
+    font-size:0.95rem;
+    font-family:inherit;
+  }
+  input[type="number"]:disabled{background:#EEF2F4;color:var(--muted);}
+  .checkline{
+    display:flex;
+    align-items:center;
+    gap:0.5rem;
+    font-size:0.9rem;
+    color:var(--ink);
+    padding-bottom:0.55rem;
+  }
+  .checkline input{width:16px;height:16px;}
+  .checkline label{margin:0;font-weight:500;}
+
+  .actions{
+    display:flex;
+    gap:0.75rem;
+    align-items:center;
+    margin-left:auto;
+  }
+  button{
+    font-family:inherit;
+    font-size:0.92rem;
+    font-weight:600;
+    padding:0.6rem 1.1rem;
+    border-radius:7px;
+    border:1px solid transparent;
+    cursor:pointer;
+  }
+  button.primary{
+    background:var(--navy);
+    color:#fff;
+  }
+  button.primary:hover{background:var(--navy-dark);}
+  button.ghost{
+    background:transparent;
+    color:var(--navy);
+    border-color:var(--line);
+  }
+  button.ghost:hover{border-color:var(--navy);}
+
+  #status{
+    font-size:0.87rem;
+    color:var(--red);
+    margin-top:0.75rem;
+    min-height:1.2em;
+  }
+  #status.ok{color:var(--green);}
+
+  .stats{
+    display:flex;
+    flex-wrap:wrap;
+    gap:0;
+    border:1px solid var(--line);
+    border-radius:8px;
+    overflow:hidden;
+    margin-bottom:1.5rem;
+  }
+  .stat{
+    flex:1 1 140px;
+    padding:0.8rem 1rem;
+    border-right:1px solid var(--line);
+    background:var(--panel);
+  }
+  .stat:last-child{border-right:none;}
+  .stat .v{font-size:1.25rem;font-weight:700;color:var(--navy);}
+  .stat .l{font-size:0.78rem;color:var(--muted);margin-top:0.15rem;}
+
+  .chart-block h2{
+    font-size:1.05rem;
+    margin:0 0 0.9rem;
+  }
+  .chart-holder{
+    position:relative;
+    height:280px;
+  }
+  #results{display:none;}
+
+  footer{
+    margin-top:2rem;
+    font-size:0.82rem;
+    color:var(--muted);
+    max-width:62ch;
+  }
+  footer a{color:var(--navy);}
+
+  @media (max-width:600px){
+    body{padding:1.5rem 1rem 3rem;}
+    .actions{margin-left:0;width:100%;}
+    button{flex:1;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <p class="kicker">SES 619 — Signal Processing</p>
+    <h1>FFT Quick-Look</h1>
+    <p>Paste a column of signal values, or two columns of time and value, and see its frequency content immediately. Runs entirely in your browser — nothing is uploaded anywhere.</p>
+  </header>
+
+  <section class="panel">
+    <label for="data">Your data</label>
+    <textarea id="data" placeholder="Paste one number per line, or &quot;time, value&quot; pairs — one sample per line, comma or tab separated."></textarea>
+    <p class="hint">One column = amplitude values only (set the sampling rate below). Two columns = time and value (sampling rate is worked out automatically from the time column).</p>
+
+    <div class="row">
+      <div class="field">
+        <label for="fs">Sampling rate (Hz)</label>
+        <input type="number" id="fs" value="100" min="0.001" step="any">
+      </div>
+      <div class="checkline">
+        <input type="checkbox" id="detrend" checked>
+        <label for="detrend">Remove mean before transforming</label>
+      </div>
+      <div class="actions">
+        <button class="ghost" id="loadExample" type="button">Load example data</button>
+        <button class="primary" id="compute" type="button">Compute FFT</button>
+      </div>
+    </div>
+    <div id="status"></div>
+  </section>
+
+  <section id="results">
+    <div class="stats" id="statsRow"></div>
+
+    <section class="panel chart-block">
+      <h2>Time domain</h2>
+      <div class="chart-holder"><canvas id="timeChart"></canvas></div>
+    </section>
+
+    <section class="panel chart-block">
+      <h2>Frequency domain (amplitude spectrum)</h2>
+      <div class="chart-holder"><canvas id="freqChart"></canvas></div>
+    </section>
+  </section>
+
+  <footer>
+    Notes for interpreting the result: data is zero-padded up to the next power of two before transforming, which smooths the frequency axis but does not add information — amplitude is still scaled by your actual sample count. Unless a frequency happens to complete a whole number of cycles in your recording, its energy will spread across a couple of neighboring bins rather than landing in one exactly (spectral leakage) — that's expected, not an error, and it's the same behavior you'd see in MATLAB, Python, or any other FFT. If your two-column paste has uneven time spacing, the sampling rate is estimated from the median spacing; very uneven sampling will distort the result, since the FFT assumes even spacing.
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  const dataEl = document.getElementById('data');
+  const fsEl = document.getElementById('fs');
+  const detrendEl = document.getElementById('detrend');
+  const statusEl = document.getElementById('status');
+  const resultsEl = document.getElementById('results');
+  const statsRowEl = document.getElementById('statsRow');
+  let timeChart = null, freqChart = null;
+
+  // ---- example data: a noisy 6 Hz + 1 Hz signal, single column, 100 Hz ----
+  document.getElementById('loadExample').addEventListener('click', function(){
+    const fs = 100, dur = 2, n = fs * dur;
+    const lines = [];
+    for (let i = 0; i < n; i++){
+      const t = i / fs;
+      const v = 3*Math.sin(2*Math.PI*1*t) + 1*Math.sin(2*Math.PI*6*t + 0.4)
+                + 0.4*(Math.random()*2 - 1);
+      lines.push(v.toFixed(4));
+    }
+    dataEl.value = lines.join('\n');
+    fsEl.value = fs;
+    fsEl.disabled = false;
+    statusEl.textContent = '';
+    statusEl.className = '';
+  });
+
+  // ---- parsing ----
+  function parseInput(text){
+    const rawLines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+    if (rawLines.length < 4) return { error: 'Paste at least a few samples first.' };
+
+    const tokenized = rawLines.map(l => l.split(/[,\t ]+/).filter(x => x.length > 0));
+    const counts = new Set(tokenized.map(t => t.length));
+
+    if (counts.has(1) && counts.size === 1){
+      const values = tokenized.map(t => parseFloat(t[0]));
+      if (values.some(v => Number.isNaN(v))) return { error: 'Could not read one of the lines as a number. Check for stray text or headers.' };
+      return { mode: 'single', values };
+    }
+    if (counts.has(2) && counts.size === 1){
+      const times = tokenized.map(t => parseFloat(t[0]));
+      const values = tokenized.map(t => parseFloat(t[1]));
+      if (times.some(Number.isNaN) || values.some(Number.isNaN)) return { error: 'Could not read one of the lines as two numbers. Check for stray text or headers.' };
+      const diffs = [];
+      for (let i = 1; i < times.length; i++) diffs.push(times[i] - times[i-1]);
+      diffs.sort((a,b) => a-b);
+      const dt = diffs[Math.floor(diffs.length/2)];
+      if (!(dt > 0)) return { error: 'Time column does not look like it is increasing steadily.' };
+      return { mode: 'pair', values, fs: 1/dt };
+    }
+    return { error: 'Each line should have either one number (value) or two numbers (time, value) — the lines you pasted are not consistent.' };
+  }
+
+  // ---- radix-2 iterative FFT (in place), re, im are Float64Array of length = power of 2 ----
+  function fft(re, im){
+    const n = re.length;
+    for (let i = 1, j = 0; i < n; i++){
+      let bit = n >> 1;
+      for (; j & bit; bit >>= 1) j ^= bit;
+      j ^= bit;
+      if (i < j){
+        let tr = re[i]; re[i] = re[j]; re[j] = tr;
+        let ti = im[i]; im[i] = im[j]; im[j] = ti;
+      }
+    }
+    for (let len = 2; len <= n; len <<= 1){
+      const ang = -2 * Math.PI / len;
+      const wr = Math.cos(ang), wi = Math.sin(ang);
+      for (let i = 0; i < n; i += len){
+        let curWr = 1, curWi = 0;
+        for (let k = 0; k < len/2; k++){
+          const ur = re[i+k], ui = im[i+k];
+          const vr = re[i+k+len/2]*curWr - im[i+k+len/2]*curWi;
+          const vi = re[i+k+len/2]*curWi + im[i+k+len/2]*curWr;
+          re[i+k] = ur + vr; im[i+k] = ui + vi;
+          re[i+k+len/2] = ur - vr; im[i+k+len/2] = ui - vi;
+          const nWr = curWr*wr - curWi*wi;
+          const nWi = curWr*wi + curWi*wr;
+          curWr = nWr; curWi = nWi;
+        }
+      }
+    }
+  }
+
+  function nextPow2(n){
+    let p = 1;
+    while (p < n) p <<= 1;
+    return p;
+  }
+
+  function computeFFT(values, fs, detrend){
+    const N = values.length;
+    let x = values.slice();
+    if (detrend){
+      const mean = x.reduce((a,b) => a+b, 0) / N;
+      x = x.map(v => v - mean);
+    }
+    const nfft = Math.max(16, nextPow2(N));
+    const re = new Float64Array(nfft);
+    const im = new Float64Array(nfft);
+    re.set(x);
+    fft(re, im);
+
+    const half = nfft/2;
+    const freqs = new Array(half);
+    const amp = new Array(half);
+    for (let k = 0; k < half; k++){
+      freqs[k] = k * fs / nfft;
+      const mag = Math.sqrt(re[k]*re[k] + im[k]*im[k]);
+      amp[k] = (2/N) * mag;   // scaled by real sample count, not zero-padded length
+    }
+    return { freqs, amp, nfft, N };
+  }
+
+  function fmt(v, d=2){
+    if (!isFinite(v)) return '—';
+    return v.toLocaleString(undefined, {maximumFractionDigits:d, minimumFractionDigits:0});
+  }
+
+  function statBlock(value, label){
+    const div = document.createElement('div');
+    div.className = 'stat';
+    div.innerHTML = '<div class="v">' + value + '</div><div class="l">' + label + '</div>';
+    return div;
+  }
+
+  document.getElementById('compute').addEventListener('click', function(){
+    statusEl.className = '';
+    const parsed = parseInput(dataEl.value);
+    if (parsed.error){
+      statusEl.textContent = parsed.error;
+      resultsEl.style.display = 'none';
+      return;
+    }
+
+    let fs;
+    if (parsed.mode === 'pair'){
+      fs = parsed.fs;
+      fsEl.value = fs.toFixed(4);
+      fsEl.disabled = true;
+      statusEl.textContent = 'Two columns detected — sampling rate estimated from the time column.';
+      statusEl.className = 'ok';
+    } else {
+      fs = parseFloat(fsEl.value);
+      fsEl.disabled = false;
+      if (!(fs > 0)){
+        statusEl.textContent = 'Enter a valid sampling rate (Hz) for single-column data.';
+        return;
+      }
+      statusEl.textContent = 'Single column detected — using the sampling rate you entered.';
+      statusEl.className = 'ok';
+    }
+
+    const values = parsed.values;
+    const { freqs, amp, nfft, N } = computeFFT(values, fs, detrendEl.checked);
+
+    // peak frequency, ignoring bin 0 (DC)
+    let peakIdx = 1;
+    for (let k = 2; k < amp.length; k++) if (amp[k] > amp[peakIdx]) peakIdx = k;
+
+    const duration = N / fs;
+    const nyquist = fs / 2;
+    const df = fs / nfft;
+
+    statsRowEl.innerHTML = '';
+    statsRowEl.appendChild(statBlock(fmt(N,0), 'samples'));
+    statsRowEl.appendChild(statBlock(fmt(duration,3) + ' s', 'duration'));
+    statsRowEl.appendChild(statBlock(fmt(fs,2) + ' Hz', 'sampling rate'));
+    statsRowEl.appendChild(statBlock(fmt(nyquist,2) + ' Hz', 'Nyquist frequency'));
+    statsRowEl.appendChild(statBlock(fmt(df,3) + ' Hz', 'frequency resolution'));
+    statsRowEl.appendChild(statBlock(fmt(freqs[peakIdx],2) + ' Hz', 'peak frequency'));
+
+    resultsEl.style.display = 'block';
+
+    // time domain chart
+    const tAxis = values.map((_, i) => i / fs);
+    if (timeChart) timeChart.destroy();
+    timeChart = new Chart(document.getElementById('timeChart'), {
+      type: 'line',
+      data: {
+        labels: tAxis,
+        datasets: [{
+          data: values,
+          borderColor: '#E8871E',
+          backgroundColor: 'transparent',
+          borderWidth: 1.4,
+          pointRadius: 0,
+          tension: 0
+        }]
+      },
+      options: {
+        animation: false,
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { type: 'linear', title: { display: true, text: 'Time (s)' }, ticks: { maxTicksLimit: 10 } },
+          y: { title: { display: true, text: 'Amplitude' } }
+        }
+      }
+    });
+
+    // frequency domain chart
+    if (freqChart) freqChart.destroy();
+    freqChart = new Chart(document.getElementById('freqChart'), {
+      type: 'line',
+      data: {
+        labels: freqs,
+        datasets: [{
+          data: amp,
+          borderColor: '#0B3D91',
+          backgroundColor: 'transparent',
+          borderWidth: 1.6,
+          pointRadius: 0,
+          tension: 0.15
+        }]
+      },
+      options: {
+        animation: false,
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { type: 'linear', title: { display: true, text: 'Frequency (Hz)' }, max: nyquist, ticks: { maxTicksLimit: 12 } },
+          y: { title: { display: true, text: 'Amplitude' }, beginAtZero: true }
+        }
+      }
+    });
+  });
+})();
+</script>
+</body>
+</html>

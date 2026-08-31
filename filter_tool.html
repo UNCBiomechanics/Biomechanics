@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Filter Lab — SES 619</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root{
+    --ink:#16232C;
+    --muted:#5C7080;
+    --line:#D8E2E7;
+    --panel:#FFFFFF;
+    --bg:#F3F6F8;
+    --navy:#0B3D91;
+    --navy-dark:#082C6B;
+    --teal:#1C7293;
+    --amber:#E8871E;
+    --green:#1B8A5A;
+    --red:#D64545;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+    line-height:1.45;
+    padding:2.5rem 1.25rem 4rem;
+  }
+  .wrap{max-width:980px;margin:0 auto;}
+
+  header{margin-bottom:2rem;}
+  header .kicker{
+    font-size:0.85rem;
+    color:var(--teal);
+    font-weight:600;
+    margin:0 0 0.35rem;
+  }
+  h1{
+    font-size:1.9rem;
+    margin:0 0 0.5rem;
+    letter-spacing:-0.01em;
+  }
+  header p{
+    color:var(--muted);
+    max-width:64ch;
+    margin:0;
+    font-size:0.98rem;
+  }
+
+  section.panel{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:1.5rem;
+    margin-bottom:1.5rem;
+  }
+  section.panel h2{
+    font-size:1.05rem;
+    margin:0 0 0.9rem;
+  }
+
+  label{
+    display:block;
+    font-size:0.85rem;
+    font-weight:600;
+    color:var(--ink);
+    margin-bottom:0.4rem;
+  }
+  .hint{
+    font-size:0.83rem;
+    color:var(--muted);
+    margin:0.35rem 0 0.9rem;
+  }
+
+  textarea{
+    width:100%;
+    min-height:180px;
+    resize:vertical;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:0.88rem;
+    padding:0.75rem;
+    border:1px solid var(--line);
+    border-radius:8px;
+    background:#FBFCFD;
+    color:var(--ink);
+  }
+  textarea:focus{outline:2px solid var(--navy);outline-offset:1px;}
+  textarea[readonly]{background:#F7F9FA;min-height:140px;}
+
+  .row{
+    display:flex;
+    gap:1.25rem;
+    flex-wrap:wrap;
+    align-items:flex-end;
+    margin-top:1rem;
+  }
+  .field{min-width:170px;}
+  select,input[type="number"]{
+    width:100%;
+    padding:0.5rem 0.6rem;
+    border:1px solid var(--line);
+    border-radius:6px;
+    font-size:0.95rem;
+    font-family:inherit;
+    background:#fff;
+    color:var(--ink);
+  }
+  .checkline{
+    display:flex;
+    align-items:center;
+    gap:0.5rem;
+    font-size:0.9rem;
+    color:var(--ink);
+    padding-bottom:0.55rem;
+  }
+  .checkline input{width:16px;height:16px;}
+  .checkline label{margin:0;font-weight:500;}
+
+  .actions{
+    display:flex;
+    gap:0.75rem;
+    align-items:center;
+    margin-left:auto;
+  }
+  button{
+    font-family:inherit;
+    font-size:0.92rem;
+    font-weight:600;
+    padding:0.6rem 1.1rem;
+    border-radius:7px;
+    border:1px solid transparent;
+    cursor:pointer;
+  }
+  button.primary{
+    background:var(--navy);
+    color:#fff;
+  }
+  button.primary:hover{background:var(--navy-dark);}
+  button.ghost{
+    background:transparent;
+    color:var(--navy);
+    border-color:var(--line);
+  }
+  button.ghost:hover{border-color:var(--navy);}
+
+  #status{
+    font-size:0.87rem;
+    color:var(--red);
+    margin-top:0.75rem;
+    min-height:1.2em;
+  }
+  #status.ok{color:var(--green);}
+  #copyStatus{
+    font-size:0.83rem;
+    color:var(--green);
+    margin-top:0.6rem;
+    min-height:1.2em;
+  }
+
+  .stats{
+    display:flex;
+    flex-wrap:wrap;
+    gap:0;
+    border:1px solid var(--line);
+    border-radius:8px;
+    overflow:hidden;
+    margin-bottom:1.5rem;
+  }
+  .stat{
+    flex:1 1 140px;
+    padding:0.8rem 1rem;
+    border-right:1px solid var(--line);
+    background:var(--panel);
+  }
+  .stat:last-child{border-right:none;}
+  .stat .v{font-size:1.15rem;font-weight:700;color:var(--navy);}
+  .stat .l{font-size:0.78rem;color:var(--muted);margin-top:0.15rem;}
+
+  .legend-note{
+    display:flex;
+    gap:1.5rem;
+    flex-wrap:wrap;
+    font-size:0.82rem;
+    color:var(--muted);
+    margin:-0.4rem 0 0.9rem;
+  }
+  .legend-note span{display:inline-flex;align-items:center;gap:0.4rem;}
+  .swatch{width:14px;height:3px;border-radius:2px;display:inline-block;}
+
+  .chart-holder{
+    position:relative;
+    height:280px;
+  }
+  #results{display:none;}
+
+  footer{
+    margin-top:2rem;
+    font-size:0.82rem;
+    color:var(--muted);
+    max-width:64ch;
+  }
+  footer a{color:var(--navy);}
+
+  @media (max-width:600px){
+    body{padding:1.5rem 1rem 3rem;}
+    .actions{margin-left:0;width:100%;}
+    button{flex:1;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <p class="kicker">SES 619 — Signal Processing</p>
+    <h1>Filter Lab</h1>
+    <p>Paste a column of signal values, or two columns of time and value, apply a Butterworth low-pass / high-pass (1st–4th order) or a notch filter, see the before/after in both domains, then copy the filtered column straight back out to Excel. Runs entirely in your browser — nothing is uploaded anywhere.</p>
+  </header>
+
+  <section class="panel">
+    <label for="data">Your data</label>
+    <textarea id="data" placeholder="Paste one number per line, or &quot;time, value&quot; pairs — one sample per line, comma or tab separated."></textarea>
+    <p class="hint">One column = amplitude values only (set the sampling rate below). Two columns = time and value (sampling rate is worked out automatically from the time column).</p>
+
+    <div class="row">
+      <div class="field">
+        <label for="fs">Sampling rate (Hz)</label>
+        <input type="number" id="fs" value="100" min="0.001" step="any">
+      </div>
+      <div class="actions">
+        <button class="ghost" id="loadExample" type="button">Load example data</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Filter settings</h2>
+    <div class="row">
+      <div class="field">
+        <label for="ftype">Filter type</label>
+        <select id="ftype">
+          <option value="low">Low-pass (Butterworth)</option>
+          <option value="high">High-pass (Butterworth)</option>
+          <option value="notch">Notch (band-stop)</option>
+        </select>
+      </div>
+      <div class="field" id="orderField">
+        <label for="order">Order</label>
+        <select id="order">
+          <option value="1">1st order</option>
+          <option value="2">2nd order</option>
+          <option value="3">3rd order</option>
+          <option value="4" selected>4th order</option>
+        </select>
+      </div>
+      <div class="field" id="cutoffField">
+        <label for="cutoff">Cutoff frequency (Hz)</label>
+        <input type="number" id="cutoff" value="6" min="0.001" step="any">
+      </div>
+      <div class="field" id="notchFreqField" style="display:none">
+        <label for="notchFreq">Center frequency (Hz)</label>
+        <input type="number" id="notchFreq" value="60" min="0.001" step="any">
+      </div>
+      <div class="field" id="notchQField" style="display:none">
+        <label for="notchQ">Q factor</label>
+        <input type="number" id="notchQ" value="30" min="0.1" step="any">
+      </div>
+    </div>
+    <div class="row">
+      <div class="checkline">
+        <input type="checkbox" id="zerophase" checked>
+        <label for="zerophase">Zero-phase (run filter forward + backward)</label>
+      </div>
+      <div class="actions">
+        <button class="primary" id="apply" type="button">Apply Filter</button>
+      </div>
+    </div>
+    <p class="hint" id="orderHint">Order sets how sharply the filter rolls off past the cutoff — higher order cuts faster but rings more. 4th order is the common default for kinematic data (e.g. Winter's recommended cutoff).</p>
+    <p class="hint" id="notchHint" style="display:none">Q sets how narrow the notch is (Q = center frequency ÷ bandwidth). Higher Q removes less of the surrounding signal; lower Q removes a wider band around the center frequency.</p>
+    <div id="status"></div>
+  </section>
+
+  <section id="results">
+    <div class="stats" id="statsRow"></div>
+
+    <section class="panel">
+      <h2>Time domain</h2>
+      <div class="legend-note">
+        <span><span class="swatch" style="background:#C8D2D8"></span>Original</span>
+        <span><span class="swatch" style="background:#0B3D91"></span>Filtered</span>
+      </div>
+      <div class="chart-holder"><canvas id="timeChart"></canvas></div>
+    </section>
+
+    <section class="panel">
+      <h2>Frequency domain (amplitude spectrum)</h2>
+      <div class="legend-note">
+        <span><span class="swatch" style="background:#C8D2D8"></span>Original</span>
+        <span><span class="swatch" style="background:#0B3D91"></span>Filtered</span>
+      </div>
+      <div class="chart-holder"><canvas id="freqChart"></canvas></div>
+    </section>
+
+    <section class="panel">
+      <h2>Filtered data</h2>
+      <p class="hint">Select all and copy, or use the button below. Output matches your input layout — a single column if you pasted one, or "time&nbsp;&#9;&nbsp;value" pairs if you pasted two — so it drops straight into an Excel column (or two).</p>
+      <textarea id="output" readonly></textarea>
+      <div class="actions" style="margin-top:0.9rem;margin-left:0">
+        <button class="primary" id="copyBtn" type="button">Copy filtered data</button>
+      </div>
+      <div id="copyStatus"></div>
+    </section>
+  </section>
+
+  <footer>
+    Notes: filters are designed directly as digital IIR filters (Butterworth via pole placement + bilinear transform; notch via a standard 2nd-order band-stop) — no external DSP library. "Zero-phase" runs the filter forward, then backward, and removes the time-shift that a single causal pass would introduce, at the cost of not being usable in real time; this is the standard treatment for kinematic/force data. The ends of the signal are padded by reflection before filtering to reduce edge transients, then trimmed back to your original length before being handed back to you.
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  const dataEl = document.getElementById('data');
+  const fsEl = document.getElementById('fs');
+  const statusEl = document.getElementById('status');
+  const resultsEl = document.getElementById('results');
+  const statsRowEl = document.getElementById('statsRow');
+  const ftypeEl = document.getElementById('ftype');
+  const orderFieldEl = document.getElementById('orderField');
+  const cutoffFieldEl = document.getElementById('cutoffField');
+  const notchFreqFieldEl = document.getElementById('notchFreqField');
+  const notchQFieldEl = document.getElementById('notchQField');
+  const orderEl = document.getElementById('order');
+  const cutoffEl = document.getElementById('cutoff');
+  const notchFreqEl = document.getElementById('notchFreq');
+  const notchQEl = document.getElementById('notchQ');
+  const orderHintEl = document.getElementById('orderHint');
+  const notchHintEl = document.getElementById('notchHint');
+  const outputEl = document.getElementById('output');
+  const copyStatusEl = document.getElementById('copyStatus');
+  let timeChart = null, freqChart = null;
+  let lastParsed = null; // {mode, values, fs, times}
+
+  // ---- filter type UI toggling ----
+  function syncFilterFields(){
+    const t = ftypeEl.value;
+    const isNotch = (t === 'notch');
+    orderFieldEl.style.display = isNotch ? 'none' : '';
+    cutoffFieldEl.style.display = isNotch ? 'none' : '';
+    notchFreqFieldEl.style.display = isNotch ? '' : 'none';
+    notchQFieldEl.style.display = isNotch ? '' : 'none';
+    orderHintEl.style.display = isNotch ? 'none' : '';
+    notchHintEl.style.display = isNotch ? '' : 'none';
+  }
+  ftypeEl.addEventListener('change', syncFilterFields);
+  syncFilterFields();
+
+  // ---- example data: 2 Hz true signal + 12 Hz artifact + noise + slow drift ----
+  document.getElementById('loadExample').addEventListener('click', function(){
+    const fs = 100, dur = 3, n = fs * dur;
+    const lines = [];
+    for (let i = 0; i < n; i++){
+      const t = i / fs;
+      const v = 2*Math.sin(2*Math.PI*2*t)
+                + 0.6*Math.sin(2*Math.PI*12*t + 0.3)
+                + 0.5*(Math.random()*2 - 1)
+                + 0.15*t;
+      lines.push(v.toFixed(4));
+    }
+    dataEl.value = lines.join('\n');
+    fsEl.value = fs;
+    ftypeEl.value = 'low';
+    orderEl.value = '4';
+    cutoffEl.value = '6';
+    syncFilterFields();
+    statusEl.textContent = '';
+    statusEl.className = '';
+    resultsEl.style.display = 'none';
+  });
+
+  // ---- parsing (same convention as the FFT tool) ----
+  function parseInput(text){
+    const rawLines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+    if (rawLines.length < 4) return { error: 'Paste at least a few samples first.' };
+
+    const tokenized = rawLines.map(l => l.split(/[,\t ]+/).filter(x => x.length > 0));
+    const counts = new Set(tokenized.map(t => t.length));
+
+    if (counts.has(1) && counts.size === 1){
+      const values = tokenized.map(t => parseFloat(t[0]));
+      if (values.some(v => Number.isNaN(v))) return { error: 'Could not read one of the lines as a number. Check for stray text or headers.' };
+      return { mode: 'single', values };
+    }
+    if (counts.has(2) && counts.size === 1){
+      const times = tokenized.map(t => parseFloat(t[0]));
+      const values = tokenized.map(t => parseFloat(t[1]));
+      if (times.some(Number.isNaN) || values.some(Number.isNaN)) return { error: 'Could not read one of the lines as two numbers. Check for stray text or headers.' };
+      const diffs = [];
+      for (let i = 1; i < times.length; i++) diffs.push(times[i] - times[i-1]);
+      diffs.sort((a,b) => a-b);
+      const dt = diffs[Math.floor(diffs.length/2)];
+      if (!(dt > 0)) return { error: 'Time column does not look like it is increasing steadily.' };
+      return { mode: 'pair', values, times, fs: 1/dt };
+    }
+    return { error: 'Each line should have either one number (value) or two numbers (time, value) — the lines you pasted are not consistent.' };
+  }
+
+  // ================= complex helpers =================
+  function cadd(a,b){ return {re:a.re+b.re, im:a.im+b.im}; }
+  function csub(a,b){ return {re:a.re-b.re, im:a.im-b.im}; }
+  function cmul(a,b){ return {re:a.re*b.re - a.im*b.im, im:a.re*b.im + a.im*b.re}; }
+  function cdiv(a,b){ const d=b.re*b.re+b.im*b.im; return {re:(a.re*b.re+a.im*b.im)/d, im:(a.im*b.re-a.re*b.im)/d}; }
+  function cabs(a){ return Math.sqrt(a.re*a.re + a.im*a.im); }
+
+  // polynomial (highest power first, monic) from a list of complex roots
+  function polyFromRoots(roots){
+    let coeffs = [{re:1,im:0}];
+    for (const r of roots){
+      const next = new Array(coeffs.length+1).fill(null).map(() => ({re:0,im:0}));
+      for (let i=0;i<coeffs.length;i++){
+        next[i] = cadd(next[i], coeffs[i]);
+        next[i+1] = cadd(next[i+1], cmul({re:-r.re, im:-r.im}, coeffs[i]));
+      }
+      coeffs = next;
+    }
+    return coeffs;
+  }
+  function evalPoly(coeffs, z){
+    let result = {re:0,im:0};
+    for (const c of coeffs) result = cadd(cmul(result, z), c);
+    return result;
+  }
+
+  // ================= Butterworth design (pole placement + bilinear transform) =================
+  function designButterworth(order, cutoffHz, fs, type){
+    const K = 2*fs;
+    const wc = K * Math.tan(Math.PI * cutoffHz / fs); // pre-warped analog cutoff
+
+    // analog lowpass prototype poles, cutoff = 1 rad/s
+    const proto = [];
+    for (let k=1;k<=order;k++){
+      const theta = Math.PI/2 + (2*k-1)*Math.PI/(2*order);
+      proto.push({re:Math.cos(theta), im:Math.sin(theta)});
+    }
+
+    let sPoles, zZeros;
+    if (type === 'low'){
+      sPoles = proto.map(p => ({re:p.re*wc, im:p.im*wc}));
+      zZeros = new Array(order).fill({re:-1,im:0}); // zeros at infinity -> z=-1
+    } else { // 'high': s -> wc/s
+      sPoles = proto.map(p => cdiv({re:wc,im:0}, p));
+      zZeros = new Array(order).fill({re:1,im:0}); // zeros at s=0 -> z=1
+    }
+
+    // bilinear transform: z = (K+s)/(K-s)
+    const zPoles = sPoles.map(s => cdiv(cadd({re:K,im:0}, s), csub({re:K,im:0}, s)));
+
+    const Apoly = polyFromRoots(zPoles); // a0 = 1
+    const Bpoly = polyFromRoots(zZeros); // b0 = 1, before gain
+
+    const zRef = type === 'low' ? {re:1,im:0} : {re:-1,im:0}; // DC or Nyquist
+    const Href = cdiv(evalPoly(Bpoly, zRef), evalPoly(Apoly, zRef));
+    const gain = 1/Href.re;
+
+    const a = Apoly.map(c => c.re);
+    const b = Bpoly.map(c => c.re * gain);
+    return { b, a };
+  }
+
+  // ================= Notch design (2nd-order IIR band-stop, RBJ cookbook form) =================
+  function designNotch(f0, fs, Q){
+    const w0 = 2*Math.PI*f0/fs;
+    const alpha = Math.sin(w0)/(2*Q);
+    const cosw0 = Math.cos(w0);
+    const a0 = 1+alpha;
+    return {
+      b: [1/a0, (-2*cosw0)/a0, 1/a0],
+      a: [1, (-2*cosw0)/a0, (1-alpha)/a0]
+    };
+  }
+
+  // ================= filtering =================
+  function applyFilterDF(b, a, x){
+    const N = x.length, nb = b.length, na = a.length;
+    const y = new Array(N).fill(0);
+    for (let n=0;n<N;n++){
+      let acc = 0;
+      for (let k=0;k<nb;k++) if (n-k>=0) acc += b[k]*x[n-k];
+      for (let k=1;k<na;k++) if (n-k>=0) acc -= a[k]*y[n-k];
+      y[n] = acc;
+    }
+    return y;
+  }
+
+  function filtfilt(b, a, x){
+    const order = Math.max(a.length, b.length) - 1;
+    const padLen = Math.max(0, Math.min(3*order, x.length-1));
+    if (padLen === 0) return applyFilterDF(b, a, x);
+    const left = x.slice(1, padLen+1).slice().reverse().map(v => 2*x[0]-v);
+    const right = x.slice(x.length-padLen-1, x.length-1).slice().reverse().map(v => 2*x[x.length-1]-v);
+    const padded = left.concat(x, right);
+    let y = applyFilterDF(b, a, padded);
+    y = y.slice().reverse();
+    y = applyFilterDF(b, a, y);
+    y = y.slice().reverse();
+    return y.slice(padLen, padLen + x.length);
+  }
+
+  // ================= FFT (radix-2), for the frequency-domain preview only =================
+  function fft(re, im){
+    const n = re.length;
+    for (let i=1,j=0;i<n;i++){
+      let bit = n>>1;
+      for (; j & bit; bit >>= 1) j ^= bit;
+      j ^= bit;
+      if (i<j){ let tr=re[i];re[i]=re[j];re[j]=tr; let ti=im[i];im[i]=im[j];im[j]=ti; }
+    }
+    for (let len=2; len<=n; len<<=1){
+      const ang = -2*Math.PI/len;
+      const wr = Math.cos(ang), wi = Math.sin(ang);
+      for (let i=0;i<n;i+=len){
+        let curWr=1, curWi=0;
+        for (let k=0;k<len/2;k++){
+          const ur=re[i+k], ui=im[i+k];
+          const vr=re[i+k+len/2]*curWr - im[i+k+len/2]*curWi;
+          const vi=re[i+k+len/2]*curWi + im[i+k+len/2]*curWr;
+          re[i+k]=ur+vr; im[i+k]=ui+vi;
+          re[i+k+len/2]=ur-vr; im[i+k+len/2]=ui-vi;
+          const nWr=curWr*wr-curWi*wi, nWi=curWr*wi+curWi*wr;
+          curWr=nWr; curWi=nWi;
+        }
+      }
+    }
+  }
+  function nextPow2(n){ let p=1; while(p<n) p<<=1; return p; }
+  function spectrum(values, fs){
+    const N = values.length;
+    const nfft = Math.max(16, nextPow2(N));
+    const re = new Float64Array(nfft), im = new Float64Array(nfft);
+    re.set(values);
+    fft(re, im);
+    const half = nfft/2;
+    const freqs = new Array(half), amp = new Array(half);
+    for (let k=0;k<half;k++){
+      freqs[k] = k*fs/nfft;
+      amp[k] = (2/N)*Math.sqrt(re[k]*re[k]+im[k]*im[k]);
+    }
+    return { freqs, amp };
+  }
+
+  function fmt(v, d=2){
+    if (!isFinite(v)) return '—';
+    return v.toLocaleString(undefined, {maximumFractionDigits:d, minimumFractionDigits:0});
+  }
+  function statBlock(value, label){
+    const div = document.createElement('div');
+    div.className = 'stat';
+    div.innerHTML = '<div class="v">'+value+'</div><div class="l">'+label+'</div>';
+    return div;
+  }
+
+  document.getElementById('apply').addEventListener('click', function(){
+    statusEl.className = '';
+    const parsed = parseInput(dataEl.value);
+    if (parsed.error){
+      statusEl.textContent = parsed.error;
+      resultsEl.style.display = 'none';
+      return;
+    }
+
+    let fs;
+    if (parsed.mode === 'pair'){
+      fs = parsed.fs;
+      fsEl.value = fs.toFixed(4);
+    } else {
+      fs = parseFloat(fsEl.value);
+      if (!(fs > 0)){
+        statusEl.textContent = 'Enter a valid sampling rate (Hz) for single-column data.';
+        return;
+      }
+    }
+    lastParsed = parsed;
+
+    const nyquist = fs/2;
+    const type = ftypeEl.value;
+    let b, a, summaryLabel, cutoffLabel;
+
+    if (type === 'notch'){
+      const f0 = parseFloat(notchFreqEl.value);
+      const Q = parseFloat(notchQEl.value);
+      if (!(f0 > 0) || f0 >= nyquist){
+        statusEl.textContent = 'Center frequency must be greater than 0 and less than the Nyquist frequency ('+fmt(nyquist,2)+' Hz).';
+        return;
+      }
+      if (!(Q > 0)){
+        statusEl.textContent = 'Q factor must be a positive number.';
+        return;
+      }
+      ({b, a} = designNotch(f0, fs, Q));
+      summaryLabel = 'Notch (Q='+fmt(Q,1)+')';
+      cutoffLabel = fmt(f0,2)+' Hz';
+    } else {
+      const order = parseInt(orderEl.value, 10);
+      const cutoff = parseFloat(cutoffEl.value);
+      if (!(cutoff > 0) || cutoff >= nyquist){
+        statusEl.textContent = 'Cutoff frequency must be greater than 0 and less than the Nyquist frequency ('+fmt(nyquist,2)+' Hz).';
+        return;
+      }
+      ({b, a} = designButterworth(order, cutoff, fs, type));
+      summaryLabel = (type==='low'?'Low-pass':'High-pass')+' Butterworth, order '+order;
+      cutoffLabel = fmt(cutoff,2)+' Hz';
+    }
+
+    const zeroPhase = document.getElementById('zerophase').checked;
+    const values = parsed.values;
+    const filtered = zeroPhase ? filtfilt(b, a, values) : applyFilterDF(b, a, values);
+
+    statusEl.textContent = 'Filter applied — '+summaryLabel+(zeroPhase?' (zero-phase)':' (single-pass, causal)')+'.';
+    statusEl.className = 'ok';
+
+    const N = values.length;
+    const duration = N/fs;
+
+    statsRowEl.innerHTML = '';
+    statsRowEl.appendChild(statBlock(fmt(N,0), 'samples'));
+    statsRowEl.appendChild(statBlock(fmt(fs,2)+' Hz', 'sampling rate'));
+    statsRowEl.appendChild(statBlock(summaryLabel, 'filter'));
+    statsRowEl.appendChild(statBlock(cutoffLabel, type==='notch' ? 'center frequency' : 'cutoff frequency'));
+    statsRowEl.appendChild(statBlock(zeroPhase ? 'Zero-phase' : 'Causal', 'phase handling'));
+    statsRowEl.appendChild(statBlock(fmt(duration,3)+' s', 'duration'));
+
+    resultsEl.style.display = 'block';
+
+    // time domain chart
+    const tAxis = values.map((_, i) => i/fs);
+    if (timeChart) timeChart.destroy();
+    timeChart = new Chart(document.getElementById('timeChart'), {
+      type: 'line',
+      data: {
+        labels: tAxis,
+        datasets: [
+          { label:'Original', data: values, borderColor:'#C8D2D8', backgroundColor:'transparent', borderWidth:1.2, pointRadius:0, tension:0 },
+          { label:'Filtered', data: filtered, borderColor:'#0B3D91', backgroundColor:'transparent', borderWidth:1.6, pointRadius:0, tension:0 }
+        ]
+      },
+      options: {
+        animation:false, responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ display:false } },
+        scales:{
+          x:{ type:'linear', title:{display:true, text:'Time (s)'}, ticks:{maxTicksLimit:10} },
+          y:{ title:{display:true, text:'Amplitude'} }
+        }
+      }
+    });
+
+    // frequency domain chart
+    const specOrig = spectrum(values, fs);
+    const specFilt = spectrum(filtered, fs);
+    if (freqChart) freqChart.destroy();
+    freqChart = new Chart(document.getElementById('freqChart'), {
+      type: 'line',
+      data: {
+        labels: specOrig.freqs,
+        datasets: [
+          { label:'Original', data: specOrig.amp, borderColor:'#C8D2D8', backgroundColor:'transparent', borderWidth:1.3, pointRadius:0, tension:0.1 },
+          { label:'Filtered', data: specFilt.amp, borderColor:'#0B3D91', backgroundColor:'transparent', borderWidth:1.6, pointRadius:0, tension:0.1 }
+        ]
+      },
+      options: {
+        animation:false, responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ display:false } },
+        scales:{
+          x:{ type:'linear', title:{display:true, text:'Frequency (Hz)'}, max:nyquist, ticks:{maxTicksLimit:12} },
+          y:{ title:{display:true, text:'Amplitude'}, beginAtZero:true }
+        }
+      }
+    });
+
+    // filtered data output, matching input layout
+    let outLines;
+    if (parsed.mode === 'pair'){
+      outLines = filtered.map((v,i) => parsed.times[i] + '\t' + v.toFixed(6));
+    } else {
+      outLines = filtered.map(v => v.toFixed(6));
+    }
+    outputEl.value = outLines.join('\n');
+    copyStatusEl.textContent = '';
+  });
+
+  document.getElementById('copyBtn').addEventListener('click', function(){
+    if (!outputEl.value){ copyStatusEl.textContent = 'Nothing to copy yet — apply a filter first.'; copyStatusEl.style.color = 'var(--red)'; return; }
+    const done = function(){ copyStatusEl.textContent = 'Copied to clipboard.'; copyStatusEl.style.color = 'var(--green)'; };
+    const failed = function(){
+      outputEl.select();
+      copyStatusEl.textContent = 'Could not use the clipboard automatically — text is selected, press Ctrl+C.';
+      copyStatusEl.style.color = 'var(--amber)';
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(outputEl.value).then(done).catch(failed);
+    } else {
+      failed();
+    }
+  });
+})();
+</script>
+</body>
+</html>
