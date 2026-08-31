@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Biomechanics Signal Tools — SES 619</title>
+<style>
+  :root{
+    --ink:#16232C;
+    --muted:#5C7080;
+    --line:#D8E2E7;
+    --panel:#FFFFFF;
+    --bg:#F3F6F8;
+    --navy:#0B3D91;
+    --navy-dark:#082C6B;
+    --teal:#1C7293;
+    --amber:#E8871E;
+    --green:#1B8A5A;
+    --red:#D64545;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+    line-height:1.45;
+    padding:2.5rem 1.25rem 4rem;
+  }
+  .wrap{max-width:980px;margin:0 auto;}
+
+  header{margin-bottom:2.25rem;}
+  header .kicker{
+    font-size:0.85rem;
+    color:var(--teal);
+    font-weight:600;
+    margin:0 0 0.35rem;
+  }
+  h1{
+    font-size:2.1rem;
+    margin:0 0 0.6rem;
+    letter-spacing:-0.01em;
+  }
+  header p{
+    color:var(--muted);
+    max-width:66ch;
+    margin:0;
+    font-size:1rem;
+  }
+
+  .tool-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(230px,1fr));
+    gap:1.25rem;
+    margin-bottom:2rem;
+  }
+  .tool-card{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:1.5rem;
+    display:flex;
+    flex-direction:column;
+    gap:0.75rem;
+  }
+  .tool-card .num{
+    font-family:Georgia,serif;
+    font-size:0.8rem;
+    color:var(--teal);
+    font-weight:700;
+    letter-spacing:0.05em;
+  }
+  .tool-card h2{
+    font-size:1.2rem;
+    margin:0;
+    color:var(--ink);
+  }
+  .tool-card p{
+    font-size:0.88rem;
+    color:var(--muted);
+    margin:0;
+    flex:1;
+  }
+  .tool-card a.btn{
+    align-self:flex-start;
+    text-decoration:none;
+    background:var(--navy);
+    color:#fff;
+    font-weight:600;
+    padding:0.55rem 1.15rem;
+    border-radius:7px;
+    font-size:0.9rem;
+  }
+  .tool-card a.btn:hover{background:var(--navy-dark);}
+
+  .order-note{
+    font-size:0.85rem;
+    color:var(--muted);
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:1.1rem 1.3rem;
+    margin-bottom:2rem;
+  }
+  .order-note strong{color:var(--ink);}
+
+  footer{
+    margin-top:1rem;
+    font-size:0.82rem;
+    color:var(--muted);
+    max-width:66ch;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <p class="kicker">SES 619 — Signal Processing</p>
+    <h1>Biomechanics Signal Tools</h1>
+    <p>Four small browser-based tools for working with motion and force data — no installs, no accounts, nothing you paste is ever uploaded anywhere. Pick a tool below.</p>
+  </header>
+
+  <div class="order-note">
+    <strong>Suggested order if this is your first pass:</strong> Derivative Lab (differentiate position by hand, then check your work) → FFT Quick-Look (see what frequency content is actually in your signal) → Filter Lab (apply a single filter and get clean data back) → Filter Compare (stack multiple filters/datasets to see how choices like order and sample rate change the result).
+  </div>
+
+  <div class="tool-grid">
+    <div class="tool-card">
+      <span class="num">01</span>
+      <h2>Derivative Lab</h2>
+      <p>Paste raw position data, work out velocity and acceleration by hand, then reveal the computed derivatives to check your work — and watch how noise gets amplified at each derivative.</p>
+      <a class="btn" href="derivative_tool.html">Open Derivative Lab</a>
+    </div>
+    <div class="tool-card">
+      <span class="num">02</span>
+      <h2>FFT Quick-Look</h2>
+      <p>Paste a signal and see its frequency content immediately — time domain on one side, amplitude spectrum on the other.</p>
+      <a class="btn" href="fft_tool.html">Open FFT Quick-Look</a>
+    </div>
+    <div class="tool-card">
+      <span class="num">03</span>
+      <h2>Filter Lab</h2>
+      <p>Apply one Butterworth low-pass/high-pass (1st–4th order) or notch filter, see the before/after, and copy the filtered column back to Excel.</p>
+      <a class="btn" href="filter_tool.html">Open Filter Lab</a>
+    </div>
+    <div class="tool-card">
+      <span class="num">04</span>
+      <h2>Filter Compare</h2>
+      <p>Stack multiple filters on one chart to compare order and time-shift, overlay two datasets at different sampling rates, and check RMS and half-power points.</p>
+      <a class="btn" href="filter_compare.html">Open Filter Compare</a>
+    </div>
+  </div>
+
+  <footer>
+    Created by Abbie Ferris, PhD — University of Northern Colorado
+  </footer>
+
+</div>
+</body>
+</html>

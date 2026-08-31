@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Filter Compare — SES 619</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root{
+    --ink:#16232C;
+    --muted:#5C7080;
+    --line:#D8E2E7;
+    --panel:#FFFFFF;
+    --bg:#F3F6F8;
+    --navy:#0B3D91;
+    --navy-dark:#082C6B;
+    --teal:#1C7293;
+    --amber:#E8871E;
+    --green:#1B8A5A;
+    --red:#D64545;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+    line-height:1.45;
+    padding:2.5rem 1.25rem 4rem;
+  }
+  .wrap{max-width:1080px;margin:0 auto;}
+
+  .sitenav{display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1.5rem;}
+  .sitenav a{
+    font-size:0.82rem;
+    font-weight:600;
+    color:var(--navy);
+    text-decoration:none;
+    padding:0.35rem 0.75rem;
+    border:1px solid var(--line);
+    border-radius:20px;
+    background:#fff;
+  }
+  .sitenav a:hover{border-color:var(--navy);}
+  .sitenav a.active{background:var(--navy);color:#fff;border-color:var(--navy);}
+
+  header{margin-bottom:2rem;}
+  header .kicker{
+    font-size:0.85rem;
+    color:var(--teal);
+    font-weight:600;
+    margin:0 0 0.35rem;
+  }
+  h1{
+    font-size:1.9rem;
+    margin:0 0 0.5rem;
+    letter-spacing:-0.01em;
+  }
+  header p{
+    color:var(--muted);
+    max-width:70ch;
+    margin:0;
+    font-size:0.98rem;
+  }
+
+  section.panel{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:1.5rem;
+    margin-bottom:1.5rem;
+  }
+  section.panel h2{
+    font-size:1.05rem;
+    margin:0 0 0.6rem;
+  }
+  .dataset-block{
+    border-top:1px solid var(--line);
+    padding-top:1.1rem;
+    margin-top:1.1rem;
+  }
+  .dataset-block:first-child{border-top:none;padding-top:0;margin-top:0;}
+  .dataset-title{
+    display:flex;
+    align-items:center;
+    gap:0.6rem;
+    margin-bottom:0.6rem;
+  }
+  .ds-swatch{width:14px;height:14px;border-radius:4px;display:inline-block;}
+  .dataset-title h3{font-size:0.95rem;margin:0;}
+
+  label{
+    display:block;
+    font-size:0.85rem;
+    font-weight:600;
+    color:var(--ink);
+    margin-bottom:0.4rem;
+  }
+  .hint{
+    font-size:0.83rem;
+    color:var(--muted);
+    margin:0.35rem 0 0.9rem;
+  }
+
+  textarea{
+    width:100%;
+    min-height:140px;
+    resize:vertical;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:0.88rem;
+    padding:0.75rem;
+    border:1px solid var(--line);
+    border-radius:8px;
+    background:#FBFCFD;
+    color:var(--ink);
+  }
+  textarea:focus{outline:2px solid var(--navy);outline-offset:1px;}
+
+  .row{
+    display:flex;
+    gap:1.25rem;
+    flex-wrap:wrap;
+    align-items:flex-end;
+    margin-top:1rem;
+  }
+  .field{min-width:170px;}
+  select,input[type="number"]{
+    width:100%;
+    padding:0.5rem 0.6rem;
+    border:1px solid var(--line);
+    border-radius:6px;
+    font-size:0.95rem;
+    font-family:inherit;
+    background:#fff;
+    color:var(--ink);
+  }
+  .checkline{
+    display:flex;
+    align-items:center;
+    gap:0.5rem;
+    font-size:0.9rem;
+    color:var(--ink);
+    padding-bottom:0.55rem;
+  }
+  .checkline input{width:16px;height:16px;}
+  .checkline label{margin:0;font-weight:500;}
+
+  .actions{
+    display:flex;
+    gap:0.75rem;
+    align-items:center;
+    margin-left:auto;
+    flex-wrap:wrap;
+  }
+  button{
+    font-family:inherit;
+    font-size:0.92rem;
+    font-weight:600;
+    padding:0.6rem 1.1rem;
+    border-radius:7px;
+    border:1px solid transparent;
+    cursor:pointer;
+  }
+  button.primary{background:var(--navy);color:#fff;}
+  button.primary:hover{background:var(--navy-dark);}
+  button.ghost{background:transparent;color:var(--navy);border-color:var(--line);}
+  button.ghost:hover{border-color:var(--navy);}
+  button.small{padding:0.35rem 0.7rem;font-size:0.78rem;}
+  button:disabled{opacity:0.45;cursor:default;}
+
+  .status{font-size:0.87rem;color:var(--red);margin-top:0.75rem;min-height:1.2em;}
+  .status.ok{color:var(--green);}
+  .status.warn{color:var(--amber);}
+
+  .stats{
+    display:flex;
+    flex-wrap:wrap;
+    gap:0;
+    border:1px solid var(--line);
+    border-radius:8px;
+    overflow:hidden;
+    margin-bottom:1.5rem;
+  }
+  .stat{
+    flex:1 1 150px;
+    padding:0.8rem 1rem;
+    border-right:1px solid var(--line);
+    background:var(--panel);
+  }
+  .stat:last-child{border-right:none;}
+  .stat .v{font-size:1.05rem;font-weight:700;color:var(--navy);}
+  .stat .l{font-size:0.78rem;color:var(--muted);margin-top:0.15rem;}
+
+  .chart-holder{position:relative;height:320px;}
+  #freqChartWrap .chart-holder{height:260px;}
+  #results{display:none;}
+
+  table.cmp{width:100%;border-collapse:collapse;font-size:0.85rem;}
+  table.cmp th{
+    text-align:left;
+    padding:0.5rem 0.6rem;
+    border-bottom:2px solid var(--line);
+    color:var(--muted);
+    font-weight:600;
+    font-size:0.75rem;
+    text-transform:uppercase;
+    letter-spacing:0.03em;
+  }
+  table.cmp td{padding:0.55rem 0.6rem;border-bottom:1px solid var(--line);vertical-align:middle;}
+  table.cmp td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;}
+  .cmp-color{width:13px;height:13px;border-radius:3px;display:inline-block;}
+  .cmp-remove{background:transparent;border:none;color:var(--red);font-size:1.15rem;cursor:pointer;padding:0 0.35rem;line-height:1;}
+  .cmp-remove:hover{color:#a53333;}
+  .cmp-copy{background:transparent;border:1px solid var(--line);color:var(--navy);font-size:0.75rem;padding:0.3rem 0.6rem;border-radius:5px;cursor:pointer;font-weight:600;white-space:nowrap;}
+  .cmp-copy:hover{border-color:var(--navy);}
+  .empty-row td{color:var(--muted);font-style:italic;padding:1rem 0.6rem;}
+
+  footer{
+    margin-top:2rem;
+    font-size:0.82rem;
+    color:var(--muted);
+    max-width:70ch;
+  }
+
+  @media (max-width:640px){
+    body{padding:1.5rem 1rem 3rem;}
+    .actions{margin-left:0;width:100%;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <nav class="sitenav">
+    <a href="home.html">Home</a>
+    <a href="fft_tool.html">FFT Quick-Look</a>
+    <a href="filter_tool.html">Filter Lab</a>
+    <a href="derivative_tool.html">Derivative Lab</a>
+    <a href="filter_compare.html" class="active">Filter Compare</a>
+  </nav>
+
+  <header>
+    <p class="kicker">SES 619 — Signal Processing</p>
+    <h1>Filter Compare</h1>
+    <p>Stack multiple filters on the same chart to compare order, cutoff, and phase handling side by side — including the time-shift a causal (non-zero-phase) filter introduces. Optionally load a second dataset at a different sampling rate and overlay it, to see how sample rate itself changes what a filter can and can't do. Runs entirely in your browser.</p>
+  </header>
+
+  <section class="panel">
+    <h2>Datasets</h2>
+    <p class="hint">Load Dataset A to get started. Add a second dataset if you want to compare a different sampling rate or trial side by side.</p>
+
+    <div class="dataset-block">
+      <div class="dataset-title"><span class="ds-swatch" style="background:#C8D2D8"></span><h3>Dataset A</h3></div>
+      <label for="dataA">Data (time,value pairs recommended, or one column of values)</label>
+      <textarea id="dataA" placeholder="Paste time,value pairs — one sample per line, comma or tab separated. Or one column of values with a sampling rate below."></textarea>
+      <div class="row">
+        <div class="field">
+          <label for="fsA">Sampling rate (Hz)</label>
+          <input type="number" id="fsA" value="60" min="0.001" step="any">
+        </div>
+        <div class="actions">
+          <button class="primary" id="loadA" type="button">Load Dataset A</button>
+        </div>
+      </div>
+      <div class="status" id="statusA"></div>
+    </div>
+
+    <div class="dataset-block" id="datasetBBlock" style="display:none">
+      <div class="dataset-title"><span class="ds-swatch" style="background:#E7C9A0"></span><h3>Dataset B</h3></div>
+      <label for="dataB">Data (time,value pairs recommended, or one column of values)</label>
+      <textarea id="dataB" placeholder="Paste time,value pairs — one sample per line, comma or tab separated. Or one column of values with a sampling rate below."></textarea>
+      <div class="row">
+        <div class="field">
+          <label for="fsB">Sampling rate (Hz)</label>
+          <input type="number" id="fsB" value="250" min="0.001" step="any">
+        </div>
+        <div class="actions">
+          <button class="primary" id="loadB" type="button">Load Dataset B</button>
+          <button class="ghost" id="removeB" type="button">Remove Dataset B</button>
+        </div>
+      </div>
+      <div class="status" id="statusB"></div>
+    </div>
+
+    <div class="row">
+      <div class="actions" style="margin-left:0">
+        <button class="ghost" id="addSecondBtn" type="button">+ Add second dataset</button>
+        <button class="ghost" id="loadExamplePair" type="button">Load example: 60 Hz vs 250 Hz</button>
+      </div>
+    </div>
+
+    <div class="stats" id="dsStatsRow" style="display:none;margin-top:1rem"></div>
+  </section>
+
+  <section class="panel" id="builderPanel" style="display:none">
+    <h2>Add a filter to compare</h2>
+    <div class="row">
+      <div class="field" id="applyToField" style="display:none">
+        <label for="applyTo">Apply to dataset</label>
+        <select id="applyTo">
+          <option value="A">Dataset A</option>
+          <option value="B">Dataset B</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="ftype">Type</label>
+        <select id="ftype">
+          <option value="low" selected>Low-pass (Butterworth)</option>
+          <option value="high">High-pass (Butterworth)</option>
+          <option value="notch">Notch (band-stop)</option>
+          <option value="rms">Moving RMS envelope</option>
+        </select>
+      </div>
+      <div class="field" id="orderField">
+        <label for="order">Order</label>
+        <select id="order">
+          <option value="1">1st order</option>
+          <option value="2">2nd order</option>
+          <option value="3">3rd order</option>
+          <option value="4" selected>4th order</option>
+        </select>
+      </div>
+      <div class="field" id="cutoffField">
+        <label for="cutoff">Cutoff frequency (Hz)</label>
+        <input type="number" id="cutoff" value="6" min="0.001" step="any">
+      </div>
+      <div class="field" id="notchFreqField" style="display:none">
+        <label for="notchFreq">Center frequency (Hz)</label>
+        <input type="number" id="notchFreq" value="60" min="0.001" step="any">
+      </div>
+      <div class="field" id="notchQField" style="display:none">
+        <label for="notchQ">Q factor</label>
+        <input type="number" id="notchQ" value="30" min="0.1" step="any">
+      </div>
+      <div class="field" id="rmsWindowField" style="display:none">
+        <label for="rmsWindow">Window length (ms)</label>
+        <input type="number" id="rmsWindow" value="50" min="1" step="any">
+      </div>
+    </div>
+    <div class="row">
+      <div class="checkline" id="zerophaseLine">
+        <input type="checkbox" id="zerophase" checked>
+        <label for="zerophase">Zero-phase (filter forward + backward)</label>
+      </div>
+      <div class="actions">
+        <button class="primary" id="addComparison" type="button">Add to comparison</button>
+      </div>
+    </div>
+    <p class="hint">Add the same filter twice with "Zero-phase" checked and unchecked to see the causal version's time-shift directly on the chart. Add "Low-pass, order 1" and "order 4" at the same cutoff to compare roll-off steepness.</p>
+    <div class="status" id="builderStatus"></div>
+  </section>
+
+  <section class="panel" id="tablePanel" style="display:none">
+    <h2>Active comparisons</h2>
+    <div style="overflow-x:auto">
+      <table class="cmp">
+        <thead><tr><th></th><th>Filter</th><th>RMS</th><th>Half-power / notch</th><th>Show</th><th></th></tr></thead>
+        <tbody id="cmpBody"></tbody>
+      </table>
+    </div>
+    <div class="actions" style="margin-top:0.9rem;margin-left:0">
+      <button class="ghost small" id="clearAll" type="button">Clear all comparisons</button>
+    </div>
+  </section>
+
+  <section class="panel" id="timeChartPanel" style="display:none">
+    <h2>Time domain</h2>
+    <p class="hint">Solid lines = Dataset A. Dashed lines = Dataset B. Faint gray/tan = raw, unfiltered.</p>
+    <div class="checkline" style="margin-bottom:0.5rem">
+      <input type="checkbox" id="showPoints">
+      <label for="showPoints">Show individual data points</label>
+    </div>
+    <div class="chart-holder"><canvas id="timeChart"></canvas></div>
+  </section>
+
+  <section class="panel" id="freqChartWrap" style="display:none">
+    <h2>Frequency response (magnitude)</h2>
+    <p class="hint">Shows |H(f)| for each Butterworth/notch filter above (moving RMS isn't a linear filter, so it has no frequency response curve). The dashed gray line marks −3 dB / half power.</p>
+    <div class="chart-holder"><canvas id="freqChart"></canvas></div>
+  </section>
+
+  <footer>
+    Notes: RMS here is the whole-record root-mean-square, sqrt(mean(x²)) — a DC offset in your data will inflate it. "Half-power" is the frequency where a filter's magnitude response crosses 0.7071 (−3 dB), found numerically for each filter design rather than assumed equal to the cutoff you typed — for Butterworth filters they should match closely; for the notch filter, the table instead reports the null frequency and the approximate −3 dB bandwidth (center frequency ÷ Q). A causal (non-zero-phase) filter shifts your signal in time, more so at higher order and lower cutoff — adding both a zero-phase and causal version of the same filter to the comparison makes that shift directly visible on the time-domain chart.
+    <p style="margin-top:1rem;color:var(--muted)">Created by Abbie Ferris, PhD — University of Northern Colorado</p>
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  const COLORS = ['#0B3D91','#1C7293','#7B2D8E','#1B8A5A','#D64545','#E8871E','#0EA5A5','#B45309'];
+  const RAW_COLOR = { A:'#C8D2D8', B:'#E7C9A0' };
+
+  const DS = { A:{loaded:false}, B:{loaded:false} };
+  let comparisons = [];
+  let cmpIdSeq = 1;
+  let timeChart = null, freqChart = null;
+
+  const el = (id) => document.getElementById(id);
+
+  // ================= parsing (same convention as the other tools) =================
+  function parseInput(text){
+    const rawLines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+    if (rawLines.length < 4) return { error: 'Paste at least a few samples first.' };
+    const tokenized = rawLines.map(l => l.split(/[,\t ]+/).filter(x => x.length > 0));
+    const counts = new Set(tokenized.map(t => t.length));
+    if (counts.has(1) && counts.size === 1){
+      const values = tokenized.map(t => parseFloat(t[0]));
+      if (values.some(v => Number.isNaN(v))) return { error: 'Could not read one of the lines as a number. Check for stray text or headers.' };
+      return { mode:'single', values };
+    }
+    if (counts.has(2) && counts.size === 1){
+      const t = tokenized.map(x => parseFloat(x[0]));
+      const values = tokenized.map(x => parseFloat(x[1]));
+      if (t.some(Number.isNaN) || values.some(Number.isNaN)) return { error: 'Could not read one of the lines as two numbers. Check for stray text or headers.' };
+      const diffs = [];
+      for (let i=1;i<t.length;i++) diffs.push(t[i]-t[i-1]);
+      diffs.sort((a,b)=>a-b);
+      const dt = diffs[Math.floor(diffs.length/2)];
+      if (!(dt > 0)) return { error: 'Time column does not look like it is increasing steadily.' };
+      return { mode:'pair', values, times:t, fs:1/dt };
+    }
+    return { error: 'Each line should have either one number (value) or two numbers (time, value) — the lines you pasted are not consistent.' };
+  }
+
+  // ================= complex helpers =================
+  function cadd(a,b){ return {re:a.re+b.re, im:a.im+b.im}; }
+  function csub(a,b){ return {re:a.re-b.re, im:a.im-b.im}; }
+  function cmul(a,b){ return {re:a.re*b.re - a.im*b.im, im:a.re*b.im + a.im*b.re}; }
+  function cdiv(a,b){ const d=b.re*b.re+b.im*b.im; return {re:(a.re*b.re+a.im*b.im)/d, im:(a.im*b.re-a.re*b.im)/d}; }
+  function cabs(a){ return Math.sqrt(a.re*a.re + a.im*a.im); }
+
+  function polyFromRoots(roots){
+    let coeffs = [{re:1,im:0}];
+    for (const r of roots){
+      const next = new Array(coeffs.length+1).fill(null).map(() => ({re:0,im:0}));
+      for (let i=0;i<coeffs.length;i++){
+        next[i] = cadd(next[i], coeffs[i]);
+        next[i+1] = cadd(next[i+1], cmul({re:-r.re, im:-r.im}, coeffs[i]));
+      }
+      coeffs = next;
+    }
+    return coeffs;
+  }
+  function evalPoly(coeffs, z){
+    let result = {re:0,im:0};
+    for (const c of coeffs) result = cadd(cmul(result, z), c);
+    return result;
+  }
+
+  function designButterworth(order, cutoffHz, fs, type){
+    const K = 2*fs;
+    const wc = K * Math.tan(Math.PI * cutoffHz / fs);
+    const proto = [];
+    for (let k=1;k<=order;k++){
+      const theta = Math.PI/2 + (2*k-1)*Math.PI/(2*order);
+      proto.push({re:Math.cos(theta), im:Math.sin(theta)});
+    }
+    let sPoles, zZeros;
+    if (type === 'low'){
+      sPoles = proto.map(p => ({re:p.re*wc, im:p.im*wc}));
+      zZeros = new Array(order).fill({re:-1,im:0});
+    } else {
+      sPoles = proto.map(p => cdiv({re:wc,im:0}, p));
+      zZeros = new Array(order).fill({re:1,im:0});
+    }
+    const zPoles = sPoles.map(s => cdiv(cadd({re:K,im:0}, s), csub({re:K,im:0}, s)));
+    const Apoly = polyFromRoots(zPoles);
+    const Bpoly = polyFromRoots(zZeros);
+    const zRef = type === 'low' ? {re:1,im:0} : {re:-1,im:0};
+    const Href = cdiv(evalPoly(Bpoly, zRef), evalPoly(Apoly, zRef));
+    const gain = 1/Href.re;
+    return { b: Bpoly.map(c => c.re*gain), a: Apoly.map(c => c.re) };
+  }
+
+  function designNotch(f0, fs, Q){
+    const w0 = 2*Math.PI*f0/fs;
+    const alpha = Math.sin(w0)/(2*Q);
+    const cosw0 = Math.cos(w0);
+    const a0 = 1+alpha;
+    return { b: [1/a0, (-2*cosw0)/a0, 1/a0], a: [1, (-2*cosw0)/a0, (1-alpha)/a0] };
+  }
+
+  function applyFilterDF(b, a, x){
+    const N = x.length, nb = b.length, na = a.length;
+    const y = new Array(N).fill(0);
+    for (let n=0;n<N;n++){
+      let acc = 0;
+      for (let k=0;k<nb;k++) if (n-k>=0) acc += b[k]*x[n-k];
+      for (let k=1;k<na;k++) if (n-k>=0) acc -= a[k]*y[n-k];
+      y[n] = acc;
+    }
+    return y;
+  }
+  function filtfilt(b, a, x){
+    const order = Math.max(a.length, b.length) - 1;
+    const padLen = Math.max(0, Math.min(3*order, x.length-1));
+    if (padLen === 0) return applyFilterDF(b, a, x);
+    const left = x.slice(1, padLen+1).slice().reverse().map(v => 2*x[0]-v);
+    const right = x.slice(x.length-padLen-1, x.length-1).slice().reverse().map(v => 2*x[x.length-1]-v);
+    const padded = left.concat(x, right);
+    let y = applyFilterDF(b, a, padded);
+    y = y.slice().reverse();
+    y = applyFilterDF(b, a, y);
+    y = y.slice().reverse();
+    return y.slice(padLen, padLen + x.length);
+  }
+
+  // ================= RMS =================
+  function rms(x){
+    let s=0;
+    for (const v of x) s += v*v;
+    return Math.sqrt(s/x.length);
+  }
+  function movingRMS(x, windowSamples){
+    const N = x.length;
+    const half = Math.max(0, Math.floor(windowSamples/2));
+    const sq = x.map(v=>v*v);
+    const prefix = new Array(N+1).fill(0);
+    for (let i=0;i<N;i++) prefix[i+1] = prefix[i]+sq[i];
+    const y = new Array(N);
+    for (let i=0;i<N;i++){
+      const lo = Math.max(0,i-half), hi = Math.min(N-1,i+half);
+      y[i] = Math.sqrt((prefix[hi+1]-prefix[lo])/(hi-lo+1));
+    }
+    return y;
+  }
+
+  // ================= frequency response =================
+  function magAt(b, a, freqHz, fs){
+    const w = 2*Math.PI*freqHz/fs;
+    let num={re:0,im:0}, den={re:0,im:0};
+    for (let k=0;k<b.length;k++){ const ang=-k*w; num=cadd(num, cmul({re:b[k],im:0},{re:Math.cos(ang),im:Math.sin(ang)})); }
+    for (let k=0;k<a.length;k++){ const ang=-k*w; den=cadd(den, cmul({re:a[k],im:0},{re:Math.cos(ang),im:Math.sin(ang)})); }
+    return cabs(cdiv(num,den));
+  }
+  function findHalfPower(b, a, fs, type){
+    const nyquist = fs/2, steps = 3000;
+    let prevF=0, prevM=magAt(b,a,0,fs);
+    for (let i=1;i<=steps;i++){
+      const f = nyquist*0.999*i/steps;
+      const m = magAt(b,a,f,fs);
+      if (type==='low' && prevM>0.7071 && m<=0.7071){
+        const frac = (prevM-0.7071)/(prevM-m);
+        return prevF + frac*(f-prevF);
+      }
+      if (type==='high' && prevM<0.7071 && m>=0.7071){
+        const frac = (0.7071-prevM)/(m-prevM);
+        return prevF + frac*(f-prevF);
+      }
+      prevF=f; prevM=m;
+    }
+    return null;
+  }
+  function findNotchNull(b, a, fs){
+    const nyquist = fs/2, steps = 3000;
+    let bestF=0, bestM=Infinity;
+    for (let i=0;i<=steps;i++){
+      const f = nyquist*0.999*i/steps;
+      const m = magAt(b,a,f,fs);
+      if (m<bestM){ bestM=m; bestF=f; }
+    }
+    return bestF;
+  }
+
+  function fmt(v, d=2){
+    if (v===null || v===undefined || !isFinite(v)) return '—';
+    return v.toLocaleString(undefined, {maximumFractionDigits:d, minimumFractionDigits:0});
+  }
+
+  // ================= dataset loading =================
+  function loadDataset(letter){
+    const textEl = el('data'+letter), fsEl = el('fs'+letter), statusEl = el('status'+letter);
+    const parsed = parseInput(textEl.value);
+    statusEl.className = 'status';
+    if (parsed.error){ statusEl.textContent = parsed.error; return; }
+
+    let fs, times;
+    if (parsed.mode === 'pair'){
+      fs = parsed.fs; times = parsed.times; fsEl.value = fs.toFixed(4);
+      statusEl.textContent = 'Loaded — sampling rate estimated from the time column ('+fmt(fs,2)+' Hz).';
+    } else {
+      fs = parseFloat(fsEl.value);
+      if (!(fs > 0)){ statusEl.textContent = 'Enter a valid sampling rate (Hz).'; return; }
+      times = parsed.values.map((_,i) => i/fs);
+      statusEl.textContent = 'Loaded — using the sampling rate you entered.';
+    }
+    statusEl.classList.add('ok');
+
+    DS[letter] = { loaded:true, values:parsed.values, times, fs };
+    // drop stale comparisons tied to this dataset (lengths/fs may have changed)
+    const before = comparisons.length;
+    comparisons = comparisons.filter(c => c.dataset !== letter);
+    if (comparisons.length !== before){
+      statusEl.textContent += ' Comparisons using this dataset were cleared — re-add them.';
+    }
+
+    syncUIState();
+    rebuildAll();
+  }
+
+  el('loadA').addEventListener('click', function(){ loadDataset('A'); });
+  el('loadB').addEventListener('click', function(){ loadDataset('B'); });
+
+  el('addSecondBtn').addEventListener('click', function(){
+    el('datasetBBlock').style.display = '';
+    el('addSecondBtn').style.display = 'none';
+  });
+  el('removeB').addEventListener('click', function(){
+    DS.B = { loaded:false };
+    comparisons = comparisons.filter(c => c.dataset !== 'B');
+    el('dataB').value = '';
+    el('statusB').textContent = '';
+    el('datasetBBlock').style.display = 'none';
+    el('addSecondBtn').style.display = '';
+    syncUIState();
+    rebuildAll();
+  });
+
+  el('loadExamplePair').addEventListener('click', function(){
+    // same underlying continuous signal (3 Hz motion + 20 Hz noise), sampled two ways
+    function gen(fs, dur){
+      const n = Math.round(fs*dur), lines = [];
+      for (let i=0;i<n;i++){
+        const t = i/fs;
+        const v = 1.2*Math.sin(2*Math.PI*3*t) + 0.5*Math.sin(2*Math.PI*20*t) + 0.15*(Math.random()*2-1);
+        lines.push(t.toFixed(5)+','+v.toFixed(5));
+      }
+      return lines.join('\n');
+    }
+    el('dataA').value = gen(60, 2);
+    el('fsA').value = 60;
+    el('dataB').value = gen(250, 2);
+    el('fsB').value = 250;
+    el('datasetBBlock').style.display = '';
+    el('addSecondBtn').style.display = 'none';
+    loadDataset('A');
+    loadDataset('B');
+  });
+
+  function syncUIState(){
+    const anyLoaded = DS.A.loaded || DS.B.loaded;
+    el('builderPanel').style.display = anyLoaded ? '' : 'none';
+    el('applyToField').style.display = (DS.A.loaded && DS.B.loaded) ? '' : 'none';
+    if (!DS.B.loaded) el('applyTo').value = 'A';
+
+    if (DS.A.loaded || DS.B.loaded){
+      const rows = [];
+      if (DS.A.loaded) rows.push({label:'Dataset A', n:DS.A.values.length, fs:DS.A.fs, r:rms(DS.A.values)});
+      if (DS.B.loaded) rows.push({label:'Dataset B', n:DS.B.values.length, fs:DS.B.fs, r:rms(DS.B.values)});
+      const statsEl = el('dsStatsRow');
+      statsEl.style.display = '';
+      statsEl.innerHTML = rows.map(r =>
+        '<div class="stat"><div class="v">'+r.label+'</div><div class="l">'+fmt(r.n,0)+' samples @ '+fmt(r.fs,2)+' Hz &middot; RMS '+fmt(r.r,4)+'</div></div>'
+      ).join('');
+    } else {
+      el('dsStatsRow').style.display = 'none';
+    }
+  }
+
+  // ================= filter builder field toggling =================
+  function syncBuilderFields(){
+    const t = el('ftype').value;
+    el('orderField').style.display = (t==='low'||t==='high') ? '' : 'none';
+    el('cutoffField').style.display = (t==='low'||t==='high') ? '' : 'none';
+    el('notchFreqField').style.display = (t==='notch') ? '' : 'none';
+    el('notchQField').style.display = (t==='notch') ? '' : 'none';
+    el('rmsWindowField').style.display = (t==='rms') ? '' : 'none';
+    el('zerophaseLine').style.display = (t==='rms') ? 'none' : '';
+  }
+  el('ftype').addEventListener('change', syncBuilderFields);
+  syncBuilderFields();
+
+  // ================= add / remove / toggle comparisons =================
+  el('addComparison').addEventListener('click', function(){
+    const statusEl = el('builderStatus');
+    statusEl.className = 'status';
+    const letter = (DS.A.loaded && DS.B.loaded) ? el('applyTo').value : (DS.A.loaded ? 'A' : 'B');
+    const ds = DS[letter];
+    if (!ds || !ds.loaded){ statusEl.textContent = 'Load a dataset first.'; return; }
+    const fs = ds.fs, nyquist = fs/2, type = el('ftype').value;
+
+    let values, label, b=null, a=null, kind=type, halfPowerText;
+
+    if (type === 'rms'){
+      const winMs = parseFloat(el('rmsWindow').value);
+      if (!(winMs > 0)){ statusEl.textContent = 'Window length must be a positive number.'; return; }
+      const winSamples = Math.max(1, Math.round(winMs/1000*fs));
+      values = movingRMS(ds.values, winSamples);
+      label = letter+' · Moving RMS ('+fmt(winMs,0)+' ms window)';
+      halfPowerText = 'n/a (not linear)';
+    } else if (type === 'notch'){
+      const f0 = parseFloat(el('notchFreq').value);
+      const Q = parseFloat(el('notchQ').value);
+      if (!(f0 > 0) || f0 >= nyquist){
+        statusEl.textContent = 'Center frequency must be > 0 and < the Nyquist frequency for this dataset ('+fmt(nyquist,2)+' Hz). '
+          + (f0 >= fs/2 && f0 <= fs*1.5 ? 'Since fs = '+fmt(fs,1)+' Hz, anything at/above '+fmt(nyquist,2)+' Hz cannot be represented in this data at all — a true '+fmt(f0,0)+' Hz noise source sampled at '+fmt(fs,1)+' Hz aliases down to a much lower apparent frequency (often near DC). Sample faster if you need to notch this out directly.' : '');
+        return;
+      }
+      if (!(Q > 0)){ statusEl.textContent = 'Q factor must be a positive number.'; return; }
+      ({b, a} = designNotch(f0, fs, Q));
+      const zeroPhase = el('zerophase').checked;
+      values = zeroPhase ? filtfilt(b, a, ds.values) : applyFilterDF(b, a, ds.values);
+      label = letter+' · Notch @ '+fmt(f0,1)+' Hz (Q='+fmt(Q,1)+')'+(zeroPhase?' zero-phase':' causal');
+      const nullF = findNotchNull(b, a, fs);
+      const bw = f0/Q;
+      halfPowerText = 'null @ '+fmt(nullF,2)+' Hz, ~'+fmt(bw,2)+' Hz wide';
+    } else {
+      const order = parseInt(el('order').value, 10);
+      const cutoff = parseFloat(el('cutoff').value);
+      if (!(cutoff > 0) || cutoff >= nyquist){
+        statusEl.textContent = 'Cutoff frequency must be > 0 and < the Nyquist frequency for this dataset ('+fmt(nyquist,2)+' Hz).';
+        return;
+      }
+      ({b, a} = designButterworth(order, cutoff, fs, type));
+      const zeroPhase = el('zerophase').checked;
+      values = zeroPhase ? filtfilt(b, a, ds.values) : applyFilterDF(b, a, ds.values);
+      label = letter+' · '+(type==='low'?'LP':'HP')+' Butterworth o'+order+' @ '+fmt(cutoff,1)+' Hz'+(zeroPhase?' zero-phase':' causal');
+      const hp = findHalfPower(b, a, fs, type);
+      halfPowerText = hp===null ? '—' : '-3dB @ '+fmt(hp,2)+' Hz';
+    }
+
+    const color = COLORS[comparisons.length % COLORS.length];
+    comparisons.push({
+      id: cmpIdSeq++, dataset: letter, kind, label, color, visible:true,
+      values, b, a, halfPowerText
+    });
+    statusEl.textContent = 'Added.';
+    statusEl.classList.add('ok');
+    rebuildAll();
+  });
+
+  el('clearAll').addEventListener('click', function(){
+    comparisons = [];
+    rebuildAll();
+  });
+
+  function removeComparison(id){
+    comparisons = comparisons.filter(c => c.id !== id);
+    rebuildAll();
+  }
+  function toggleComparison(id){
+    const c = comparisons.find(c => c.id === id);
+    if (c) c.visible = !c.visible;
+    rebuildAll();
+  }
+  function copyComparison(id){
+    const c = comparisons.find(c => c.id === id);
+    if (!c) return;
+    const ds = DS[c.dataset];
+    const lines = ds.times.map((t,i) => t.toFixed(6)+'\t'+c.values[i].toFixed(6));
+    const text = 'time\tvalue\n'+lines.join('\n');
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text);
+    }
+  }
+  window._fcRemove = removeComparison;
+  window._fcToggle = toggleComparison;
+  window._fcCopy = copyComparison;
+
+  // ================= rendering =================
+  function renderTable(){
+    const tablePanel = el('tablePanel');
+    const body = el('cmpBody');
+    if (!comparisons.length){
+      tablePanel.style.display = (DS.A.loaded || DS.B.loaded) ? '' : 'none';
+      body.innerHTML = '<tr class="empty-row"><td colspan="6">No comparisons added yet.</td></tr>';
+      return;
+    }
+    tablePanel.style.display = '';
+    body.innerHTML = comparisons.map(c => (
+      '<tr>'
+      + '<td><span class="cmp-color" style="background:'+c.color+'"></span></td>'
+      + '<td>'+c.label+'</td>'
+      + '<td class="num">'+fmt(rms(c.values),4)+'</td>'
+      + '<td class="num">'+c.halfPowerText+'</td>'
+      + '<td><input type="checkbox" '+(c.visible?'checked':'')+' onchange="window._fcToggle('+c.id+')"></td>'
+      + '<td style="white-space:nowrap"><button class="cmp-copy" onclick="window._fcCopy('+c.id+')">Copy</button> <button class="cmp-remove" onclick="window._fcRemove('+c.id+')" title="Remove">&times;</button></td>'
+      + '</tr>'
+    )).join('');
+  }
+
+  function toXY(times, values){
+    const n = Math.min(times.length, values.length);
+    const out = new Array(n);
+    for (let i=0;i<n;i++) out[i] = {x:times[i], y:values[i]};
+    return out;
+  }
+
+  function renderTimeChart(){
+    const panel = el('timeChartPanel');
+    if (!DS.A.loaded && !DS.B.loaded){ panel.style.display='none'; return; }
+    panel.style.display = '';
+    const showPoints = el('showPoints').checked;
+    const datasets = [];
+    if (DS.A.loaded){
+      datasets.push({ label:'Dataset A (raw)', data:toXY(DS.A.times, DS.A.values), borderColor:RAW_COLOR.A, backgroundColor:'transparent', borderWidth:1.1, pointRadius:showPoints?2.5:0, pointBackgroundColor:RAW_COLOR.A, tension:0 });
+    }
+    if (DS.B.loaded){
+      datasets.push({ label:'Dataset B (raw)', data:toXY(DS.B.times, DS.B.values), borderColor:RAW_COLOR.B, backgroundColor:'transparent', borderWidth:1.1, pointRadius:showPoints?2.5:0, pointBackgroundColor:RAW_COLOR.B, borderDash:[6,3], tension:0 });
+    }
+    comparisons.forEach(c => {
+      if (!c.visible) return;
+      const ds = DS[c.dataset];
+      datasets.push({
+        label:c.label, data:toXY(ds.times, c.values),
+        borderColor:c.color, backgroundColor:'transparent', borderWidth:1.9,
+        pointRadius:showPoints?2.5:0, pointBackgroundColor:c.color,
+        borderDash: c.dataset==='B' ? [6,3] : [], tension:0
+      });
+    });
+    if (timeChart) timeChart.destroy();
+    timeChart = new Chart(el('timeChart'), {
+      type:'line',
+      data:{ datasets },
+      options:{
+        animation:false, responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ display:true, position:'bottom', labels:{boxWidth:14, font:{size:11}} } },
+        scales:{
+          x:{ type:'linear', title:{display:true,text:'Time (s)'} },
+          y:{ title:{display:true,text:'Amplitude'} }
+        }
+      }
+    });
+  }
+
+  function renderFreqChart(){
+    const wrap = el('freqChartWrap');
+    const active = comparisons.filter(c => c.visible && c.kind !== 'rms' && c.b && c.a);
+    if (!active.length){ wrap.style.display='none'; if (freqChart){ freqChart.destroy(); freqChart=null; } return; }
+    wrap.style.display = '';
+    const maxNyq = Math.max(...active.map(c => DS[c.dataset].fs/2));
+    const steps = 400;
+    const freqs = Array.from({length:steps+1}, (_,i) => maxNyq*0.999*i/steps);
+    const datasets = active.map(c => {
+      const fsC = DS[c.dataset].fs, nyqC = fsC/2;
+      return {
+        label:c.label,
+        data:freqs.map(f => f < nyqC ? magAt(c.b, c.a, f, fsC) : null),
+        borderColor:c.color, backgroundColor:'transparent', borderWidth:1.9,
+        pointRadius:0, tension:0.05,
+        borderDash: c.dataset==='B' ? [6,3] : []
+      };
+    });
+    datasets.push({
+      label:'−3 dB (half power)', data:freqs.map(()=>0.7071),
+      borderColor:'#9AA7AF', backgroundColor:'transparent', borderWidth:1,
+      borderDash:[3,3], pointRadius:0, tension:0
+    });
+    if (freqChart) freqChart.destroy();
+    freqChart = new Chart(el('freqChart'), {
+      type:'line',
+      data:{ labels:freqs, datasets },
+      options:{
+        animation:false, responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ display:true, position:'bottom', labels:{boxWidth:14, font:{size:11}} } },
+        scales:{
+          x:{ type:'linear', title:{display:true,text:'Frequency (Hz)'}, ticks:{maxTicksLimit:12} },
+          y:{ title:{display:true,text:'|H(f)|'}, min:0 }
+        }
+      }
+    });
+  }
+
+  function rebuildAll(){
+    renderTable();
+    renderTimeChart();
+    renderFreqChart();
+  }
+
+  el('showPoints').addEventListener('change', renderTimeChart);
+})();
+</script>
+</body>
+</html>
