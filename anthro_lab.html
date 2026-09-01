@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anthropometrics Lab — SES 619</title>
+<style>
+  :root{
+    --ink:#16232C;
+    --muted:#5C7080;
+    --line:#D8E2E7;
+    --panel:#FFFFFF;
+    --bg:#F3F6F8;
+    --navy:#0B3D91;
+    --navy-dark:#082C6B;
+    --teal:#1C7293;
+    --amber:#E8871E;
+    --green:#1B8A5A;
+    --red:#D64545;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+    line-height:1.45;
+    padding:2.5rem 1.25rem 4rem;
+  }
+  .wrap{max-width:1080px;margin:0 auto;}
+
+  .sitenav{display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1.5rem;}
+  .sitenav a{
+    font-size:0.82rem;
+    font-weight:600;
+    color:var(--navy);
+    text-decoration:none;
+    padding:0.35rem 0.75rem;
+    border:1px solid var(--line);
+    border-radius:20px;
+    background:#fff;
+  }
+  .sitenav a:hover{border-color:var(--navy);}
+  .sitenav a.active{background:var(--navy);color:#fff;border-color:var(--navy);}
+
+  header{margin-bottom:2rem;}
+  header .kicker{
+    font-size:0.85rem;
+    color:var(--teal);
+    font-weight:600;
+    margin:0 0 0.35rem;
+  }
+  h1{
+    font-size:1.9rem;
+    margin:0 0 0.5rem;
+    letter-spacing:-0.01em;
+  }
+  header p{
+    color:var(--muted);
+    max-width:74ch;
+    margin:0;
+    font-size:0.98rem;
+  }
+
+  section.panel{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:1.5rem;
+    margin-bottom:1.5rem;
+  }
+  section.panel h2{
+    font-size:1.05rem;
+    margin:0 0 0.6rem;
+  }
+  .hint{
+    font-size:0.83rem;
+    color:var(--muted);
+    margin:0.35rem 0 0.9rem;
+  }
+
+  label{
+    display:block;
+    font-size:0.85rem;
+    font-weight:600;
+    color:var(--ink);
+    margin-bottom:0.3rem;
+  }
+  .field-hint{
+    font-size:0.76rem;
+    color:var(--muted);
+    margin:0 0 0.4rem;
+  }
+  select,input[type="number"]{
+    width:100%;
+    padding:0.5rem 0.6rem;
+    border:1px solid var(--line);
+    border-radius:6px;
+    font-size:0.95rem;
+    font-family:inherit;
+    background:#fff;
+    color:var(--ink);
+  }
+
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
+    gap:1.1rem;
+  }
+
+  .actions{
+    display:flex;
+    gap:0.75rem;
+    align-items:center;
+    flex-wrap:wrap;
+    margin-top:1.25rem;
+  }
+  button{
+    font-family:inherit;
+    font-size:0.92rem;
+    font-weight:600;
+    padding:0.6rem 1.1rem;
+    border-radius:7px;
+    border:1px solid transparent;
+    cursor:pointer;
+  }
+  button.primary{background:var(--navy);color:#fff;}
+  button.primary:hover{background:var(--navy-dark);}
+  button.ghost{background:transparent;color:var(--navy);border-color:var(--line);}
+  button.ghost:hover{border-color:var(--navy);}
+
+  .status{font-size:0.87rem;color:var(--red);margin-top:0.75rem;min-height:1.2em;}
+  .status.ok{color:var(--green);}
+  .status.warn{color:var(--amber);}
+
+  #results{display:none;}
+
+  .stats{
+    display:flex;
+    flex-wrap:wrap;
+    gap:0;
+    border:1px solid var(--line);
+    border-radius:8px;
+    overflow:hidden;
+    margin-bottom:1.5rem;
+  }
+  .stat{
+    flex:1 1 160px;
+    padding:0.8rem 1rem;
+    border-right:1px solid var(--line);
+    background:var(--panel);
+  }
+  .stat:last-child{border-right:none;}
+  .stat .v{font-size:1.15rem;font-weight:700;color:var(--navy);}
+  .stat .l{font-size:0.78rem;color:var(--muted);margin-top:0.15rem;}
+
+  .layout{
+    display:grid;
+    grid-template-columns:minmax(260px,340px) 1fr;
+    gap:1.5rem;
+    align-items:start;
+  }
+  @media (max-width:760px){ .layout{grid-template-columns:1fr;} }
+
+  .diagram-wrap{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:1rem;
+    display:flex;
+    justify-content:center;
+  }
+
+  table.segtab{width:100%;border-collapse:collapse;font-size:0.85rem;}
+  table.segtab th{
+    text-align:left;
+    padding:0.5rem 0.6rem;
+    border-bottom:2px solid var(--line);
+    color:var(--muted);
+    font-weight:600;
+    font-size:0.75rem;
+    text-transform:uppercase;
+    letter-spacing:0.03em;
+  }
+  table.segtab td{padding:0.5rem 0.6rem;border-bottom:1px solid var(--line);}
+  table.segtab td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;}
+
+  .legend-item{display:flex;align-items:center;gap:0.5rem;font-size:0.82rem;color:var(--muted);margin-bottom:0.3rem;}
+  .legend-swatch{width:22px;height:0;border-top-width:2.5px;border-top-style:solid;display:inline-block;}
+  .legend-swatch.dashed{border-top-style:dashed;}
+
+  footer{
+    margin-top:2rem;
+    font-size:0.82rem;
+    color:var(--muted);
+    max-width:74ch;
+  }
+
+  @media (max-width:640px){
+    body{padding:1.5rem 1rem 3rem;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <nav class="sitenav">
+    <a href="home.html">Home</a>
+    <a href="fft_tool.html">FFT Quick-Look</a>
+    <a href="filter_tool.html">Filter Lab</a>
+    <a href="derivative_tool.html">Derivative Lab</a>
+    <a href="filter_compare.html">Filter Compare</a>
+    <a href="anthro_lab.html" class="active">Anthropometrics Lab</a>
+    <a href="photo_com.html">Photo Digitizer</a>
+  </nav>
+
+  <header>
+    <p class="kicker">SES 619 — Signal Processing</p>
+    <h1>Anthropometrics Lab</h1>
+    <p>Measure your own body segment lengths, and this page calculates your standing whole-body center of mass using de Leva's (1996) adjusted Zatsiorsky-Seluyanov segment parameters — the standard reference used throughout biomechanics. If your lab section also used the reaction board technique to measure COM directly, enter that value too and compare it against the calculated one.</p>
+  </header>
+
+  <section class="panel">
+    <h2>Subject</h2>
+    <div class="grid">
+      <div>
+        <label for="sex">Sex</label>
+        <select id="sex">
+          <option value="male" selected>Male</option>
+          <option value="female">Female</option>
+        </select>
+        <p class="field-hint">de Leva reports separate coefficients for males and females.</p>
+      </div>
+      <div>
+        <label for="bodyMass">Body mass (kg) — optional</label>
+        <input type="number" id="bodyMass" min="0" step="any" placeholder="e.g. 72">
+        <p class="field-hint">Not needed for COM height (mass fractions already sum to 1) — just used to show segment masses in kg.</p>
+      </div>
+      <div>
+        <label for="measuredHeight">Measured standing height (cm) — optional</label>
+        <input type="number" id="measuredHeight" min="0" step="any" placeholder="e.g. 175">
+        <p class="field-hint">Cross-checked against the sum of your segment lengths below.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Segment lengths</h2>
+    <p class="hint">Measure one side only (left = right is assumed) with a tape measure or anthropometer, in centimeters. Assumes standard anatomical standing position, arms hanging straight down at the sides.</p>
+    <div class="grid">
+      <div>
+        <label for="lenHead">Head (cm)</label>
+        <p class="field-hint">Base of neck (C7) to top of head (vertex)</p>
+        <input type="number" id="lenHead" min="0" step="any">
+      </div>
+      <div>
+        <label for="lenTrunk">Trunk (cm)</label>
+        <p class="field-hint">Base of neck / mid-shoulder to mid-point between hips</p>
+        <input type="number" id="lenTrunk" min="0" step="any">
+      </div>
+      <div>
+        <label for="lenUpperarm">Upper arm (cm)</label>
+        <p class="field-hint">Shoulder (acromion) to elbow (lateral epicondyle)</p>
+        <input type="number" id="lenUpperarm" min="0" step="any">
+      </div>
+      <div>
+        <label for="lenForearm">Forearm (cm)</label>
+        <p class="field-hint">Elbow to wrist (styloid process)</p>
+        <input type="number" id="lenForearm" min="0" step="any">
+      </div>
+      <div>
+        <label for="lenHand">Hand (cm)</label>
+        <p class="field-hint">Wrist to tip of middle finger</p>
+        <input type="number" id="lenHand" min="0" step="any">
+      </div>
+      <div>
+        <label for="lenThigh">Thigh (cm)</label>
+        <p class="field-hint">Hip (greater trochanter) to knee joint line</p>
+        <input type="number" id="lenThigh" min="0" step="any">
+      </div>
+      <div>
+        <label for="lenShank">Shank (cm)</label>
+        <p class="field-hint">Knee joint line to ankle (lateral malleolus)</p>
+        <input type="number" id="lenShank" min="0" step="any">
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Reaction board method (optional)</h2>
+    <p class="hint">Classic moment-balance technique: a rigid board rests on a fixed knife-edge at the <strong>feet end</strong> and a scale at the head end. Tare the scale with the board alone (R0), then have the subject lie fully extended on the board and read the scale again (R1) — once for each arm position you want to compare. Distance from the feet to the subject's COM: <strong>d = (R1 − R0) × L / W</strong>.</p>
+    <div class="grid">
+      <div>
+        <label for="boardL">Distance between supports, L (cm)</label>
+        <input type="number" id="boardL" min="0" step="any" placeholder="e.g. 220">
+      </div>
+      <div>
+        <label for="boardR0">Board alone reading, R0</label>
+        <input type="number" id="boardR0" step="any" placeholder="e.g. 15">
+      </div>
+      <div>
+        <label for="boardW">Subject weight, W — optional override</label>
+        <input type="number" id="boardW" min="0" step="any" placeholder="defaults to body mass above">
+        <p class="field-hint">Leave blank to use the body mass entered above. Must be in the same units as R0/R1 (kg or lb — just be consistent).</p>
+      </div>
+    </div>
+    <div class="grid" style="margin-top:0.9rem">
+      <div>
+        <label for="boardR1Sides">R1 — arms at sides</label>
+        <input type="number" id="boardR1Sides" step="any" placeholder="optional">
+      </div>
+      <div>
+        <label for="boardR1One">R1 — one arm overhead</label>
+        <input type="number" id="boardR1One" step="any" placeholder="optional">
+      </div>
+      <div>
+        <label for="boardR1Two">R1 — both arms overhead</label>
+        <input type="number" id="boardR1Two" step="any" placeholder="optional">
+      </div>
+    </div>
+    <p class="hint">Leave any R1 field blank to skip that trial — the calculated (de Leva) prediction for that position will still show on its own.</p>
+  </section>
+
+  <section class="panel">
+    <div class="actions" style="margin-top:0">
+      <button class="ghost" id="loadExample" type="button">Load example measurements</button>
+      <button class="primary" id="calcBtn" type="button">Calculate center of mass</button>
+    </div>
+    <div class="status" id="status"></div>
+  </section>
+
+  <section id="results">
+    <div class="stats" id="statsRow"></div>
+
+    <section class="panel">
+      <h2>Calculated vs. reaction board, by arm position</h2>
+      <p class="hint">Raising the arms shifts mass toward the head, so whole-body COM moves higher (a larger distance from the feet). This lets you check whether your measured shift between positions matches the predicted one.</p>
+      <table class="segtab" id="posTable"></table>
+    </section>
+
+    <section class="panel">
+      <h2>Body diagram</h2>
+      <p class="hint">Body outline drawn to scale from your segment lengths (arms-at-sides skeleton shown for reference; the diagram doesn't re-draw the arm angle per position). Solid lines = calculated COM. Dashed lines = reaction board COM. Color marks the arm position.</p>
+      <div class="layout">
+        <div class="diagram-wrap"><svg id="diagram" width="260" height="340" viewBox="0 0 260 340" xmlns="http://www.w3.org/2000/svg"></svg></div>
+        <div>
+          <div id="diagramLegend" style="margin-bottom:1rem"></div>
+          <table class="segtab" id="segTable"></table>
+        </div>
+      </div>
+    </section>
+  </section>
+
+  <footer>
+    Segment mass and center-of-mass coefficients: de Leva, P. (1996), "Adjustments to Zatsiorsky-Seluyanov's segment inertia parameters," <em>Journal of Biomechanics</em> 29(9), 1223–1230. Simplifications used here: feet are assumed to lie flat on the ground, so foot mass is included at ground level rather than positioned along the (horizontal) heel-to-toe axis; the small vertical thickness of the foot at the ankle is neglected; left and right sides are assumed symmetric from a single-side measurement; the head segment's C7 landmark is approximated at shoulder height. These are standard, small simplifications for a teaching-lab estimate — they are also exactly the kind of assumptions worth comparing against your reaction-board measurement to see how much they matter in practice.
+    <p style="margin-top:1rem;color:var(--muted)">Created by Abbie Ferris, PhD — University of Northern Colorado</p>
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  const el = (id) => document.getElementById(id);
+
+  const DELEVA = {
+    male: {
+      head:     { massPct:6.94,  cmPct:50.02 },
+      trunk:    { massPct:43.46, cmPct:51.38 },
+      upperarm: { massPct:2.71,  cmPct:57.72 },
+      forearm:  { massPct:1.62,  cmPct:45.74 },
+      hand:     { massPct:0.61,  cmPct:79.00 },
+      thigh:    { massPct:14.16, cmPct:40.95 },
+      shank:    { massPct:4.33,  cmPct:43.95 },
+      foot:     { massPct:1.37,  cmPct:44.15 }
+    },
+    female: {
+      head:     { massPct:6.68,  cmPct:48.41 },
+      trunk:    { massPct:42.57, cmPct:49.64 },
+      upperarm: { massPct:2.55,  cmPct:57.54 },
+      forearm:  { massPct:1.38,  cmPct:45.59 },
+      hand:     { massPct:0.56,  cmPct:74.74 },
+      thigh:    { massPct:14.78, cmPct:36.12 },
+      shank:    { massPct:4.81,  cmPct:43.52 },
+      foot:     { massPct:1.29,  cmPct:40.14 }
+    }
+  };
+
+  const POSITIONS = [
+    { key:'sides', label:'Arms at sides',      color:'#0B3D91', r1id:'boardR1Sides' },
+    { key:'one',   label:'One arm overhead',   color:'#E8871E', r1id:'boardR1One'   },
+    { key:'two',   label:'Both arms overhead', color:'#7B2D8E', r1id:'boardR1Two'   }
+  ];
+
+  el('loadExample').addEventListener('click', function(){
+    el('sex').value = 'male';
+    el('bodyMass').value = 72;
+    el('measuredHeight').value = 175;
+    el('lenHead').value = 23;
+    el('lenTrunk').value = 64;
+    el('lenUpperarm').value = 30;
+    el('lenForearm').value = 25;
+    el('lenHand').value = 19;
+    el('lenThigh').value = 44;
+    el('lenShank').value = 44;
+    el('boardL').value = 220;
+    el('boardR0').value = 15;
+    el('boardW').value = '';
+    el('boardR1Sides').value = 46.7;
+    el('boardR1One').value = 47.8;
+    el('boardR1Two').value = 48.8;
+    el('status').textContent = '';
+    el('status').className = 'status';
+    document.getElementById('results').style.display = 'none';
+  });
+
+  function fmt(v, d=1){
+    if (v===null || v===undefined || !isFinite(v)) return '—';
+    return v.toLocaleString(undefined, {maximumFractionDigits:d, minimumFractionDigits:0});
+  }
+
+  // arm hanging 'down' from the shoulder (sides), or extended 'up' overhead in line with the body axis.
+  // returns single-side (not doubled) mass%/cmHeight for each arm part.
+  function armChain(direction, D, len, shoulderHeight){
+    if (direction === 'down'){
+      const elbowHeight = shoulderHeight - len.upperarm;
+      const wristHeight = elbowHeight - len.forearm;
+      return {
+        upperarm: { massPct:D.upperarm.massPct, cmHeight: shoulderHeight - (D.upperarm.cmPct/100)*len.upperarm },
+        forearm:  { massPct:D.forearm.massPct,  cmHeight: elbowHeight - (D.forearm.cmPct/100)*len.forearm },
+        hand:     { massPct:D.hand.massPct,     cmHeight: wristHeight - (D.hand.cmPct/100)*len.hand }
+      };
+    }
+    const elbowHeight = shoulderHeight + len.upperarm;
+    const wristHeight = elbowHeight + len.forearm;
+    return {
+      upperarm: { massPct:D.upperarm.massPct, cmHeight: shoulderHeight + (D.upperarm.cmPct/100)*len.upperarm },
+      forearm:  { massPct:D.forearm.massPct,  cmHeight: elbowHeight + (D.forearm.cmPct/100)*len.forearm },
+      hand:     { massPct:D.hand.massPct,     cmHeight: wristHeight + (D.hand.cmPct/100)*len.hand }
+    };
+  }
+
+  function computeCOMForMode(len, sex, mode){
+    const D = DELEVA[sex];
+    const ankleHeight = 0; // feet assumed flat on the ground; vertical foot thickness neglected
+    const kneeHeight = ankleHeight + len.shank;
+    const hipHeight = kneeHeight + len.thigh;
+    const shoulderHeight = hipHeight + len.trunk;
+    const topOfHead = shoulderHeight + len.head;
+    const standingHeight = topOfHead;
+
+    let armSegs = [];
+    if (mode === 'sides'){
+      const c = armChain('down', D, len, shoulderHeight);
+      ['upperarm','forearm','hand'].forEach(k => armSegs.push({ name:cap(k)+' (both, at sides)', massPct:c[k].massPct*2, cmHeight:c[k].cmHeight }));
+    } else if (mode === 'two'){
+      const c = armChain('up', D, len, shoulderHeight);
+      ['upperarm','forearm','hand'].forEach(k => armSegs.push({ name:cap(k)+' (both, overhead)', massPct:c[k].massPct*2, cmHeight:c[k].cmHeight }));
+    } else { // 'one'
+      const down = armChain('down', D, len, shoulderHeight), up = armChain('up', D, len, shoulderHeight);
+      ['upperarm','forearm','hand'].forEach(k => {
+        armSegs.push({ name:cap(k)+' (resting arm)', massPct:down[k].massPct, cmHeight:down[k].cmHeight });
+        armSegs.push({ name:cap(k)+' (raised arm)',  massPct:up[k].massPct,   cmHeight:up[k].cmHeight   });
+      });
+    }
+
+    const otherSegs = [
+      { name:'Head',       massPct:D.head.massPct,      cmHeight: shoulderHeight + (D.head.cmPct/100)*len.head },
+      { name:'Trunk',      massPct:D.trunk.massPct,     cmHeight: (hipHeight+len.trunk) - (D.trunk.cmPct/100)*len.trunk },
+      { name:'Thigh (×2)', massPct:D.thigh.massPct*2,   cmHeight: (kneeHeight+len.thigh) - (D.thigh.cmPct/100)*len.thigh },
+      { name:'Shank (×2)', massPct:D.shank.massPct*2,   cmHeight: (ankleHeight+len.shank) - (D.shank.cmPct/100)*len.shank },
+      { name:'Foot (×2)',  massPct:D.foot.massPct*2,    cmHeight: 0 }
+    ];
+
+    const segs = armSegs.concat(otherSegs);
+    let comHeight = 0, totalMassPct = 0;
+    segs.forEach(s => { comHeight += (s.massPct/100)*s.cmHeight; totalMassPct += s.massPct; });
+
+    return { segs, comHeight, standingHeight, shoulderHeight, hipHeight, kneeHeight, topOfHead, totalMassPct };
+  }
+
+  function cap(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
+
+  // reaction board: d = (R1-R0)*L/W, distance from the feet-end knife-edge to COM
+  function reactionBoardD(R0, R1, L, W){
+    if (![R0,R1,L,W].every(v => isFinite(v)) || !(W>0) || !(L>0)) return null;
+    return (R1-R0)*L/W;
+  }
+
+  function ln(x1,y1,x2,y2,c,w){ return '<line x1="'+x1+'" y1="'+y1+'" x2="'+x2+'" y2="'+y2+'" stroke="'+c+'" stroke-width="'+w+'" stroke-linecap="round"/>'; }
+
+  function buildDiagram(baseModel, len, comLines){
+    const W = 260, H = 340, topMargin = 20, bottomMargin = 20;
+    const drawH = H - topMargin - bottomMargin;
+    const scale = drawH / baseModel.standingHeight; // px per cm
+    const y = (h) => (H - bottomMargin) - scale*h;
+    const cx = 130;
+
+    const ankleY = y(0), kneeY = y(baseModel.kneeHeight), hipY = y(baseModel.hipHeight),
+          shoulderY = y(baseModel.shoulderHeight), headTopY = y(baseModel.topOfHead);
+
+    const hipSpread = 6, legSpread = 11, shoulderSpread = 13, armOutward = 7;
+    const armPx = (len.upperarm + len.forearm) * scale; // real arm length, to scale
+
+    const headCY = (shoulderY + headTopY)/2;
+    const headR = Math.max(8, (shoulderY - headTopY)/2);
+
+    const BODY = '#3A4750';
+    let svg = '';
+    svg += ln(cx, hipY, cx, shoulderY, BODY, 12); // trunk
+    svg += ln(cx-hipSpread, hipY, cx-legSpread, kneeY, BODY, 7); // left thigh
+    svg += ln(cx-legSpread, kneeY, cx-legSpread, ankleY, BODY, 6); // left shank
+    svg += ln(cx+hipSpread, hipY, cx+legSpread, kneeY, BODY, 7); // right thigh
+    svg += ln(cx+legSpread, kneeY, cx+legSpread, ankleY, BODY, 6); // right shank
+    svg += '<rect x="'+(cx-legSpread-11)+'" y="'+(ankleY-3)+'" width="26" height="6" rx="2" fill="'+BODY+'"/>'; // left foot
+    svg += '<rect x="'+(cx+legSpread-15)+'" y="'+(ankleY-3)+'" width="26" height="6" rx="2" fill="'+BODY+'"/>'; // right foot
+    svg += ln(cx-shoulderSpread, shoulderY, cx-shoulderSpread-armOutward, shoulderY+armPx, BODY, 4.5); // left arm, hanging, to-scale length
+    svg += ln(cx+shoulderSpread, shoulderY, cx+shoulderSpread+armOutward, shoulderY+armPx, BODY, 4.5); // right arm
+    svg += '<circle cx="'+cx+'" cy="'+headCY+'" r="'+headR+'" fill="'+BODY+'"/>'; // head
+
+    comLines.forEach(function(line){
+      const ly = y(line.height);
+      const dash = line.dashed ? '3,3' : '6,4';
+      const width = line.dashed ? 2 : 2.2;
+      svg += '<line x1="12" y1="'+ly+'" x2="'+(W-12)+'" y2="'+ly+'" stroke="'+line.color+'" stroke-width="'+width+'" stroke-dasharray="'+dash+'"/>';
+      svg += '<circle cx="'+cx+'" cy="'+ly+'" r="3.5" fill="'+line.color+'"/>';
+    });
+
+    svg += '<line x1="8" y1="'+ankleY+'" x2="'+(W-8)+'" y2="'+ankleY+'" stroke="#9AA7AF" stroke-width="1.5"/>';
+    svg += '<text x="8" y="'+(ankleY+14)+'" font-size="10" fill="#9AA7AF">ground</text>';
+
+    return svg;
+  }
+
+  el('calcBtn').addEventListener('click', function(){
+    const statusEl = el('status');
+    statusEl.className = 'status';
+
+    const ids = ['lenHead','lenTrunk','lenUpperarm','lenForearm','lenHand','lenThigh','lenShank'];
+    const keys = ['head','trunk','upperarm','forearm','hand','thigh','shank'];
+    const len = {};
+    for (let i=0;i<ids.length;i++){
+      const v = parseFloat(el(ids[i]).value);
+      if (!(v > 0)){ statusEl.textContent = 'Enter all seven segment lengths (positive numbers, in cm).'; document.getElementById('results').style.display='none'; return; }
+      len[keys[i]] = v;
+    }
+
+    const sex = el('sex').value;
+    const bodyMass = parseFloat(el('bodyMass').value);
+    const measuredHeight = parseFloat(el('measuredHeight').value);
+
+    const boardL = parseFloat(el('boardL').value);
+    const boardR0 = parseFloat(el('boardR0').value);
+    const boardWraw = parseFloat(el('boardW').value);
+    const boardW = (isFinite(boardWraw) && boardWraw>0) ? boardWraw : bodyMass;
+
+    // calculated model for all three arm positions
+    const models = {};
+    POSITIONS.forEach(p => { models[p.key] = computeCOMForMode(len, sex, p.key); });
+    const baseModel = models.sides; // shared skeleton geometry (arm-independent joints)
+
+    statusEl.textContent = 'Calculated.';
+    statusEl.classList.add('ok');
+
+    const statsRowEl = el('statsRow');
+    statsRowEl.innerHTML = '';
+    function stat(v,l){ const d=document.createElement('div'); d.className='stat'; d.innerHTML='<div class="v">'+v+'</div><div class="l">'+l+'</div>'; statsRowEl.appendChild(d); }
+    stat(fmt(baseModel.standingHeight,1)+' cm', 'standing height (sum of segments)');
+    if (isFinite(measuredHeight) && measuredHeight>0){
+      const diff = baseModel.standingHeight - measuredHeight;
+      stat((diff>=0?'+':'')+fmt(diff,1)+' cm', 'vs. your measured height');
+    }
+    if (isFinite(bodyMass) && bodyMass>0){
+      stat(fmt(bodyMass,1)+' kg', 'body mass entered');
+    }
+    if (isFinite(boardW) && boardW>0){
+      stat(fmt(boardW,1), 'weight used for board calc');
+    }
+
+    // comparison table across arm positions
+    const heightRef = (isFinite(measuredHeight) && measuredHeight>0) ? measuredHeight : baseModel.standingHeight;
+    const posRows = POSITIONS.map(p => {
+      const m = models[p.key];
+      const calcPct = (m.comHeight/heightRef)*100;
+      const R1 = parseFloat(el(p.r1id).value);
+      const measured = reactionBoardD(boardR0, R1, boardL, boardW);
+      const measuredCell = measured===null ? '—' : fmt(measured,1)+' cm';
+      const measuredPctCell = measured===null ? '—' : fmt((measured/heightRef)*100,1)+'%';
+      const diffCell = measured===null ? '—' : (((m.comHeight-measured)>=0)?'+':'')+fmt(m.comHeight-measured,1)+' cm';
+      return '<tr><td><span class="cmp-color" style="display:inline-block;width:11px;height:11px;border-radius:3px;background:'+p.color+';margin-right:6px"></span>'+p.label+'</td>'
+        + '<td class="num">'+fmt(m.comHeight,1)+' cm</td><td class="num">'+fmt(calcPct,1)+'%</td>'
+        + '<td class="num">'+measuredCell+'</td><td class="num">'+measuredPctCell+'</td><td class="num">'+diffCell+'</td></tr>';
+    }).join('');
+    el('posTable').innerHTML =
+      '<thead><tr><th>Position</th><th>Calculated</th><th>Calc. % height</th><th>Board</th><th>Board % height</th><th>Difference</th></tr></thead><tbody>'
+      + posRows + '</tbody>';
+
+    // detailed segment table for the "sides" baseline
+    const rows = baseModel.segs.map(s => {
+      const massKg = (isFinite(bodyMass) && bodyMass>0) ? fmt((s.massPct/100)*bodyMass,2)+' kg' : '—';
+      return '<tr><td>'+s.name+'</td><td class="num">'+fmt(s.massPct,2)+'%</td><td class="num">'+massKg+'</td><td class="num">'+fmt(s.cmHeight,1)+' cm</td><td class="num">'+fmt((s.cmHeight/baseModel.standingHeight)*100,1)+'%</td></tr>';
+    }).join('');
+    el('segTable').innerHTML =
+      '<thead><tr><th>Segment (arms at sides)</th><th>Mass %</th><th>Mass</th><th>CM height</th><th>CM % of height</th></tr></thead><tbody>'
+      + rows
+      + '<tr><td><strong>Total</strong></td><td class="num"><strong>'+fmt(baseModel.totalMassPct,2)+'%</strong></td><td></td><td></td><td></td></tr>'
+      + '</tbody>';
+
+    // diagram: one calculated + one measured line per position (skip missing measured lines)
+    const comLines = [];
+    POSITIONS.forEach(p => {
+      comLines.push({ height: models[p.key].comHeight, color:p.color, dashed:false });
+      const R1 = parseFloat(el(p.r1id).value);
+      const measured = reactionBoardD(boardR0, R1, boardL, boardW);
+      if (measured !== null) comLines.push({ height: measured, color:p.color, dashed:true });
+    });
+    el('diagram').innerHTML = buildDiagram(baseModel, len, comLines);
+
+    // legend
+    el('diagramLegend').innerHTML = POSITIONS.map(p =>
+      '<div class="legend-item"><span class="legend-swatch" style="border-color:'+p.color+'"></span>'+p.label+' — calculated</div>'
+      + '<div class="legend-item"><span class="legend-swatch dashed" style="border-color:'+p.color+'"></span>'+p.label+' — reaction board</div>'
+    ).join('');
+
+    document.getElementById('results').style.display = 'block';
+  });
+})();
+</script>
+</body>
+</html>
