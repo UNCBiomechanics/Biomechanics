@@ -252,7 +252,7 @@
     <p class="hint">Load Dataset A to get started. Add a second dataset if you want to compare a different sampling rate or trial side by side.</p>
 
     <div class="dataset-block">
-      <div class="dataset-title"><span class="ds-swatch" style="background:#C8D2D8"></span><h3>Dataset A</h3></div>
+      <div class="dataset-title"><span class="ds-swatch" style="background:#334155"></span><h3>Dataset A</h3></div>
       <label for="dataA">Data (time,value pairs recommended, or one column of values)</label>
       <textarea id="dataA" placeholder="Paste time,value pairs — one sample per line, comma or tab separated. Or one column of values with a sampling rate below."></textarea>
       <div class="row">
@@ -268,7 +268,7 @@
     </div>
 
     <div class="dataset-block" id="datasetBBlock" style="display:none">
-      <div class="dataset-title"><span class="ds-swatch" style="background:#E7C9A0"></span><h3>Dataset B</h3></div>
+      <div class="dataset-title"><span class="ds-swatch" style="background:#92400E"></span><h3>Dataset B</h3></div>
       <label for="dataB">Data (time,value pairs recommended, or one column of values)</label>
       <textarea id="dataB" placeholder="Paste time,value pairs — one sample per line, comma or tab separated. Or one column of values with a sampling rate below."></textarea>
       <div class="row">
@@ -447,7 +447,7 @@
 <script>
 (function(){
   const COLORS = ['#0B3D91','#1C7293','#7B2D8E','#1B8A5A','#D64545','#E8871E','#0EA5A5','#B45309'];
-  const RAW_COLOR = { A:'#C8D2D8', B:'#E7C9A0' };
+  const RAW_COLOR = { A:'#334155', B:'#92400E' };
 
   const DS = { A:{loaded:false}, B:{loaded:false} };
   let comparisons = [];
@@ -988,7 +988,7 @@
     });
     datasets.push({
       label:'−3 dB (half power)', data:freqs.map(()=>0.7071),
-      borderColor:'#9AA7AF', backgroundColor:'transparent', borderWidth:1,
+      borderColor:'#52525B', backgroundColor:'transparent', borderWidth:1.5,
       borderDash:[3,3], pointRadius:0, tension:0
     });
     if (freqChart) freqChart.destroy();

@@ -593,7 +593,7 @@
   function setLegend(elId, hasFiltered, label){
     const el = document.getElementById(elId);
     if (hasFiltered){
-      el.innerHTML = '<span><span class="swatch" style="background:#C8D2D8"></span>Unfiltered</span>'
+      el.innerHTML = '<span><span class="swatch" style="background:#E8871E"></span>Unfiltered</span>'
                     + '<span><span class="swatch" style="background:#0B3D91"></span>Filtered</span>';
     } else {
       el.innerHTML = '<span><span class="swatch" style="background:#0B3D91"></span>'+label+'</span>';
@@ -602,7 +602,7 @@
   function renderChart(existing, canvasId, tAxis, rawData, filteredData, yLabel){
     const datasets = [];
     if (filteredData){
-      datasets.push({ data: rawData, borderColor:'#C8D2D8', backgroundColor:'transparent', borderWidth:1.2, pointRadius:0, tension:0 });
+      datasets.push({ data: rawData, borderColor:'#E8871E', backgroundColor:'transparent', borderWidth:1.2, pointRadius:0, tension:0 });
       datasets.push({ data: filteredData, borderColor:'#0B3D91', backgroundColor:'transparent', borderWidth:1.6, pointRadius:0, tension:0 });
     } else {
       datasets.push({ data: rawData, borderColor:'#0B3D91', backgroundColor:'transparent', borderWidth:1.4, pointRadius:0, tension:0 });

@@ -312,7 +312,7 @@
     <section class="panel">
       <h2>Time domain</h2>
       <div class="legend-note">
-        <span><span class="swatch" style="background:#C8D2D8"></span>Original</span>
+        <span><span class="swatch" style="background:#E8871E"></span>Original</span>
         <span><span class="swatch" style="background:#0B3D91"></span>Filtered</span>
       </div>
       <div class="chart-holder"><canvas id="timeChart"></canvas></div>
@@ -321,7 +321,7 @@
     <section class="panel">
       <h2>Frequency domain (amplitude spectrum)</h2>
       <div class="legend-note">
-        <span><span class="swatch" style="background:#C8D2D8"></span>Original</span>
+        <span><span class="swatch" style="background:#E8871E"></span>Original</span>
         <span><span class="swatch" style="background:#0B3D91"></span>Filtered</span>
       </div>
       <div class="chart-holder"><canvas id="freqChart"></canvas></div>
@@ -666,7 +666,7 @@
       data: {
         labels: tAxis,
         datasets: [
-          { label:'Original', data: values, borderColor:'#C8D2D8', backgroundColor:'transparent', borderWidth:1.2, pointRadius:0, tension:0 },
+          { label:'Original', data: values, borderColor:'#E8871E', backgroundColor:'transparent', borderWidth:1.2, pointRadius:0, tension:0 },
           { label:'Filtered', data: filtered, borderColor:'#0B3D91', backgroundColor:'transparent', borderWidth:1.6, pointRadius:0, tension:0 }
         ]
       },
@@ -689,7 +689,7 @@
       data: {
         labels: specOrig.freqs,
         datasets: [
-          { label:'Original', data: specOrig.amp, borderColor:'#C8D2D8', backgroundColor:'transparent', borderWidth:1.3, pointRadius:0, tension:0.1 },
+          { label:'Original', data: specOrig.amp, borderColor:'#E8871E', backgroundColor:'transparent', borderWidth:1.3, pointRadius:0, tension:0.1 },
           { label:'Filtered', data: specFilt.amp, borderColor:'#0B3D91', backgroundColor:'transparent', borderWidth:1.6, pointRadius:0, tension:0.1 }
         ]
       },
