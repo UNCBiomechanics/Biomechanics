@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Biomechanics Tools</title>
+<title>KIN 311 — Biomechanics Tools</title>
 <style>
   :root{
     --ink:#16232C;
@@ -27,7 +27,21 @@
     line-height:1.45;
     padding:2.5rem 1.25rem 4rem;
   }
-  .wrap{max-width:760px;margin:0 auto;}
+  .wrap{max-width:980px;margin:0 auto;}
+
+  .sitenav{display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1.5rem;}
+  .sitenav a{
+    font-size:0.82rem;
+    font-weight:600;
+    color:var(--navy);
+    text-decoration:none;
+    padding:0.35rem 0.75rem;
+    border:1px solid var(--line);
+    border-radius:20px;
+    background:#fff;
+  }
+  .sitenav a:hover{border-color:var(--navy);}
+  .sitenav a.active{background:var(--navy);color:#fff;border-color:var(--navy);}
 
   header{margin-bottom:2.25rem;}
   header .kicker{
@@ -43,85 +57,84 @@
   }
   header p{
     color:var(--muted);
-    max-width:60ch;
+    max-width:66ch;
     margin:0;
     font-size:1rem;
   }
 
-  .course-grid{
+  .tool-grid{
     display:grid;
-    grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
-    gap:1.5rem;
+    grid-template-columns:repeat(auto-fit,minmax(230px,1fr));
+    gap:1.25rem;
     margin-bottom:2rem;
   }
-  .course-card{
+  .tool-card{
     background:var(--panel);
     border:1px solid var(--line);
-    border-radius:12px;
-    padding:2rem 1.75rem;
+    border-radius:10px;
+    padding:1.5rem;
     display:flex;
     flex-direction:column;
-    gap:0.9rem;
+    gap:0.75rem;
   }
-  .course-card .kicker{
+  .tool-card .num{
+    font-family:Georgia,serif;
     font-size:0.8rem;
     color:var(--teal);
     font-weight:700;
-    letter-spacing:0.04em;
-    text-transform:uppercase;
+    letter-spacing:0.05em;
   }
-  .course-card h2{
-    font-size:1.4rem;
+  .tool-card h2{
+    font-size:1.2rem;
     margin:0;
     color:var(--ink);
   }
-  .course-card p{
-    font-size:0.92rem;
+  .tool-card p{
+    font-size:0.88rem;
     color:var(--muted);
     margin:0;
     flex:1;
   }
-  .course-card a.btn{
+  .tool-card a.btn{
     align-self:flex-start;
     text-decoration:none;
     background:var(--navy);
     color:#fff;
     font-weight:600;
-    padding:0.6rem 1.3rem;
+    padding:0.55rem 1.15rem;
     border-radius:7px;
-    font-size:0.92rem;
+    font-size:0.9rem;
   }
-  .course-card a.btn:hover{background:var(--navy-dark);}
+  .tool-card a.btn:hover{background:var(--navy-dark);}
 
   footer{
     margin-top:1rem;
     font-size:0.82rem;
     color:var(--muted);
-    max-width:60ch;
+    max-width:66ch;
   }
 </style>
 </head>
 <body>
 <div class="wrap">
 
+  <nav class="sitenav">
+    <a href="../home.html">Home</a>
+    <a href="index.html" class="active">KIN 311 Home</a>
+  </nav>
+
   <header>
-    <p class="kicker">University of Northern Colorado</p>
+    <p class="kicker">KIN 311 — Biomechanics</p>
     <h1>Biomechanics Tools</h1>
-    <p>Browser-based tools for biomechanics coursework — no installs, no accounts, nothing you upload or paste ever leaves your browser. Choose your course below.</p>
+    <p>Browser-based tools for this course — no installs, no accounts, nothing you upload or paste ever leaves your browser. Pick a tool below.</p>
   </header>
 
-  <div class="course-grid">
-    <div class="course-card">
-      <span class="kicker">KIN 619</span>
-      <h2>Advanced Biomechanics</h2>
-      <p>Signal processing and anthropometrics: FFT, Butterworth/notch filtering, numerical differentiation, and de Leva-based center of mass with the reaction board method.</p>
-      <a class="btn" href="kin619/index.html">Enter KIN 619</a>
-    </div>
-    <div class="course-card">
-      <span class="kicker">KIN 311</span>
-      <h2>Biomechanics</h2>
-      <p>Photo-based center of mass digitizing: click joint centers on a photo and see whole-body COM calculated and drawn directly on the image.</p>
-      <a class="btn" href="kin311/index.html">Enter KIN 311</a>
+  <div class="tool-grid">
+    <div class="tool-card">
+      <span class="num">01</span>
+      <h2>Photo Digitizer</h2>
+      <p>Upload or paste a photo of a person, click to mark joint centers, and see the calculated whole-body center of mass drawn directly on the image.</p>
+      <a class="btn" href="photo_com.html">Open Photo Digitizer</a>
     </div>
   </div>
 
