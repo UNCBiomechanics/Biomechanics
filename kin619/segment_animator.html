@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Segment Animator — SES 619</title>
+<style>
+  :root{
+    --ink:#16232C;
+    --muted:#5C7080;
+    --line:#D8E2E7;
+    --panel:#FFFFFF;
+    --bg:#F3F6F8;
+    --navy:#0B3D91;
+    --navy-dark:#082C6B;
+    --teal:#1C7293;
+    --amber:#E8871E;
+    --green:#1B8A5A;
+    --red:#D64545;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+    line-height:1.45;
+    padding:2.5rem 1.25rem 4rem;
+  }
+  .wrap{max-width:1080px;margin:0 auto;}
+
+  .sitenav{display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1.5rem;}
+  .sitenav a{
+    font-size:0.82rem;
+    font-weight:600;
+    color:var(--navy);
+    text-decoration:none;
+    padding:0.35rem 0.75rem;
+    border:1px solid var(--line);
+    border-radius:20px;
+    background:#fff;
+  }
+  .sitenav a:hover{border-color:var(--navy);}
+  .sitenav a.active{background:var(--navy);color:#fff;border-color:var(--navy);}
+
+  header{margin-bottom:2rem;}
+  header .kicker{
+    font-size:0.85rem;
+    color:var(--teal);
+    font-weight:600;
+    margin:0 0 0.35rem;
+  }
+  h1{
+    font-size:1.9rem;
+    margin:0 0 0.5rem;
+    letter-spacing:-0.01em;
+  }
+  header p{
+    color:var(--muted);
+    max-width:70ch;
+    margin:0;
+    font-size:0.98rem;
+  }
+
+  section.panel{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:1.5rem;
+    margin-bottom:1.5rem;
+  }
+  section.panel h2{
+    font-size:1.05rem;
+    margin:0 0 0.6rem;
+  }
+
+  label{
+    display:block;
+    font-size:0.85rem;
+    font-weight:600;
+    color:var(--ink);
+    margin-bottom:0.4rem;
+  }
+  .hint{
+    font-size:0.83rem;
+    color:var(--muted);
+    margin:0.35rem 0 0.9rem;
+  }
+
+  textarea{
+    width:100%;
+    min-height:160px;
+    resize:vertical;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:0.86rem;
+    padding:0.75rem;
+    border:1px solid var(--line);
+    border-radius:8px;
+    background:#FBFCFD;
+    color:var(--ink);
+  }
+  textarea:focus{outline:2px solid var(--navy);outline-offset:1px;}
+
+  .row{
+    display:flex;
+    gap:1.25rem;
+    flex-wrap:wrap;
+    align-items:flex-end;
+    margin-top:1rem;
+  }
+  .field{min-width:160px;}
+  select,input[type="number"]{
+    width:100%;
+    padding:0.5rem 0.6rem;
+    border:1px solid var(--line);
+    border-radius:6px;
+    font-size:0.95rem;
+    font-family:inherit;
+    background:#fff;
+    color:var(--ink);
+  }
+  .checkline{
+    display:flex;
+    align-items:center;
+    gap:0.5rem;
+    font-size:0.9rem;
+    color:var(--ink);
+    padding-bottom:0.55rem;
+  }
+  .checkline input{width:16px;height:16px;}
+  .checkline label{margin:0;font-weight:500;}
+
+  .actions{
+    display:flex;
+    gap:0.75rem;
+    align-items:center;
+    margin-left:auto;
+    flex-wrap:wrap;
+  }
+  button{
+    font-family:inherit;
+    font-size:0.92rem;
+    font-weight:600;
+    padding:0.6rem 1.1rem;
+    border-radius:7px;
+    border:1px solid transparent;
+    cursor:pointer;
+  }
+  button.primary{background:var(--navy);color:#fff;}
+  button.primary:hover{background:var(--navy-dark);}
+  button.ghost{background:transparent;color:var(--navy);border-color:var(--line);}
+  button.ghost:hover{border-color:var(--navy);}
+  button.icon{padding:0.6rem 0.85rem;font-size:1rem;line-height:1;}
+  button:disabled{opacity:0.45;cursor:default;}
+
+  .status{font-size:0.87rem;color:var(--red);margin-top:0.75rem;min-height:1.2em;}
+  .status.ok{color:var(--green);}
+
+  .marker-check-grid{display:flex;flex-wrap:wrap;gap:0.9rem;margin:0.5rem 0 0.25rem;}
+  .marker-check-grid .checkline{padding-bottom:0;}
+
+  table.seg{width:100%;border-collapse:collapse;font-size:0.85rem;margin-top:0.75rem;}
+  table.seg th{
+    text-align:left;
+    padding:0.5rem 0.6rem;
+    border-bottom:2px solid var(--line);
+    color:var(--muted);
+    font-weight:600;
+    font-size:0.75rem;
+    text-transform:uppercase;
+    letter-spacing:0.03em;
+  }
+  table.seg td{padding:0.5rem 0.6rem;border-bottom:1px solid var(--line);vertical-align:middle;}
+  table.seg td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;}
+  .seg-color{width:13px;height:13px;border-radius:3px;display:inline-block;}
+  .seg-remove{background:transparent;border:none;color:var(--red);font-size:1.1rem;cursor:pointer;padding:0 0.35rem;line-height:1;}
+  .seg-remove:hover{color:#a53333;}
+  .empty-row td{color:var(--muted);font-style:italic;padding:0.9rem 0.6rem;}
+
+  #animSection{display:none;}
+  .stage-wrap{
+    position:relative;
+    border:1px solid var(--line);
+    border-radius:8px;
+    background:#fff;
+    overflow:hidden;
+  }
+  #stageSvg{display:block;width:100%;height:420px;}
+  .playbar{
+    display:flex;
+    align-items:center;
+    gap:0.75rem;
+    flex-wrap:wrap;
+    margin-top:1rem;
+  }
+  .playbar input[type="range"]{flex:1 1 220px;min-width:180px;}
+  .time-readout{
+    font-variant-numeric:tabular-nums;
+    font-size:0.85rem;
+    color:var(--muted);
+    white-space:nowrap;
+    min-width:150px;
+  }
+
+  footer{
+    margin-top:2rem;
+    font-size:0.82rem;
+    color:var(--muted);
+    max-width:70ch;
+  }
+
+  @media (max-width:640px){
+    body{padding:1.5rem 1rem 3rem;}
+    .actions{margin-left:0;width:100%;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <nav class="sitenav">
+    <a href="../home.html">Home</a>
+    <a href="index.html">KIN 619 Home</a>
+    <a href="fft_tool.html">FFT Quick-Look</a>
+    <a href="filter_tool.html">Filter Lab</a>
+    <a href="derivative_tool.html">Derivative Lab</a>
+    <a href="filter_compare.html">Filter Compare</a>
+    <a href="anthro_lab.html">Anthropometrics Lab</a>
+    <a href="segment_animator.html" class="active">Segment Animator</a>
+  </nav>
+
+  <header>
+    <p class="kicker">SES 619 — Segment Kinematics</p>
+    <h1>Segment Animator</h1>
+    <p>Paste marker coordinate data, define segments from marker pairs, and watch the reconstructed skeleton move through the trial — with each segment's length and angle updating live as you play. A rigid segment's length should stay essentially constant frame to frame; if it drifts, that's a marker-tracking problem, not a movement one. Runs entirely in your browser — nothing is uploaded anywhere.</p>
+  </header>
+
+  <section class="panel">
+    <label for="data">Your marker coordinate data</label>
+    <textarea id="data" placeholder="Paste a header row, then one row per frame. First column is time (seconds). Every other column is named Marker_Axis — e.g. RASIS_X, RASIS_Z, RLAKN_X, RLAKN_Z, ... Comma or tab separated."></textarea>
+    <p class="hint">Column naming rule: everything after the <em>last</em> underscore is the axis (X, Y, or Z); everything before it is the marker name. So <code>RASIS_X</code> and <code>RASIS_Z</code> are two axes of the same marker, <code>RASIS</code>.</p>
+    <div class="row">
+      <div class="actions" style="margin-left:0">
+        <button class="ghost" id="loadExample" type="button">Load example data</button>
+        <button class="primary" id="parseBtn" type="button">Parse &amp; Load Animation</button>
+      </div>
+    </div>
+    <div class="status" id="parseStatus"></div>
+  </section>
+
+  <section class="panel" id="setupSection" style="display:none">
+    <h2>Axes and Markers</h2>
+    <div class="row">
+      <div class="field">
+        <label for="hAxis">Horizontal (screen X) axis</label>
+        <select id="hAxis"></select>
+      </div>
+      <div class="field">
+        <label for="vAxis">Vertical (screen Y) axis</label>
+        <select id="vAxis"></select>
+      </div>
+      <div class="actions">
+        <button class="ghost" id="applyAxes" type="button">Apply axis choice</button>
+      </div>
+    </div>
+    <p class="hint">Pick which two of your captured axes to view as a 2-D projection (the usual choice for sagittal-plane gait data is the direction-of-travel axis as horizontal and the vertical axis as vertical).</p>
+
+    <label style="margin-top:0.75rem">Markers to show</label>
+    <div class="marker-check-grid" id="markerChecks"></div>
+
+    <h2 style="margin-top:1.5rem">Segments</h2>
+    <p class="hint">A segment is a rigid line between two markers. Common leg markers here auto-populate thigh/shank/foot if present — add, edit, or remove as needed.</p>
+    <div class="row">
+      <div class="field">
+        <label for="segA">Marker A</label>
+        <select id="segA"></select>
+      </div>
+      <div class="field">
+        <label for="segB">Marker B</label>
+        <select id="segB"></select>
+      </div>
+      <div class="field">
+        <label for="segLabel">Label (optional)</label>
+        <input type="text" id="segLabel" placeholder="e.g. Shank">
+      </div>
+      <div class="actions">
+        <button class="primary" id="addSeg" type="button">Add segment</button>
+      </div>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="seg">
+        <thead><tr><th></th><th>Segment</th><th>Length</th><th>Angle</th><th></th></tr></thead>
+        <tbody id="segBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel" id="animSection">
+    <h2>Animation</h2>
+    <div class="row" style="margin-top:0">
+      <div class="checkline">
+        <input type="checkbox" id="showLabels" checked>
+        <label for="showLabels">Marker labels</label>
+      </div>
+      <div class="checkline">
+        <input type="checkbox" id="showTrails">
+        <label for="showTrails">Show trails</label>
+      </div>
+      <div class="checkline">
+        <input type="checkbox" id="loopPlay" checked>
+        <label for="loopPlay">Loop</label>
+      </div>
+      <div class="field" style="min-width:120px">
+        <label for="speed">Speed</label>
+        <select id="speed">
+          <option value="0.25">0.25×</option>
+          <option value="0.5">0.5×</option>
+          <option value="1" selected>1×</option>
+          <option value="2">2×</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="stage-wrap">
+      <svg id="stageSvg" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet"></svg>
+    </div>
+
+    <div class="playbar">
+      <button class="primary icon" id="playBtn" type="button">▶</button>
+      <button class="ghost icon" id="restartBtn" type="button" title="Restart">⟲</button>
+      <input type="range" id="scrub" min="0" max="0" step="1" value="0">
+      <span class="time-readout" id="timeReadout">Frame 0 / 0 · t = 0.000 s</span>
+    </div>
+  </section>
+
+  <footer>
+    Notes: view scale is locked to a single factor across both axes so segment angles and lengths render undistorted — the plot is never stretched independently in one direction. The dashed horizontal line marks the lowest point reached by any shown marker across the whole trial, used only as a visual ground reference. Trails, when enabled, show each visible marker's full path across the entire loaded trial at reduced opacity, drawn behind the current-frame skeleton.
+    <p style="margin-top:1rem;color:var(--muted)">Created by Abbie Ferris, PhD — University of Northern Colorado</p>
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  const COLORS = ['#0B3D91','#1C7293','#7B2D8E','#1B8A5A','#D64545','#E8871E','#0EA5A5','#B45309'];
+  const GROUND_COLOR = '#334155';
+  const MARKER_COLOR = '#16232C';
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  const el = (id) => document.getElementById(id);
+
+  // ================= state =================
+  let markers = {};      // { name: { axis: colIndex } }
+  let axesFound = [];    // distinct axis suffixes, in order found
+  let times = [];        // seconds, one per frame
+  let dt = 1/60;
+  let cols = [];         // cols[colIndex] = array of values, one per frame
+  let hAxis = null, vAxis = null;
+  let segments = [];     // { id, a, b, label, color }
+  let segIdSeq = 1;
+  let shownMarkers = new Set();
+
+  let currentFrame = 0;
+  let playing = false;
+  let rafId = null;
+  let lastTs = null;
+  let playheadSec = 0;
+
+  // ================= parsing =================
+  function parseWide(text){
+    const rawLines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+    if (rawLines.length < 3) return { error: 'Paste a header row plus at least a couple of frames of data.' };
+    const rows = rawLines.map(l => l.split(/[,\t]+/).map(s => s.trim()));
+    const header = rows[0];
+    if (header.length < 3) return { error: 'Need a time column plus at least one Marker_Axis column pair.' };
+
+    const colInfo = []; // { marker, axis }
+    for (let i = 1; i < header.length; i++){
+      const h = header[i];
+      const idx = h.lastIndexOf('_');
+      if (idx < 1 || idx === h.length - 1){
+        return { error: 'Column "'+h+'" is not in Marker_Axis form (e.g. RASIS_X). Rename it or remove it.' };
+      }
+      colInfo.push({ marker: h.slice(0, idx), axis: h.slice(idx+1).toUpperCase() });
+    }
+
+    const dataRows = rows.slice(1);
+    const nCols = header.length;
+    for (const r of dataRows){
+      if (r.length !== nCols) return { error: 'A data row has '+r.length+' values but the header has '+nCols+' columns.' };
+    }
+
+    const tArr = dataRows.map(r => parseFloat(r[0]));
+    if (tArr.some(Number.isNaN)) return { error: 'Could not read the time column as numbers.' };
+    const diffs = [];
+    for (let i=1;i<tArr.length;i++) diffs.push(tArr[i]-tArr[i-1]);
+    diffs.sort((a,b)=>a-b);
+    const dtv = diffs[Math.floor(diffs.length/2)];
+    if (!(dtv > 0)) return { error: 'Time column does not look like it is increasing steadily.' };
+
+    const colArrs = [];
+    for (let c = 1; c < nCols; c++){
+      const arr = dataRows.map(r => parseFloat(r[c]));
+      if (arr.some(Number.isNaN)) return { error: 'Column "'+header[c]+'" has a non-numeric value.' };
+      colArrs.push(arr);
+    }
+
+    const markerMap = {};
+    const axesSeen = [];
+    colInfo.forEach((info, i) => {
+      if (!markerMap[info.marker]) markerMap[info.marker] = {};
+      markerMap[info.marker][info.axis] = i; // index into colArrs, same 0-index as colInfo
+      if (!axesSeen.includes(info.axis)) axesSeen.push(info.axis);
+    });
+
+    return { markers: markerMap, axes: axesSeen, times: tArr, fs: 1/dtv, cols: colArrs };
+  }
+
+  // ================= example data =================
+  el('loadExample').addEventListener('click', function(){
+    const fs = 60, dur = 1.2, n = Math.round(fs*dur);
+    const Lthigh = 450, Lshank = 430, Lfoot = 200;
+    const hipZ0 = 950, walkV = 1250; // mm/s forward
+    const f = 1/1.1; // one gait cycle ~1.1s
+    const lines = [];
+    const header = ['Time_s','RASIS_X','RASIS_Z','RLAKN_X','RLAKN_Z','RLAMA_X','RLAMA_Z','RDIFT_X','RDIFT_Z'];
+    lines.push(header.join(','));
+    for (let i=0;i<n;i++){
+      const t = i/fs;
+      const hipX = walkV*t;
+      const hipZ = hipZ0 + 12*Math.sin(2*Math.PI*2*f*t);
+      const thighAng = (25*Math.PI/180)*Math.sin(2*Math.PI*f*t);           // deg from vertical
+      const kneeFlex = (55*Math.PI/180)*Math.max(0, Math.sin(2*Math.PI*f*t + 2.4)) ;
+      const shankAng = thighAng + kneeFlex*Math.sign(Math.sin(2*Math.PI*f*t + 1.2) || 1);
+      const footAng  = (15*Math.PI/180)*Math.sin(2*Math.PI*f*t + 3.0);
+
+      const kneeX = hipX + Lthigh*Math.sin(thighAng);
+      const kneeZ = hipZ - Lthigh*Math.cos(thighAng);
+      const ankX  = kneeX + Lshank*Math.sin(shankAng);
+      const ankZ  = Math.max(60, kneeZ - Lshank*Math.cos(shankAng));
+      const toeX  = ankX + Lfoot*Math.cos(footAng);
+      const toeZ  = Math.max(20, ankZ - Lfoot*Math.sin(footAng) + 10);
+
+      lines.push([
+        t.toFixed(5),
+        hipX.toFixed(2), hipZ.toFixed(2),
+        kneeX.toFixed(2), kneeZ.toFixed(2),
+        ankX.toFixed(2), ankZ.toFixed(2),
+        toeX.toFixed(2), toeZ.toFixed(2)
+      ].join(','));
+    }
+    el('data').value = lines.join('\n');
+    el('parseStatus').textContent = 'Synthetic example loaded (not real capture data) — click Parse & Load Animation.';
+    el('parseStatus').className = 'status ok';
+  });
+
+  // ================= setup UI after parse =================
+  function guessAxis(preferList, available){
+    for (const p of preferList) if (available.includes(p)) return p;
+    return available[0];
+  }
+
+  function populateAxisSelects(){
+    const hSel = el('hAxis'), vSel = el('vAxis');
+    hSel.innerHTML = axesFound.map(a => '<option value="'+a+'">'+a+'</option>').join('');
+    vSel.innerHTML = axesFound.map(a => '<option value="'+a+'">'+a+'</option>').join('');
+    hAxis = guessAxis(['X','Y'], axesFound);
+    vAxis = guessAxis(['Z','Y'], axesFound.filter(a => a !== hAxis));
+    if (!vAxis) vAxis = axesFound[0];
+    hSel.value = hAxis;
+    vSel.value = vAxis;
+  }
+
+  function markersWithBothAxes(){
+    return Object.keys(markers).filter(m => (hAxis in markers[m]) && (vAxis in markers[m]));
+  }
+
+  function populateMarkerChecks(){
+    const usable = markersWithBothAxes();
+    shownMarkers = new Set(usable);
+    const wrap = el('markerChecks');
+    wrap.innerHTML = usable.map(m =>
+      '<span class="checkline"><input type="checkbox" class="mchk" data-m="'+m+'" checked>'
+      + '<label>'+m+'</label></span>'
+    ).join('') || '<span class="hint" style="margin:0">No marker has both chosen axes.</span>';
+    wrap.querySelectorAll('.mchk').forEach(cb => {
+      cb.addEventListener('change', function(){
+        if (this.checked) shownMarkers.add(this.dataset.m); else shownMarkers.delete(this.dataset.m);
+        render();
+      });
+    });
+  }
+
+  function populateSegMarkerSelects(){
+    const usable = markersWithBothAxes();
+    const opts = usable.map(m => '<option value="'+m+'">'+m+'</option>').join('');
+    el('segA').innerHTML = opts;
+    el('segB').innerHTML = opts;
+    if (usable.length > 1) el('segB').selectedIndex = 1;
+  }
+
+  function autoDefaultSegments(){
+    segments = [];
+    segIdSeq = 1;
+    const usable = new Set(markersWithBothAxes());
+    const defaults = [
+      ['RASIS','RLAKN','Thigh'],
+      ['RLAKN','RLAMA','Shank'],
+      ['RLAMA','RDIFT','Foot']
+    ];
+    defaults.forEach(([a,b,label]) => {
+      if (usable.has(a) && usable.has(b)){
+        segments.push({ id: segIdSeq++, a, b, label, color: COLORS[(segIdSeq-2) % COLORS.length] });
+      }
+    });
+  }
+
+  el('addSeg').addEventListener('click', function(){
+    const a = el('segA').value, b = el('segB').value;
+    if (!a || !b || a === b){ return; }
+    const label = el('segLabel').value.trim() || (a+'–'+b);
+    segments.push({ id: segIdSeq++, a, b, label, color: COLORS[(segIdSeq-2) % COLORS.length] });
+    el('segLabel').value = '';
+    renderSegTable();
+    render();
+  });
+
+  function removeSegment(id){
+    segments = segments.filter(s => s.id !== id);
+    renderSegTable();
+    render();
+  }
+  window._segRemove = removeSegment;
+
+  function segLenAngle(seg, frame){
+    const ma = markers[seg.a], mb = markers[seg.b];
+    const ax = cols[ma[hAxis]][frame], az = cols[ma[vAxis]][frame];
+    const bx = cols[mb[hAxis]][frame], bz = cols[mb[vAxis]][frame];
+    const dx = bx - ax, dz = bz - az;
+    const len = Math.sqrt(dx*dx + dz*dz);
+    const ang = Math.atan2(dz, dx) * 180 / Math.PI;
+    return { len, ang };
+  }
+
+  function fmt(v, d=1){
+    if (v===null || v===undefined || !isFinite(v)) return '—';
+    return v.toLocaleString(undefined, {maximumFractionDigits:d, minimumFractionDigits:0});
+  }
+
+  function renderSegTable(){
+    const body = el('segBody');
+    if (!segments.length){
+      body.innerHTML = '<tr class="empty-row"><td colspan="5">No segments defined yet.</td></tr>';
+      return;
+    }
+    body.innerHTML = segments.map(s => {
+      const {len, ang} = segLenAngle(s, currentFrame);
+      return '<tr>'
+        + '<td><span class="seg-color" style="background:'+s.color+'"></span></td>'
+        + '<td>'+s.label+' ('+s.a+'–'+s.b+')</td>'
+        + '<td class="num">'+fmt(len,1)+'</td>'
+        + '<td class="num">'+fmt(ang,1)+'&deg;</td>'
+        + '<td><button class="seg-remove" onclick="window._segRemove('+s.id+')" title="Remove">&times;</button></td>'
+        + '</tr>';
+    }).join('');
+  }
+
+  // ================= parse + apply =================
+  el('parseBtn').addEventListener('click', function(){
+    const statusEl = el('parseStatus');
+    statusEl.className = 'status';
+    const parsed = parseWide(el('data').value);
+    if (parsed.error){ statusEl.textContent = parsed.error; return; }
+
+    markers = parsed.markers;
+    axesFound = parsed.axes;
+    times = parsed.times;
+    cols = parsed.cols;
+    dt = 1/parsed.fs;
+
+    if (axesFound.length < 2){
+      statusEl.textContent = 'Found only one axis ('+(axesFound[0]||'none')+') — need at least two (e.g. X and Z) to animate a 2-D view.';
+      return;
+    }
+
+    populateAxisSelects();
+    populateMarkerChecks();
+    populateSegMarkerSelects();
+    autoDefaultSegments();
+    renderSegTable();
+
+    el('setupSection').style.display = '';
+    el('animSection').style.display = '';
+    el('scrub').max = times.length - 1;
+    currentFrame = 0;
+    playheadSec = 0;
+    stop();
+    render();
+
+    statusEl.textContent = 'Loaded '+times.length+' frames at '+fmt(parsed.fs,2)+' Hz. Axes: '+axesFound.join(', ')+'. Adjust axis choice or markers below if needed.';
+    statusEl.classList.add('ok');
+  });
+
+  el('applyAxes').addEventListener('click', function(){
+    hAxis = el('hAxis').value;
+    vAxis = el('vAxis').value;
+    if (hAxis === vAxis){
+      el('parseStatus').textContent = 'Horizontal and vertical axis must be different.';
+      el('parseStatus').className = 'status';
+      return;
+    }
+    populateMarkerChecks();
+    populateSegMarkerSelects();
+    segments = segments.filter(s => shownMarkers.has(s.a) && shownMarkers.has(s.b));
+    renderSegTable();
+    render();
+  });
+
+  // ================= rendering =================
+  function dataBounds(){
+    const usable = markersWithBothAxes().filter(m => shownMarkers.has(m));
+    let hMin=Infinity, hMax=-Infinity, vMin=Infinity, vMax=-Infinity;
+    usable.forEach(m => {
+      const hc = cols[markers[m][hAxis]], vc = cols[markers[m][vAxis]];
+      for (let i=0;i<hc.length;i++){
+        if (hc[i]<hMin) hMin=hc[i];
+        if (hc[i]>hMax) hMax=hc[i];
+        if (vc[i]<vMin) vMin=vc[i];
+        if (vc[i]>vMax) vMax=vc[i];
+      }
+    });
+    if (!isFinite(hMin)){ hMin=0; hMax=1; vMin=0; vMax=1; }
+    return { hMin, hMax, vMin, vMax, usable };
+  }
+
+  function svgEl(tag, attrs){
+    const e = document.createElementNS(SVG_NS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    return e;
+  }
+
+  function render(){
+    const svg = el('stageSvg');
+    svg.innerHTML = '';
+    if (!times.length) return;
+
+    const b = dataBounds();
+    const padH = Math.max(1, (b.hMax - b.hMin) * 0.12) || 100;
+    const padV = Math.max(1, (b.vMax - b.vMin) * 0.18) || 100;
+    const W = (b.hMax - b.hMin) + 2*padH;
+    const H = (b.vMax - b.vMin) + 2*padV;
+    svg.setAttribute('viewBox', '0 0 '+W+' '+H);
+
+    const strokeSeg = Math.max(1, Math.min(W,H) * 0.014);
+    const rMarker = Math.max(1, Math.min(W,H) * 0.018);
+    const fontSize = Math.min(W,H) * 0.032;
+
+    function sx(h){ return (h - b.hMin) + padH; }
+    function sy(v){ return (b.vMax - v) + padV; }
+
+    // ground reference line
+    const groundY = sy(b.vMin);
+    svg.appendChild(svgEl('line', {x1:0, y1:groundY, x2:W, y2:groundY, stroke:GROUND_COLOR, 'stroke-width':Math.max(0.75,strokeSeg*0.4), 'stroke-dasharray':(strokeSeg*1.5)+','+(strokeSeg*1.2)}));
+    const gLabel = svgEl('text', {x:strokeSeg, y:groundY - strokeSeg, 'font-size':fontSize*0.8, fill:GROUND_COLOR});
+    gLabel.textContent = 'ground reference';
+    svg.appendChild(gLabel);
+
+    const showTrails = el('showTrails').checked;
+    const showLabels = el('showLabels').checked;
+    const usable = b.usable;
+
+    // trails (behind everything)
+    if (showTrails){
+      usable.forEach((m, i) => {
+        const hc = cols[markers[m][hAxis]], vc = cols[markers[m][vAxis]];
+        let pts = '';
+        for (let f=0; f<hc.length; f++) pts += sx(hc[f])+','+sy(vc[f])+' ';
+        const poly = svgEl('polyline', {points:pts.trim(), fill:'none', stroke:COLORS[i % COLORS.length], 'stroke-width':Math.max(0.5,strokeSeg*0.35), opacity:'0.35'});
+        svg.appendChild(poly);
+      });
+    }
+
+    // segments
+    segments.forEach(s => {
+      if (!shownMarkers.has(s.a) || !shownMarkers.has(s.b)) return;
+      const ax = cols[markers[s.a][hAxis]][currentFrame], az = cols[markers[s.a][vAxis]][currentFrame];
+      const bx = cols[markers[s.b][hAxis]][currentFrame], bz = cols[markers[s.b][vAxis]][currentFrame];
+      svg.appendChild(svgEl('line', {
+        x1:sx(ax), y1:sy(az), x2:sx(bx), y2:sy(bz),
+        stroke:s.color, 'stroke-width':strokeSeg, 'stroke-linecap':'round'
+      }));
+    });
+
+    // markers on top
+    usable.forEach(m => {
+      const x = cols[markers[m][hAxis]][currentFrame], v = cols[markers[m][vAxis]][currentFrame];
+      svg.appendChild(svgEl('circle', {cx:sx(x), cy:sy(v), r:rMarker, fill:MARKER_COLOR}));
+      if (showLabels){
+        const t = svgEl('text', {x:sx(x)+rMarker*1.4, y:sy(v)-rMarker*0.6, 'font-size':fontSize, fill:MARKER_COLOR});
+        t.textContent = m;
+        svg.appendChild(t);
+      }
+    });
+
+    // scrub + readout
+    el('scrub').value = currentFrame;
+    el('timeReadout').textContent = 'Frame '+currentFrame+' / '+(times.length-1)+' · t = '+times[currentFrame].toFixed(3)+' s';
+    renderSegTable();
+  }
+
+  // ================= playback =================
+  function stop(){
+    playing = false;
+    el('playBtn').textContent = '▶';
+    if (rafId){ cancelAnimationFrame(rafId); rafId = null; }
+    lastTs = null;
+  }
+
+  function tick(ts){
+    if (!playing) return;
+    if (lastTs === null) lastTs = ts;
+    const realDt = (ts - lastTs) / 1000;
+    lastTs = ts;
+    const speed = parseFloat(el('speed').value);
+    playheadSec += realDt * speed;
+
+    const duration = times[times.length-1];
+    if (playheadSec > duration){
+      if (el('loopPlay').checked){ playheadSec = playheadSec % (duration || 1); }
+      else { playheadSec = duration; stop(); }
+    }
+    currentFrame = Math.min(times.length-1, Math.max(0, Math.round(playheadSec / dt)));
+    render();
+    if (playing) rafId = requestAnimationFrame(tick);
+  }
+
+  el('playBtn').addEventListener('click', function(){
+    if (!times.length) return;
+    if (playing){ stop(); return; }
+    if (currentFrame >= times.length-1) { currentFrame = 0; playheadSec = 0; }
+    else { playheadSec = currentFrame * dt; }
+    playing = true;
+    el('playBtn').textContent = '⏸';
+    rafId = requestAnimationFrame(tick);
+  });
+
+  el('restartBtn').addEventListener('click', function(){
+    stop();
+    currentFrame = 0;
+    playheadSec = 0;
+    render();
+  });
+
+  el('scrub').addEventListener('input', function(){
+    stop();
+    currentFrame = parseInt(this.value, 10) || 0;
+    playheadSec = currentFrame * dt;
+    render();
+  });
+
+  ['showTrails','showLabels'].forEach(id => el(id).addEventListener('change', render));
+})();
+</script>
+</body>
+</html>

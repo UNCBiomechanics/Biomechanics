@@ -132,16 +132,22 @@
   <nav class="sitenav">
     <a href="../home.html">Home</a>
     <a href="index.html" class="active">KIN 619 Home</a>
+    <a href="fft_tool.html">FFT Quick-Look</a>
+    <a href="filter_tool.html">Filter Lab</a>
+    <a href="derivative_tool.html">Derivative Lab</a>
+    <a href="filter_compare.html">Filter Compare</a>
+    <a href="anthro_lab.html">Anthropometrics Lab</a>
+    <a href="segment_animator.html">Segment Animator</a>
   </nav>
 
   <header>
     <p class="kicker">KIN 619 — Advanced Biomechanics</p>
     <h1>Signal Processing &amp; Anthropometrics Tools</h1>
-    <p>Five browser-based tools for working with motion and force data — no installs, no accounts, nothing you paste is ever uploaded anywhere. Pick a tool below.</p>
+    <p>Six browser-based tools for working with motion and force data — no installs, no accounts, nothing you paste is ever uploaded anywhere. Pick a tool below.</p>
   </header>
 
   <div class="order-note">
-    <strong>Suggested order if this is your first pass:</strong> Derivative Lab (differentiate position by hand, then check your work) → FFT Quick-Look (see what frequency content is actually in your signal) → Filter Lab (apply a single filter and get clean data back) → Filter Compare (stack multiple filters/datasets to see how choices like order and sample rate change the result) → Anthropometrics Lab (segment-based center of mass, compared against the reaction board method).
+    <strong>Suggested order if this is your first pass:</strong> Derivative Lab (differentiate position by hand, then check your work) → FFT Quick-Look (see what frequency content is actually in your signal) → Filter Lab (apply a single filter and get clean data back) → Filter Compare (stack multiple filters/datasets to see how choices like order and sample rate change the result) → Anthropometrics Lab (segment-based center of mass, compared against the reaction board method) → Segment Animator (reconstruct and animate a skeleton from raw marker coordinates).
   </div>
 
   <div class="tool-grid">
@@ -174,6 +180,12 @@
       <h2>Anthropometrics Lab</h2>
       <p>Enter your body segment measurements and calculate whole-body center of mass using de Leva's (1996) parameters, with a to-scale diagram — compare against a reaction board measurement if you have one.</p>
       <a class="btn" href="anthro_lab.html">Open Anthropometrics Lab</a>
+    </div>
+    <div class="tool-card">
+      <span class="num">06</span>
+      <h2>Segment Animator</h2>
+      <p>Paste raw marker coordinates, define segments from marker pairs, and watch the reconstructed skeleton move through the trial — with each segment's length and angle updating live as a built-in check on your data.</p>
+      <a class="btn" href="segment_animator.html">Open Segment Animator</a>
     </div>
   </div>
 
