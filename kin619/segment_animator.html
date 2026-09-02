@@ -236,8 +236,19 @@
 
   <section class="panel">
     <label for="data">Your marker coordinate data</label>
-    <textarea id="data" placeholder="Paste a header row, then one row per frame. First column is time (seconds). Every other column is named Marker_Axis — e.g. RASIS_X, RASIS_Z, RLAKN_X, RLAKN_Z, ... Comma or tab separated."></textarea>
+    <textarea id="data" placeholder="Paste a header row, then one row per frame. First column is time (seconds) or a frame number — see options below. Every other column is named Marker_Axis — e.g. RASIS_X, RASIS_Z, RLAKN_X, RLAKN_Z, ... Comma or tab separated."></textarea>
     <p class="hint">Column naming rule: everything after the <em>last</em> underscore is the axis (X, Y, or Z); everything before it is the marker name. So <code>RASIS_X</code> and <code>RASIS_Z</code> are two axes of the same marker, <code>RASIS</code>.</p>
+    <div class="row">
+      <div class="checkline">
+        <input type="checkbox" id="frameIndexMode">
+        <label for="frameIndexMode">First column is a frame number, not seconds</label>
+      </div>
+      <div class="field" id="fsField" style="display:none">
+        <label for="fsOverride">Sampling rate (Hz)</label>
+        <input type="number" id="fsOverride" min="0.001" step="any" placeholder="e.g. 60">
+      </div>
+    </div>
+    <p class="hint">Leave the checkbox off if your first column already increases in real seconds (e.g. 0, 0.01667, 0.03333&hellip; for 60&nbsp;Hz) — the sampling rate is then read from it automatically. Check it if your first column is instead a plain frame count (e.g. 205, 206, 207&hellip;), and enter the capture rate yourself so time can be reconstructed correctly.</p>
     <div class="row">
       <div class="actions" style="margin-left:0">
         <button class="ghost" id="loadExample" type="button">Load example data</button>
@@ -366,7 +377,8 @@
   let playheadSec = 0;
 
   // ================= parsing =================
-  function parseWide(text){
+  function parseWide(text, opts){
+    opts = opts || {};
     const rawLines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
     if (rawLines.length < 3) return { error: 'Paste a header row plus at least a couple of frames of data.' };
     const rows = rawLines.map(l => l.split(/[,\t]+/).map(s => s.trim()));
@@ -389,13 +401,24 @@
       if (r.length !== nCols) return { error: 'A data row has '+r.length+' values but the header has '+nCols+' columns.' };
     }
 
-    const tArr = dataRows.map(r => parseFloat(r[0]));
-    if (tArr.some(Number.isNaN)) return { error: 'Could not read the time column as numbers.' };
-    const diffs = [];
-    for (let i=1;i<tArr.length;i++) diffs.push(tArr[i]-tArr[i-1]);
-    diffs.sort((a,b)=>a-b);
-    const dtv = diffs[Math.floor(diffs.length/2)];
-    if (!(dtv > 0)) return { error: 'Time column does not look like it is increasing steadily.' };
+    const c0 = dataRows.map(r => parseFloat(r[0]));
+    if (c0.some(Number.isNaN)) return { error: 'Could not read the first column as numbers.' };
+
+    let tArr, fsOut;
+    if (opts.frameIndexMode){
+      if (!(opts.fs > 0)) return { error: 'Enter a sampling rate (Hz) — it\'s required when the first column is a frame number rather than seconds.' };
+      fsOut = opts.fs;
+      const dtv = 1 / fsOut;
+      tArr = c0.map(f => (f - c0[0]) * dtv);
+    } else {
+      const diffs = [];
+      for (let i=1;i<c0.length;i++) diffs.push(c0[i]-c0[i-1]);
+      diffs.sort((a,b)=>a-b);
+      const dtv = diffs[Math.floor(diffs.length/2)];
+      if (!(dtv > 0)) return { error: 'First column does not look like it is increasing steadily. If it\'s a frame number rather than seconds, check "First column is a frame number" above.' };
+      tArr = c0;
+      fsOut = 1 / dtv;
+    }
 
     const colArrs = [];
     for (let c = 1; c < nCols; c++){
@@ -416,7 +439,7 @@
       if (!axesSeen.includes(info.axis)) axesSeen.push(info.axis);
     }
 
-    return { markers: markerMap, axes: axesSeen, times: tArr, fs: 1/dtv, cols: colArrs };
+    return { markers: markerMap, axes: axesSeen, times: tArr, fs: fsOut, cols: colArrs };
   }
 
   // ================= example data =================
@@ -568,11 +591,18 @@
     }).join('');
   }
 
+  // ================= frame-index / sampling-rate UI =================
+  el('frameIndexMode').addEventListener('change', function(){
+    el('fsField').style.display = this.checked ? '' : 'none';
+  });
+
   // ================= parse + apply =================
   el('parseBtn').addEventListener('click', function(){
     const statusEl = el('parseStatus');
     statusEl.className = 'status';
-    const parsed = parseWide(el('data').value);
+    const frameIndexMode = el('frameIndexMode').checked;
+    const fsOverride = parseFloat(el('fsOverride').value);
+    const parsed = parseWide(el('data').value, { frameIndexMode, fs: fsOverride });
     if (parsed.error){ statusEl.textContent = parsed.error; return; }
 
     markers = parsed.markers;
