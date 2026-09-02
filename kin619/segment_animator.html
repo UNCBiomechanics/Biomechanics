@@ -177,7 +177,6 @@
   .seg-remove:hover{color:#a53333;}
   .empty-row td{color:var(--muted);font-style:italic;padding:0.9rem 0.6rem;}
 
-  #animSection{display:none;}
   .stage-wrap{
     position:relative;
     border:1px solid var(--line);
@@ -295,7 +294,7 @@
     </div>
   </section>
 
-  <section class="panel" id="animSection">
+  <section class="panel" id="animSection" style="display:none">
     <h2>Animation</h2>
     <div class="row" style="margin-top:0">
       <div class="checkline">
@@ -322,7 +321,7 @@
     </div>
 
     <div class="stage-wrap">
-      <svg id="stageSvg" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet"></svg>
+      <svg id="stageSvg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet"></svg>
     </div>
 
     <div class="playbar">
@@ -407,11 +406,15 @@
 
     const markerMap = {};
     const axesSeen = [];
-    colInfo.forEach((info, i) => {
+    for (let i = 0; i < colInfo.length; i++){
+      const info = colInfo[i];
       if (!markerMap[info.marker]) markerMap[info.marker] = {};
+      if (info.axis in markerMap[info.marker]){
+        return { error: 'Column "'+header[i+1]+'" is a duplicate — "'+info.marker+'_'+info.axis+'" already appeared earlier. Two different markers can\'t share the same name; rename one of them.' };
+      }
       markerMap[info.marker][info.axis] = i; // index into colArrs, same 0-index as colInfo
       if (!axesSeen.includes(info.axis)) axesSeen.push(info.axis);
-    });
+    }
 
     return { markers: markerMap, axes: axesSeen, times: tArr, fs: 1/dtv, cols: colArrs };
   }
@@ -640,6 +643,16 @@
   }
 
   function render(){
+    try { renderInner(); }
+    catch (err){
+      const statusEl = el('parseStatus');
+      statusEl.textContent = 'Animation error: '+err.message+' (see browser console for details).';
+      statusEl.className = 'status';
+      console.error(err);
+    }
+  }
+
+  function renderInner(){
     const svg = el('stageSvg');
     svg.innerHTML = '';
     if (!times.length) return;
