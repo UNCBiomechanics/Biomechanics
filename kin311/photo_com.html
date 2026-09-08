@@ -257,7 +257,7 @@
   </section>
 
   <footer>
-    Segment mass and center-of-mass coefficients: de Leva, P. (1996), "Adjustments to Zatsiorsky-Seluyanov's segment inertia parameters," <em>Journal of Biomechanics</em> 29(9), 1223–1230. The COM shown is computed entirely in image pixel coordinates — there's no calibration to real-world units, since none was requested; the point is to see <em>where</em> COM falls relative to the body, not its absolute position. The hand is approximated at the wrist point (its true mass fraction is under 0.7%, so this has minimal effect); the foot uses the real ankle-to-toe segment. Foot's proximal landmark in de Leva's table is technically the heel rather than the ankle, but the two are close together and the foot's mass fraction is small (~1.4% per side), so this substitution introduces negligible error. If a landmark is missing for one side of a bilateral segment, that segment is excluded from the average unless the other side is available, in which case its mass is doubled at the <em>visible</em> side's own pixel location — correct for a side-on/profile photo (where left and right are superimposed anyway), but it will pull the calculated COM slightly toward whichever side you digitized in a front-facing photo where the other side is genuinely occluded, not just symmetric. The "% of body mass included" stat tells you how complete your digitizing is either way.
+    Segment mass and center-of-mass coefficients: de Leva, P. (1996), "Adjustments to Zatsiorsky-Seluyanov's segment inertia parameters," <em>Journal of Biomechanics</em> 29(9), 1223–1230. The COM shown is computed entirely in image pixel coordinates — there's no calibration to real-world units, since none was requested; the point is to see <em>where</em> COM falls relative to the body, not its absolute position. The hand uses the real wrist-to-fingertip segment (de Leva's wrist/dactylion landmarks), and the foot uses the real ankle-to-toe segment. Foot's proximal landmark in de Leva's table is technically the heel rather than the ankle, but the two are close together and the foot's mass fraction is small (~1.4% per side), so this substitution introduces negligible error. If a landmark is missing for one side of a bilateral segment, that segment is excluded from the average unless the other side is available, in which case its mass is doubled at the <em>visible</em> side's own pixel location — correct for a side-on/profile photo (where left and right are superimposed anyway), but it will pull the calculated COM slightly toward whichever side you digitized in a front-facing photo where the other side is genuinely occluded, not just symmetric. The "% of body mass included" stat tells you how complete your digitizing is either way.
     <p style="margin-top:1rem;color:var(--muted)">Created by Abbie Ferris, PhD — University of Northern Colorado</p>
   </footer>
 
@@ -290,6 +290,8 @@
     { key:'elbowR', label:'Right elbow', group:'Elbows' },
     { key:'wristL', label:'Left wrist',  group:'Wrists' },
     { key:'wristR', label:'Right wrist', group:'Wrists' },
+    { key:'fingerL', label:'Left fingertip',  group:'Fingertips' },
+    { key:'fingerR', label:'Right fingertip', group:'Fingertips' },
     { key:'hipL', label:'Left hip',  group:'Hips' },
     { key:'hipR', label:'Right hip', group:'Hips' },
     { key:'kneeL', label:'Left knee',  group:'Knees' },
@@ -497,8 +499,8 @@
       R: (pts.elbowR&&pts.wristR) ? {proximal:pts.elbowR, distal:pts.wristR} : null
     });
     addBilateral('Hand', 'hand', {
-      L: pts.wristL ? {proximal:pts.wristL, distal:pts.wristL} : null,
-      R: pts.wristR ? {proximal:pts.wristR, distal:pts.wristR} : null
+      L: (pts.wristL&&pts.fingerL) ? {proximal:pts.wristL, distal:pts.fingerL} : null,
+      R: (pts.wristR&&pts.fingerR) ? {proximal:pts.wristR, distal:pts.fingerR} : null
     });
     addBilateral('Thigh', 'thigh', {
       L: (pts.hipL&&pts.kneeL) ? {proximal:pts.hipL, distal:pts.kneeL} : null,
@@ -535,8 +537,8 @@
     const hipMid = midpoint(pts.hipL, pts.hipR);
     if (pts.vertex && shoulderMid){ ctx.beginPath(); ctx.moveTo(pts.vertex.x,pts.vertex.y); ctx.lineTo(shoulderMid.x,shoulderMid.y); ctx.stroke(); }
     if (shoulderMid && hipMid){ ctx.beginPath(); ctx.moveTo(shoulderMid.x,shoulderMid.y); ctx.lineTo(hipMid.x,hipMid.y); ctx.stroke(); }
-    seg('shoulderL','elbowL'); seg('elbowL','wristL');
-    seg('shoulderR','elbowR'); seg('elbowR','wristR');
+    seg('shoulderL','elbowL'); seg('elbowL','wristL'); seg('wristL','fingerL');
+    seg('shoulderR','elbowR'); seg('elbowR','wristR'); seg('wristR','fingerR');
     seg('hipL','kneeL'); seg('kneeL','ankleL'); seg('ankleL','toeL');
     seg('hipR','kneeR'); seg('kneeR','ankleR'); seg('ankleR','toeR');
     seg('shoulderL','shoulderR');
