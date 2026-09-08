@@ -229,11 +229,11 @@
       <label class="ghost" style="display:inline-flex;align-items:center;padding:0.5rem 0.9rem;border:1px solid var(--line);border-radius:7px;cursor:pointer;font-size:0.85rem;font-weight:600;color:var(--navy)">
         Choose file<input type="file" id="fileInput" accept="image/*" style="display:none">
       </label>
-      <span class="hint" style="margin:0">or paste an image anywhere on this page (Ctrl+V / Cmd+V)</span>
+      <span class="hint" style="margin:0">or paste an image anywhere on this page (Ctrl+V / Cmd+V), or drag a photo file in from Explorer</span>
       <button class="ghost small" id="clearImageBtn" type="button" disabled>Remove photo</button>
     </div>
     <div class="status" id="imgStatus"></div>
-    <div class="drop-zone" id="dropZone">No photo loaded yet — choose a file or paste one from your clipboard.</div>
+    <div class="drop-zone" id="dropZone">No photo loaded yet — choose a file, drag one in, or paste one from your clipboard.</div>
   </section>
 
   <section class="panel" id="digitizePanel" style="display:none">
@@ -345,6 +345,7 @@
 
   document.addEventListener('paste', function(e){
     const items = (e.clipboardData && e.clipboardData.items) || [];
+    let found = false;
     for (const item of items){
       if (item.type && item.type.indexOf('image') === 0){
         const blob = item.getAsFile();
@@ -352,9 +353,37 @@
         reader.onload = (ev) => loadImageFromDataURL(ev.target.result);
         reader.readAsDataURL(blob);
         e.preventDefault();
+        found = true;
         break;
       }
     }
+    // Copying an image FILE in Windows Explorer (right-click > Copy) puts a file
+    // reference on the clipboard, not actual image bytes -- so there's nothing
+    // with an image/* type to read here, and paste silently does nothing without
+    // this message. "Copy image" from a web page, or a screenshot, works fine;
+    // dragging the file onto the drop zone below also works for the Explorer case.
+    if (!found && items.length){
+      el('imgStatus').textContent = "That paste didn't contain image data -- if you copied a photo file from Explorer, try dragging it onto the box below instead, or use \"Copy image\" if you copied it from a web page.";
+      el('imgStatus').className = 'status warn';
+    }
+  });
+
+  // Drag-and-drop works anywhere on the page (like paste), not just onto the
+  // drop zone -- so a new photo can replace the current one without having to
+  // click "Remove photo" first. This is the reliable fallback for a photo file
+  // copied from Explorer, which paste can't read (see the paste handler above).
+  ['dragenter','dragover'].forEach(evt => document.addEventListener(evt, function(e){ e.preventDefault(); }));
+  document.addEventListener('drop', function(e){
+    e.preventDefault();
+    const file = e.dataTransfer.files && e.dataTransfer.files[0];
+    if (!file || file.type.indexOf('image') !== 0){
+      el('imgStatus').textContent = 'Please drop an image file.';
+      el('imgStatus').className = 'status warn';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => loadImageFromDataURL(ev.target.result);
+    reader.readAsDataURL(file);
   });
 
   el('clearImageBtn').addEventListener('click', function(){
