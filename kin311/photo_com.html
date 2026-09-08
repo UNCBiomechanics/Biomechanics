@@ -357,16 +357,37 @@
         break;
       }
     }
-    // Copying an image FILE in Windows Explorer (right-click > Copy) puts a file
-    // reference on the clipboard, not actual image bytes -- so there's nothing
-    // with an image/* type to read here, and paste silently does nothing without
-    // this message. "Copy image" from a web page, or a screenshot, works fine;
-    // dragging the file onto the drop zone below also works for the Explorer case.
+    // PowerPoint (and Word/Excel) put a copied picture on the clipboard as an
+    // OLE/EMF object plus an HTML fragment referencing a temp file -- not a
+    // plain image bitmap -- so there's usually no image/* item above to read.
+    // Best-effort fallback: some Office/OS combinations DO include a usable
+    // <img> inside the HTML fragment (occasionally a data: URI). Try that
+    // before giving up.
+    if (!found){
+      const htmlItem = Array.from(items).find(i => i.type === 'text/html');
+      if (htmlItem){
+        htmlItem.getAsString(function(html){
+          const m = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+          if (m && m[1].indexOf('data:image') === 0){
+            loadImageFromDataURL(m[1]);
+            found = true;
+          } else {
+            showPasteFailedMessage();
+          }
+        });
+        e.preventDefault();
+        return;
+      }
+    }
     if (!found && items.length){
-      el('imgStatus').textContent = "That paste didn't contain image data -- if you copied a photo file from Explorer, try dragging it onto the box below instead, or use \"Copy image\" if you copied it from a web page.";
-      el('imgStatus').className = 'status warn';
+      showPasteFailedMessage();
     }
   });
+
+  function showPasteFailedMessage(){
+    el('imgStatus').textContent = "That paste didn't contain readable image data -- this is common when copying a picture directly out of PowerPoint/Word/Excel, since Office doesn't put a plain image on the clipboard. Most reliable fix: in PowerPoint, right-click the picture > \"Save as Picture...\", then use \"Choose file\" above or drag that saved file onto the page. (Copying a file from Explorer has the same issue -- drag it in instead of pasting.)";
+    el('imgStatus').className = 'status warn';
+  }
 
   // Drag-and-drop works anywhere on the page (like paste), not just onto the
   // drop zone -- so a new photo can replace the current one without having to
