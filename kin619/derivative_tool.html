@@ -361,12 +361,12 @@
           </select>
         </div>
         <div class="field" id="orderField">
-          <label for="order">Order</label>
+          <label for="order">Order (number of passes)</label>
           <select id="order">
-            <option value="1">1st order</option>
-            <option value="2">2nd order</option>
-            <option value="3">3rd order</option>
-            <option value="4" selected>4th order</option>
+            <option value="1">1 pass — forward (causal, has lag)</option>
+            <option value="2">2 passes — forward + backward (zero-lag)</option>
+            <option value="3">3 passes — forward + backward + forward (lag returns)</option>
+            <option value="4" selected>4 passes — forward + backward + forward + backward (zero-lag)</option>
           </select>
         </div>
         <div class="field" id="cutoffField">
@@ -383,7 +383,7 @@
         </div>
       </div>
       <div class="row">
-        <div class="checkline">
+        <div class="checkline" id="zerophaseLine">
           <input type="checkbox" id="zerophase" checked>
           <label for="zerophase">Zero-phase (filter forward + backward)</label>
         </div>
@@ -392,6 +392,7 @@
           <button class="ghost" id="clearFilter" type="button">Clear filter</button>
         </div>
       </div>
+      <p class="hint">Each pass is a fixed 1st-order (1-pole) Butterworth section — Order sets how many alternating-direction passes. Even orders end on a backward pass and cancel lag (zero-lag); odd orders end on a forward pass and keep it.</p>
       <div id="filterStatus"></div>
     </section>
 
@@ -459,6 +460,7 @@
     cutoffFieldEl.style.display = isNotch ? 'none' : '';
     notchFreqFieldEl.style.display = isNotch ? '' : 'none';
     notchQFieldEl.style.display = isNotch ? '' : 'none';
+    document.getElementById('zerophaseLine').style.display = isNotch ? '' : 'none';
   }
   ftypeEl.addEventListener('change', syncFilterFields);
   syncFilterFields();
@@ -590,6 +592,24 @@
     y = applyFilterDF(b, a, y);
     y = y.slice().reverse();
     return y.slice(padLen, padLen + x.length);
+  }
+
+  // ================= pass-cascade (order = number of alternating passes) =================
+  function applyPassCascade(cutoffHz, fs, type, nPasses, x){
+    const {b, a} = designButterworth(1, cutoffHz, fs, type);
+    const padLen = Math.max(0, Math.min(3, x.length-1));
+    let y;
+    if (padLen === 0){
+      y = x;
+    } else {
+      const left = x.slice(1, padLen+1).slice().reverse().map(v => 2*x[0]-v);
+      const right = x.slice(x.length-padLen-1, x.length-1).slice().reverse().map(v => 2*x[x.length-1]-v);
+      y = left.concat(x, right);
+    }
+    for (let p = 1; p <= nPasses; p++){
+      y = (p % 2 === 1) ? applyFilterDF(b, a, y) : applyFilterDF(b, a, y.slice().reverse()).slice().reverse();
+    }
+    return padLen === 0 ? y : y.slice(padLen, padLen + x.length);
   }
 
   // ================= central difference =================
@@ -742,7 +762,7 @@
       return;
     }
 
-    let b, a, label;
+    let run, label;
     if (ftypeEl.value === 'notch'){
       const f0 = parseFloat(notchFreqEl.value);
       const Q = parseFloat(notchQEl.value);
@@ -756,8 +776,10 @@
         filterStatusEl.className = '';
         return;
       }
-      ({b, a} = designNotch(f0, fs, Q));
-      label = 'notch (f0='+fmt(f0,2)+' Hz, Q='+fmt(Q,1)+')';
+      const {b, a} = designNotch(f0, fs, Q);
+      const zeroPhase = document.getElementById('zerophase').checked;
+      run = (x) => zeroPhase ? filtfilt(b, a, x) : applyFilterDF(b, a, x);
+      label = 'notch (f0='+fmt(f0,2)+' Hz, Q='+fmt(Q,1)+')'+(zeroPhase?' (zero-phase)':' (single-pass, causal)');
     } else {
       const order = parseInt(orderEl.value, 10);
       const cutoff = parseFloat(cutoffEl.value);
@@ -766,12 +788,10 @@
         filterStatusEl.className = '';
         return;
       }
-      ({b, a} = designButterworth(order, cutoff, fs, ftypeEl.value));
-      label = (ftypeEl.value==='low'?'low-pass':'high-pass')+' Butterworth, order '+order+', '+fmt(cutoff,2)+' Hz';
+      run = (x) => applyPassCascade(cutoff, fs, ftypeEl.value, order, x);
+      const passWord = order === 1 ? 'pass' : 'passes';
+      label = (ftypeEl.value==='low'?'low-pass':'high-pass')+', '+order+' '+passWord+' ('+(order%2===0?'zero-lag':'causal, has lag')+'), '+fmt(cutoff,2)+' Hz';
     }
-
-    const zeroPhase = document.getElementById('zerophase').checked;
-    const run = (x) => zeroPhase ? filtfilt(b, a, x) : applyFilterDF(b, a, x);
 
     filteredPosition = null; filteredVelocity = null; filteredAcceleration = null;
     if (target === 'position'){
@@ -785,7 +805,7 @@
       filteredAcceleration = run(rawAcceleration);
     }
 
-    filterStatusEl.textContent = 'Filter applied to '+target+' — '+label+(zeroPhase?' (zero-phase)':' (single-pass, causal)')+'.';
+    filterStatusEl.textContent = 'Filter applied to '+target+' — '+label+'.';
     filterStatusEl.className = 'ok';
     rerenderAll();
   });

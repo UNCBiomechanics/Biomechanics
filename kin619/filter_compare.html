@@ -319,12 +319,12 @@
         </select>
       </div>
       <div class="field">
-        <label for="raOrder">Order</label>
+        <label for="raOrder">Order (passes)</label>
         <select id="raOrder">
-          <option value="1">1st order</option>
-          <option value="2">2nd order</option>
-          <option value="3">3rd order</option>
-          <option value="4" selected>4th order</option>
+          <option value="1">1 pass (causal, has lag)</option>
+          <option value="2">2 passes (zero-lag)</option>
+          <option value="3">3 passes (lag returns)</option>
+          <option value="4" selected>4 passes (zero-lag)</option>
         </select>
       </div>
       <div class="field">
@@ -376,12 +376,12 @@
         </select>
       </div>
       <div class="field" id="orderField">
-        <label for="order">Order</label>
+        <label for="order">Order (passes)</label>
         <select id="order">
-          <option value="1">1st order</option>
-          <option value="2">2nd order</option>
-          <option value="3">3rd order</option>
-          <option value="4" selected>4th order</option>
+          <option value="1">1 pass — forward (causal, has lag)</option>
+          <option value="2">2 passes — forward + backward (zero-lag)</option>
+          <option value="3">3 passes — forward + backward + forward (lag returns)</option>
+          <option value="4" selected>4 passes — forward + backward + forward + backward (zero-lag)</option>
         </select>
       </div>
       <div class="field" id="cutoffField">
@@ -410,7 +410,7 @@
         <button class="primary" id="addComparison" type="button">Add to comparison</button>
       </div>
     </div>
-    <p class="hint">Add the same filter twice with "Zero-phase" checked and unchecked to see the causal version's time-shift directly on the chart. Add "Low-pass, order 1" and "order 4" at the same cutoff to compare roll-off steepness.</p>
+    <p class="hint">Add "Low-pass, 1 pass" and "2 passes" at the same cutoff to see the backward pass cancel the forward pass's lag directly on the chart. Add "2 passes" and "4 passes" at the same cutoff to compare roll-off steepness between two zero-lag options.</p>
     <div class="status" id="builderStatus"></div>
   </section>
 
@@ -450,7 +450,7 @@
   </section>
 
   <footer>
-    Notes: RMS in the comparison table is the whole-record root-mean-square of that comparison's signal, sqrt(mean(x²)) — a DC offset in your data will inflate it. That is different from the residual RMS in the analysis above, which is sqrt(mean((filtered − raw)²)) — the quantity Winter's method actually plots against cutoff frequency. "Half-power" is the frequency where a filter's magnitude response crosses 0.7071 (−3 dB), found numerically for each filter design rather than assumed equal to the cutoff you typed — for Butterworth filters they should match closely; for the notch filter, the table instead reports the null frequency and the approximate −3 dB bandwidth (center frequency ÷ Q). A causal (non-zero-phase) filter shifts your signal in time, more so at higher order and lower cutoff — adding both a zero-phase and causal version of the same filter to the comparison makes that shift directly visible on the time-domain chart.
+    Notes: RMS in the comparison table is the whole-record root-mean-square of that comparison's signal, sqrt(mean(x²)) — a DC offset in your data will inflate it. That is different from the residual RMS in the analysis above, which is sqrt(mean((filtered − raw)²)) — the quantity Winter's method actually plots against cutoff frequency. "Half-power" is the frequency where a filter's magnitude response crosses 0.7071 (−3 dB), found numerically for each filter design rather than assumed equal to the cutoff you typed; for the notch filter, the table instead reports the null frequency and the approximate −3 dB bandwidth (center frequency ÷ Q). Low-pass/high-pass Order is the number of alternating-direction passes of a fixed 1st-order (1-pole) section: a forward pass delays the signal, and the following backward pass removes exactly the lag the forward pass introduced — so even pass counts (2, 4) cancel back to zero net lag ("zero-lag," Winter's convention) while odd pass counts (1, 3) end on a forward pass and keep one pass's worth of lag. Every pass still adds real roll-off regardless of direction. Add a 1-pass and a 2-pass version of the same filter to the comparison to see that lag directly on the time-domain chart.
     <p style="margin-top:1rem;color:var(--muted)">Created by Abbie Ferris, PhD — University of Northern Colorado</p>
   </footer>
 
@@ -586,6 +586,24 @@
     return y.slice(padLen, padLen + x.length);
   }
 
+  // ================= pass-cascade (order = number of alternating passes) =================
+  function applyPassCascade(cutoffHz, fs, type, nPasses, x){
+    const {b, a} = designButterworth(1, cutoffHz, fs, type);
+    const padLen = Math.max(0, Math.min(3, x.length-1));
+    let y;
+    if (padLen === 0){
+      y = x;
+    } else {
+      const left = x.slice(1, padLen+1).slice().reverse().map(v => 2*x[0]-v);
+      const right = x.slice(x.length-padLen-1, x.length-1).slice().reverse().map(v => 2*x[x.length-1]-v);
+      y = left.concat(x, right);
+    }
+    for (let p = 1; p <= nPasses; p++){
+      y = (p % 2 === 1) ? applyFilterDF(b, a, y) : applyFilterDF(b, a, y.slice().reverse()).slice().reverse();
+    }
+    return padLen === 0 ? y : y.slice(padLen, padLen + x.length);
+  }
+
   // ================= RMS =================
   function rms(x){
     let s=0;
@@ -607,19 +625,21 @@
   }
 
   // ================= frequency response =================
-  function magAt(b, a, freqHz, fs){
+  // nPasses: direction doesn't change magnitude (only phase), so N alternating passes of the
+  // same single-pass filter multiply magnitude the same way regardless of forward/backward order.
+  function magAt(b, a, freqHz, fs, nPasses){
     const w = 2*Math.PI*freqHz/fs;
     let num={re:0,im:0}, den={re:0,im:0};
     for (let k=0;k<b.length;k++){ const ang=-k*w; num=cadd(num, cmul({re:b[k],im:0},{re:Math.cos(ang),im:Math.sin(ang)})); }
     for (let k=0;k<a.length;k++){ const ang=-k*w; den=cadd(den, cmul({re:a[k],im:0},{re:Math.cos(ang),im:Math.sin(ang)})); }
-    return cabs(cdiv(num,den));
+    return Math.pow(cabs(cdiv(num,den)), nPasses || 1);
   }
-  function findHalfPower(b, a, fs, type){
+  function findHalfPower(b, a, fs, type, nPasses){
     const nyquist = fs/2, steps = 3000;
-    let prevF=0, prevM=magAt(b,a,0,fs);
+    let prevF=0, prevM=magAt(b,a,0,fs,nPasses);
     for (let i=1;i<=steps;i++){
       const f = nyquist*0.999*i/steps;
-      const m = magAt(b,a,f,fs);
+      const m = magAt(b,a,f,fs,nPasses);
       if (type==='low' && prevM>0.7071 && m<=0.7071){
         const frac = (prevM-0.7071)/(prevM-m);
         return prevF + frac*(f-prevF);
@@ -759,7 +779,7 @@
     el('notchFreqField').style.display = (t==='notch') ? '' : 'none';
     el('notchQField').style.display = (t==='notch') ? '' : 'none';
     el('rmsWindowField').style.display = (t==='rms') ? '' : 'none';
-    el('zerophaseLine').style.display = (t==='rms') ? 'none' : '';
+    el('zerophaseLine').style.display = (t==='notch') ? '' : 'none';
   }
   el('ftype').addEventListener('change', syncBuilderFields);
   syncBuilderFields();
@@ -791,8 +811,7 @@
     const cutoffs = [], residuals = [];
     for (let i=0;i<steps;i++){
       const c = minC + (maxC-minC)*i/(steps-1);
-      const {b,a} = designButterworth(order, c, fs, type);
-      const filtered = filtfilt(b, a, ds.values);
+      const filtered = applyPassCascade(c, fs, type, order, ds.values);
       let sumsq = 0;
       for (let k=0;k<ds.values.length;k++){ const d = filtered[k]-ds.values[k]; sumsq += d*d; }
       cutoffs.push(c);
@@ -820,7 +839,8 @@
       }
     });
 
-    statusEl.textContent = 'Residual computed at '+steps+' cutoffs from '+fmt(minC,2)+' to '+fmt(maxC,2)+' Hz, order '+order+' '+(type==='low'?'low-pass':'high-pass')+' (zero-phase). Find where the curve flattens out — that "knee" is your cutoff — then enter it below.';
+    const passWord = order === 1 ? 'pass' : 'passes';
+    statusEl.textContent = 'Residual computed at '+steps+' cutoffs from '+fmt(minC,2)+' to '+fmt(maxC,2)+' Hz, '+(type==='low'?'low-pass':'high-pass')+', '+order+' '+passWord+' ('+(order%2===0?'zero-lag':'causal, has lag')+'). Find where the curve flattens out — that "knee" is your cutoff — then enter it below.';
     statusEl.classList.add('ok');
   }
   el('raRun').addEventListener('click', runResidualAnalysis);
@@ -832,7 +852,6 @@
     syncBuilderFields();
     el('order').value = el('raOrder').value;
     el('cutoff').value = el('raPickCutoff').value;
-    el('zerophase').checked = true;
     el('addComparison').click();
     el('builderPanel').scrollIntoView({behavior:'smooth', block:'start'});
   });
@@ -846,7 +865,7 @@
     if (!ds || !ds.loaded){ statusEl.textContent = 'Load a dataset first.'; return; }
     const fs = ds.fs, nyquist = fs/2, type = el('ftype').value;
 
-    let values, label, b=null, a=null, kind=type, halfPowerText;
+    let values, label, b=null, a=null, kind=type, halfPowerText, nPasses=1;
 
     if (type === 'rms'){
       const winMs = parseFloat(el('rmsWindow').value);
@@ -878,18 +897,19 @@
         statusEl.textContent = 'Cutoff frequency must be > 0 and < the Nyquist frequency for this dataset ('+fmt(nyquist,2)+' Hz).';
         return;
       }
-      ({b, a} = designButterworth(order, cutoff, fs, type));
-      const zeroPhase = el('zerophase').checked;
-      values = zeroPhase ? filtfilt(b, a, ds.values) : applyFilterDF(b, a, ds.values);
-      label = letter+' · '+(type==='low'?'LP':'HP')+' Butterworth o'+order+' @ '+fmt(cutoff,1)+' Hz'+(zeroPhase?' zero-phase':' causal');
-      const hp = findHalfPower(b, a, fs, type);
+      ({b, a} = designButterworth(1, cutoff, fs, type));
+      nPasses = order;
+      values = applyPassCascade(cutoff, fs, type, order, ds.values);
+      const passWord = order === 1 ? 'pass' : 'passes';
+      label = letter+' · '+(type==='low'?'LP':'HP')+' '+order+' '+passWord+' @ '+fmt(cutoff,1)+' Hz'+(order%2===0?' zero-lag':' causal, has lag');
+      const hp = findHalfPower(b, a, fs, type, nPasses);
       halfPowerText = hp===null ? '—' : '-3dB @ '+fmt(hp,2)+' Hz';
     }
 
     const color = COLORS[comparisons.length % COLORS.length];
     comparisons.push({
       id: cmpIdSeq++, dataset: letter, kind, label, color, visible:true,
-      values, b, a, halfPowerText
+      values, b, a, nPasses, halfPowerText
     });
     statusEl.textContent = 'Added.';
     statusEl.classList.add('ok');
@@ -1002,7 +1022,7 @@
       const fsC = DS[c.dataset].fs, nyqC = fsC/2;
       return {
         label:c.label,
-        data:freqs.map(f => f < nyqC ? magAt(c.b, c.a, f, fsC) : null),
+        data:freqs.map(f => f < nyqC ? magAt(c.b, c.a, f, fsC, c.nPasses) : null),
         borderColor:c.color, backgroundColor:'transparent', borderWidth:1.9,
         pointRadius:0, tension:0.05,
         borderDash: c.dataset==='B' ? [6,3] : []

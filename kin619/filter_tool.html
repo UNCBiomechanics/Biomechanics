@@ -274,12 +274,12 @@
         </select>
       </div>
       <div class="field" id="orderField">
-        <label for="order">Order</label>
+        <label for="order">Order (number of passes)</label>
         <select id="order">
-          <option value="1">1st order</option>
-          <option value="2">2nd order</option>
-          <option value="3">3rd order</option>
-          <option value="4" selected>4th order</option>
+          <option value="1">1 pass — forward (causal, has lag)</option>
+          <option value="2">2 passes — forward + backward (zero-lag)</option>
+          <option value="3">3 passes — forward + backward + forward (lag returns)</option>
+          <option value="4" selected>4 passes — forward + backward + forward + backward (zero-lag)</option>
         </select>
       </div>
       <div class="field" id="cutoffField">
@@ -296,7 +296,7 @@
       </div>
     </div>
     <div class="row">
-      <div class="checkline">
+      <div class="checkline" id="zerophaseLine">
         <input type="checkbox" id="zerophase" checked>
         <label for="zerophase">Zero-phase (run filter forward + backward)</label>
       </div>
@@ -304,7 +304,7 @@
         <button class="primary" id="apply" type="button">Apply Filter</button>
       </div>
     </div>
-    <p class="hint" id="orderHint">Order sets how sharply the filter rolls off past the cutoff — higher order cuts faster but rings more. 4th order is the common default for kinematic data (e.g. Winter's recommended cutoff).</p>
+    <p class="hint" id="orderHint">Each pass is a fixed 1st-order (1-pole) Butterworth section at your chosen cutoff. Order = how many passes, alternating direction starting forward: odd orders end on a forward pass and keep some lag; even orders end on a backward pass and cancel it back out (zero-lag) — each pass still adds real roll-off, so 4 passes cuts sharper than 2. 4 passes is the common default for kinematic data (Winter's "4th-order zero-lag").</p>
     <p class="hint" id="notchHint" style="display:none">Q sets how narrow the notch is (Q = center frequency ÷ bandwidth). Higher Q removes less of the surrounding signal; lower Q removes a wider band around the center frequency.</p>
     <div id="status"></div>
   </section>
@@ -350,7 +350,7 @@
   </section>
 
   <footer>
-    Notes: filters are designed directly as digital IIR filters (Butterworth via pole placement + bilinear transform; notch via a standard 2nd-order band-stop) — no external DSP library. "Zero-phase" runs the filter forward, then backward, and removes the time-shift that a single causal pass would introduce, at the cost of not being usable in real time; this is the standard treatment for kinematic/force data. The ends of the signal are padded by reflection before filtering to reduce edge transients, then trimmed back to your original length before being handed back to you.
+    Notes: low-pass/high-pass filters are built as a cascade of fixed 1st-order (1-pole) Butterworth passes, alternating direction starting forward — Order sets how many passes. A forward pass delays the signal (causal lag); a backward pass (reversing the data, filtering, reversing back) removes exactly the lag the preceding forward pass introduced. So even pass counts (2, 4) end on a backward pass and cancel back to zero net lag — Winter's "zero-lag" filtering — while odd pass counts (1, 3) end on a forward pass and keep one pass's worth of lag; every pass still adds real roll-off regardless of direction, so more passes always means a sharper cutoff. Notch filtering is unaffected by this — it's a standard 2nd-order band-stop with its own separate zero-phase option. Signal ends are padded by reflection before each backward pass to reduce edge transients.
     <p style="margin-top:1rem;color:var(--muted)">Created by Abbie Ferris, PhD — University of Northern Colorado</p>
   </footer>
 
@@ -398,6 +398,7 @@
     notchQFieldEl.style.display = isNotch ? '' : 'none';
     orderHintEl.style.display = isNotch ? 'none' : '';
     notchHintEl.style.display = isNotch ? '' : 'none';
+    document.getElementById('zerophaseLine').style.display = isNotch ? '' : 'none';
   }
   ftypeEl.addEventListener('change', syncFilterFields);
   syncFilterFields();
@@ -595,6 +596,26 @@
     return { freqs, amp };
   }
 
+  // ================= pass-cascade (order = number of alternating passes) =================
+  // Each pass is a fixed 1st-order (1-pole) Butterworth section. Odd pass counts end on a
+  // forward pass and keep residual lag; even pass counts end on a backward pass and cancel it.
+  function applyPassCascade(cutoffHz, fs, type, nPasses, x){
+    const {b, a} = designButterworth(1, cutoffHz, fs, type);
+    const padLen = Math.max(0, Math.min(3, x.length-1));
+    let y;
+    if (padLen === 0){
+      y = x;
+    } else {
+      const left = x.slice(1, padLen+1).slice().reverse().map(v => 2*x[0]-v);
+      const right = x.slice(x.length-padLen-1, x.length-1).slice().reverse().map(v => 2*x[x.length-1]-v);
+      y = left.concat(x, right);
+    }
+    for (let p = 1; p <= nPasses; p++){
+      y = (p % 2 === 1) ? applyFilterDF(b, a, y) : applyFilterDF(b, a, y.slice().reverse()).slice().reverse();
+    }
+    return padLen === 0 ? y : y.slice(padLen, padLen + x.length);
+  }
+
   function fmt(v, d=2){
     if (!isFinite(v)) return '—';
     return v.toLocaleString(undefined, {maximumFractionDigits:d, minimumFractionDigits:0});
@@ -630,7 +651,8 @@
 
     const nyquist = fs/2;
     const type = ftypeEl.value;
-    let b, a, summaryLabel, cutoffLabel;
+    const values = parsed.values;
+    let filtered, summaryLabel, cutoffLabel;
 
     if (type === 'notch'){
       const f0 = parseFloat(notchFreqEl.value);
@@ -643,8 +665,10 @@
         statusEl.textContent = 'Q factor must be a positive number.';
         return;
       }
-      ({b, a} = designNotch(f0, fs, Q));
-      summaryLabel = 'Notch (Q='+fmt(Q,1)+')';
+      const {b, a} = designNotch(f0, fs, Q);
+      const zeroPhase = document.getElementById('zerophase').checked;
+      filtered = zeroPhase ? filtfilt(b, a, values) : applyFilterDF(b, a, values);
+      summaryLabel = 'Notch (Q='+fmt(Q,1)+')'+(zeroPhase?' (zero-phase)':' (single-pass, causal)');
       cutoffLabel = fmt(f0,2)+' Hz';
     } else {
       const order = parseInt(orderEl.value, 10);
@@ -653,16 +677,13 @@
         statusEl.textContent = 'Cutoff frequency must be greater than 0 and less than the Nyquist frequency ('+fmt(nyquist,2)+' Hz).';
         return;
       }
-      ({b, a} = designButterworth(order, cutoff, fs, type));
-      summaryLabel = (type==='low'?'Low-pass':'High-pass')+' Butterworth, order '+order;
+      filtered = applyPassCascade(cutoff, fs, type, order, values);
+      const passWord = order === 1 ? 'pass' : 'passes';
+      summaryLabel = (type==='low'?'Low-pass':'High-pass')+', '+order+' '+passWord+' ('+(order%2===0?'zero-lag':'causal, has lag')+')';
       cutoffLabel = fmt(cutoff,2)+' Hz';
     }
 
-    const zeroPhase = document.getElementById('zerophase').checked;
-    const values = parsed.values;
-    const filtered = zeroPhase ? filtfilt(b, a, values) : applyFilterDF(b, a, values);
-
-    statusEl.textContent = 'Filter applied — '+summaryLabel+(zeroPhase?' (zero-phase)':' (single-pass, causal)')+'.';
+    statusEl.textContent = 'Filter applied — '+summaryLabel+'.';
     statusEl.className = 'ok';
 
     const N = values.length;
@@ -673,7 +694,10 @@
     statsRowEl.appendChild(statBlock(fmt(fs,2)+' Hz', 'sampling rate'));
     statsRowEl.appendChild(statBlock(summaryLabel, 'filter'));
     statsRowEl.appendChild(statBlock(cutoffLabel, type==='notch' ? 'center frequency' : 'cutoff frequency'));
-    statsRowEl.appendChild(statBlock(zeroPhase ? 'Zero-phase' : 'Causal', 'phase handling'));
+    const phaseLabel = type === 'notch'
+      ? (document.getElementById('zerophase').checked ? 'Zero-phase' : 'Causal')
+      : (parseInt(orderEl.value,10) % 2 === 0 ? 'Zero-lag' : 'Causal (lag)');
+    statsRowEl.appendChild(statBlock(phaseLabel, 'phase handling'));
     statsRowEl.appendChild(statBlock(fmt(duration,3)+' s', 'duration'));
 
     resultsEl.style.display = 'block';
