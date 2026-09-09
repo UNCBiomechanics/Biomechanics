@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Derivative Lab — SES 619</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.2.0/chartjs-plugin-zoom.min.js"></script>
 <style>
   :root{
     --ink:#16232C;
@@ -296,14 +298,21 @@
     <div class="stats" id="statsRow"></div>
 
     <section class="panel">
-      <h2>Position</h2>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:0.75rem;flex-wrap:wrap">
+        <h2 style="margin:0">Position</h2>
+        <button class="ghost" id="resetPosZoom" type="button">Reset zoom</button>
+      </div>
       <div class="legend-note" id="posLegend"></div>
+      <p class="hint" style="margin-top:-0.3rem">Scroll or pinch to zoom, drag to pan — both axes.</p>
       <div class="chart-holder"><canvas id="posChart"></canvas></div>
     </section>
 
     <section class="panel">
-      <h2>Velocity (1st derivative)</h2>
-      <p class="hint">Central difference: v[i] = (x[i+1] − x[i−1]) / (2·&Delta;t) — the same method you'd use by hand, with a simple forward/backward difference at the two endpoints.</p>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:0.75rem;flex-wrap:wrap">
+        <h2 style="margin:0">Velocity (1st derivative)</h2>
+        <button class="ghost" id="resetVelZoom" type="button">Reset zoom</button>
+      </div>
+      <p class="hint">Central difference: v[i] = (x[i+1] − x[i−1]) / (2·&Delta;t) — the same method you'd use by hand, with a simple forward/backward difference at the two endpoints. Scroll or pinch to zoom, drag to pan.</p>
       <div class="reveal-wrap">
         <div class="legend-note" id="velLegend"></div>
         <div class="chart-holder"><canvas id="velChart"></canvas></div>
@@ -315,8 +324,11 @@
     </section>
 
     <section class="panel">
-      <h2>Acceleration (2nd derivative)</h2>
-      <p class="hint">The same central difference applied again, this time to velocity — watch what happens to the noise.</p>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:0.75rem;flex-wrap:wrap">
+        <h2 style="margin:0">Acceleration (2nd derivative)</h2>
+        <button class="ghost" id="resetAccZoom" type="button">Reset zoom</button>
+      </div>
+      <p class="hint">The same central difference applied again, this time to velocity — watch what happens to the noise. Scroll or pinch to zoom, drag to pan.</p>
       <div class="reveal-wrap">
         <div class="legend-note" id="accLegend"></div>
         <div class="chart-holder"><canvas id="accChart"></canvas></div>
@@ -426,6 +438,16 @@
   const accOverlayEl = document.getElementById('accOverlay');
 
   let posChart=null, velChart=null, accChart=null;
+
+  function zoomOpts(){
+    return {
+      pan: { enabled: true, mode: 'xy' },
+      zoom: { wheel: { enabled: true }, pinch: { enabled: true }, drag: { enabled: false }, mode: 'xy' }
+    };
+  }
+  document.getElementById('resetPosZoom').addEventListener('click', function(){ if (posChart) posChart.resetZoom(); });
+  document.getElementById('resetVelZoom').addEventListener('click', function(){ if (velChart) velChart.resetZoom(); });
+  document.getElementById('resetAccZoom').addEventListener('click', function(){ if (accChart) accChart.resetZoom(); });
   let times=null, position=null, fs=null, dt=null;
   let rawVelocity=null, rawAcceleration=null;
   let filteredPosition=null, filteredVelocity=null, filteredAcceleration=null;
@@ -614,7 +636,7 @@
       data: { labels: tAxis, datasets },
       options: {
         animation:false, responsive:true, maintainAspectRatio:false,
-        plugins:{ legend:{ display:false } },
+        plugins:{ legend:{ display:false }, zoom: zoomOpts() },
         scales:{
           x:{ type:'linear', title:{display:true, text:'Time (s)'}, ticks:{maxTicksLimit:10} },
           y:{ title:{display:true, text:yLabel} }
