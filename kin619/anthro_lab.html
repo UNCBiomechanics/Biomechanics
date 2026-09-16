@@ -87,10 +87,16 @@
     margin-bottom:0.3rem;
   }
   .field-hint{
-    font-size:0.76rem;
-    color:var(--muted);
-    margin:0 0 0.4rem;
+    font-size:0.8rem;
+    color:var(--ink);
+    background:#EEF3F6;
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:0.4rem 0.6rem;
+    margin:0 0 0.5rem;
+    line-height:1.35;
   }
+  .field-hint strong{ color:var(--navy); }
   select,input[type="number"]{
     width:100%;
     padding:0.5rem 0.6rem;
@@ -251,42 +257,42 @@
     <div class="grid">
       <div>
         <label for="lenHead">Head (cm)</label>
-        <p class="field-hint">Base of neck (C7) to top of head (vertex)</p>
+        <p class="field-hint">From <strong>base of neck (C7)</strong> to <strong>top of head (vertex)</strong></p>
         <input type="number" id="lenHead" min="0" step="any">
       </div>
       <div>
         <label for="lenTrunk">Trunk (cm)</label>
-        <p class="field-hint">Base of neck / mid-shoulder to mid-point between hips</p>
+        <p class="field-hint">From <strong>base of neck / mid-shoulder</strong> to <strong>mid-point between hips</strong></p>
         <input type="number" id="lenTrunk" min="0" step="any">
       </div>
       <div>
         <label for="lenUpperarm">Upper arm (cm)</label>
-        <p class="field-hint">Shoulder (acromion) to elbow (lateral epicondyle)</p>
+        <p class="field-hint">From <strong>shoulder (acromion)</strong> to <strong>elbow (lateral epicondyle)</strong></p>
         <input type="number" id="lenUpperarm" min="0" step="any">
       </div>
       <div>
         <label for="lenForearm">Forearm (cm)</label>
-        <p class="field-hint">Elbow to wrist (styloid process)</p>
+        <p class="field-hint">From <strong>elbow</strong> to <strong>wrist (styloid process)</strong></p>
         <input type="number" id="lenForearm" min="0" step="any">
       </div>
       <div>
         <label for="lenHand">Hand (cm)</label>
-        <p class="field-hint">Wrist to tip of middle finger</p>
+        <p class="field-hint">From <strong>wrist</strong> to <strong>tip of middle finger</strong></p>
         <input type="number" id="lenHand" min="0" step="any">
       </div>
       <div>
         <label for="lenThigh">Thigh (cm)</label>
-        <p class="field-hint">Hip (greater trochanter) to knee joint line</p>
+        <p class="field-hint">From <strong>hip (greater trochanter)</strong> to <strong>knee joint line</strong></p>
         <input type="number" id="lenThigh" min="0" step="any">
       </div>
       <div>
         <label for="lenShank">Shank (cm)</label>
-        <p class="field-hint">Knee joint line to ankle (lateral malleolus)</p>
+        <p class="field-hint">From <strong>knee joint line</strong> to <strong>ankle (lateral malleolus)</strong></p>
         <input type="number" id="lenShank" min="0" step="any">
       </div>
       <div>
         <label for="lenFoot">Foot (cm)</label>
-        <p class="field-hint">Heel (calcaneus) to tip of longest toe</p>
+        <p class="field-hint">From <strong>heel (calcaneus)</strong> to <strong>tip of longest toe</strong></p>
         <input type="number" id="lenFoot" min="0" step="any">
       </div>
     </div>
@@ -346,7 +352,7 @@
 
     <section class="panel">
       <h2>Body diagram</h2>
-      <p class="hint">Body outline drawn to scale from your segment lengths (arms-at-sides skeleton shown for reference; the diagram doesn't re-draw the arm angle per position). Gray labels on the left name each segment at its own location. <strong>Solid</strong> lines = calculated COM; <strong>dashed</strong> lines = reaction board COM; color marks the arm position (see legend below the diagram). The small teal dots on the right mark the shoulder, elbow, hip, and knee joints, each labeled with that joint's moment of inertia in kg&middot;m&sup2; (see the Moment of Inertia section below) &mdash; shown only once body mass is entered.</p>
+      <p class="hint">Body outline drawn to scale from your segment lengths (arms-at-sides skeleton shown for reference; the diagram doesn't re-draw the arm angle per position) &mdash; see the segment table below for which line is which body part, and the Segment lengths section above for exactly where each measurement starts and ends. <strong>Solid</strong> lines = calculated COM; <strong>dashed</strong> lines = reaction board COM; color marks the arm position (see legend below the diagram). The small teal dots mark the shoulder, elbow, hip, and knee joints, each labeled with that joint's moment of inertia in kg&middot;m&sup2; (see the Moment of Inertia section below) &mdash; shown only once body mass is entered.</p>
       <div class="layout">
         <div class="diagram-wrap"><svg id="diagram" width="300" height="340" viewBox="0 0 300 340" xmlns="http://www.w3.org/2000/svg"></svg></div>
         <div>
@@ -461,6 +467,11 @@
     };
   }
 
+  // Display name for each segment "part" key — used consistently everywhere a segment is named,
+  // so the wording never drifts between the two limbs of a bilateral pair.
+  const PART_NAME = { head:'Head', trunk:'Trunk', upperarm:'Upper arm', forearm:'Forearm', hand:'Hand',
+                       thigh:'Thigh', shank:'Shank', foot:'Foot' };
+
   function computeCOMForMode(len, sex, mode){
     const D = DELEVA[sex];
     const ankleHeight = 0; // feet assumed flat on the ground; vertical foot thickness neglected
@@ -470,27 +481,30 @@
     const topOfHead = shoulderHeight + len.head;
     const standingHeight = topOfHead;
 
+    // sides:2 means this row's mass/MOI already sums BOTH the left and right copies of that
+    // segment (both arms, both legs) — not just one. Every bilateral segment is doubled the
+    // same way; head and trunk are unpaired midline segments, so sides:1.
     let armSegs = [];
     if (mode === 'sides'){
       const c = armChain('down', D, len, shoulderHeight);
-      ['upperarm','forearm','hand'].forEach(k => armSegs.push({ name:cap(k)+' (both, at sides)', part:k, massPct:c[k].massPct*2, cmHeight:c[k].cmHeight }));
+      ['upperarm','forearm','hand'].forEach(k => armSegs.push({ name:PART_NAME[k], part:k, sides:2, massPct:c[k].massPct*2, cmHeight:c[k].cmHeight }));
     } else if (mode === 'two'){
       const c = armChain('up', D, len, shoulderHeight);
-      ['upperarm','forearm','hand'].forEach(k => armSegs.push({ name:cap(k)+' (both, overhead)', part:k, massPct:c[k].massPct*2, cmHeight:c[k].cmHeight }));
-    } else { // 'one'
+      ['upperarm','forearm','hand'].forEach(k => armSegs.push({ name:PART_NAME[k], part:k, sides:2, massPct:c[k].massPct*2, cmHeight:c[k].cmHeight }));
+    } else { // 'one': the two arms are in different positions, so each row is genuinely a single arm
       const down = armChain('down', D, len, shoulderHeight), up = armChain('up', D, len, shoulderHeight);
       ['upperarm','forearm','hand'].forEach(k => {
-        armSegs.push({ name:cap(k)+' (resting arm)', part:k, massPct:down[k].massPct, cmHeight:down[k].cmHeight });
-        armSegs.push({ name:cap(k)+' (raised arm)',  part:k, massPct:up[k].massPct,   cmHeight:up[k].cmHeight   });
+        armSegs.push({ name:PART_NAME[k]+' (resting arm)', part:k, sides:1, massPct:down[k].massPct, cmHeight:down[k].cmHeight });
+        armSegs.push({ name:PART_NAME[k]+' (raised arm)',  part:k, sides:1, massPct:up[k].massPct,   cmHeight:up[k].cmHeight   });
       });
     }
 
     const otherSegs = [
-      { name:'Head',       part:'head',  massPct:D.head.massPct,      cmHeight: shoulderHeight + (D.head.cmPct/100)*len.head },
-      { name:'Trunk',      part:'trunk', massPct:D.trunk.massPct,     cmHeight: (hipHeight+len.trunk) - (D.trunk.cmPct/100)*len.trunk },
-      { name:'Thigh (×2)', part:'thigh', massPct:D.thigh.massPct*2,   cmHeight: (kneeHeight+len.thigh) - (D.thigh.cmPct/100)*len.thigh },
-      { name:'Shank (×2)', part:'shank', massPct:D.shank.massPct*2,   cmHeight: (ankleHeight+len.shank) - (D.shank.cmPct/100)*len.shank },
-      { name:'Foot (×2)',  part:'foot',  massPct:D.foot.massPct*2,    cmHeight: 0 }
+      { name:PART_NAME.head,  part:'head',  sides:1, massPct:D.head.massPct,      cmHeight: shoulderHeight + (D.head.cmPct/100)*len.head },
+      { name:PART_NAME.trunk, part:'trunk', sides:1, massPct:D.trunk.massPct,     cmHeight: (hipHeight+len.trunk) - (D.trunk.cmPct/100)*len.trunk },
+      { name:PART_NAME.thigh, part:'thigh', sides:2, massPct:D.thigh.massPct*2,   cmHeight: (kneeHeight+len.thigh) - (D.thigh.cmPct/100)*len.thigh },
+      { name:PART_NAME.shank, part:'shank', sides:2, massPct:D.shank.massPct*2,   cmHeight: (ankleHeight+len.shank) - (D.shank.cmPct/100)*len.shank },
+      { name:PART_NAME.foot,  part:'foot',  sides:2, massPct:D.foot.massPct*2,    cmHeight: 0 }
     ];
 
     const segs = armSegs.concat(otherSegs);
@@ -499,8 +513,6 @@
 
     return { segs, comHeight, standingHeight, shoulderHeight, hipHeight, kneeHeight, topOfHead, totalMassPct };
   }
-
-  function cap(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
 
   // reaction board: d = (R1-R0)*L/W, distance from the feet-end knife-edge to COM
   function reactionBoardD(R0, R1, L, W){
@@ -527,7 +539,7 @@
       const massKg = (bodyMass/100) * s.massPct;
       const I_own = ownI(s.part, massKg);
       const d_m = Math.abs(s.cmHeight - baseModel.comHeight) / 100;
-      return { name:s.name, part:s.part, massKg:massKg, I_own:I_own, cmHeight:s.cmHeight, I_com: I_own + massKg*d_m*d_m };
+      return { name:s.name, part:s.part, sides:s.sides, massKg:massKg, I_own:I_own, cmHeight:s.cmHeight, I_com: I_own + massKg*d_m*d_m };
     });
     const totalI_com = rows.reduce((sum,r) => sum + r.I_com, 0);
 
@@ -572,7 +584,6 @@
     const headR = Math.max(8, (shoulderY - headTopY)/2);
 
     const BODY = '#3A4750';
-    const LABEL_COLOR = '#5C7080';
     let svg = '';
 
     // ---- right-side limb geometry (also used to anchor the joint MOI markers) ----
@@ -605,17 +616,6 @@
     svg += ln(elR.x, elR.y, wrR.x, wrR.y, BODY, 4);   // right forearm
     svg += ln(wrR.x, wrR.y, fiR.x, fiR.y, BODY, 3);   // right hand
     svg += '<circle cx="'+cx+'" cy="'+headCY+'" r="'+headR+'" fill="'+BODY+'"/>'; // head
-
-    // ---- segment name labels, anchored to the left-side landmarks above ----
-    function seglabel(x, y, text){ return '<text x="'+(x-6)+'" y="'+(y+3)+'" font-size="8" fill="'+LABEL_COLOR+'" text-anchor="end">'+text+'</text>'; }
-    svg += seglabel(cx-headR, headCY, 'Head (vertex–C7)');
-    svg += seglabel(cx, (hipY+shoulderY)/2, 'Trunk (C7–hip)');
-    svg += seglabel((shL.x+elL.x)/2, (shL.y+elL.y)/2, 'Upper arm (shoulder–elbow)');
-    svg += seglabel((elL.x+wrL.x)/2, (elL.y+wrL.y)/2, 'Forearm (elbow–wrist)');
-    svg += seglabel((wrL.x+fiL.x)/2, (wrL.y+fiL.y)/2, 'Hand (wrist–fingertip)');
-    svg += seglabel((hipL.x+kneeL.x)/2, (hipL.y+kneeL.y)/2, 'Thigh (hip–knee)');
-    svg += seglabel(kneeL.x, (kneeY+ankleY)/2, 'Shank (knee–ankle)');
-    svg += '<text x="'+(cx-legSpread-11+13)+'" y="'+(ankleY-6)+'" font-size="8" fill="'+LABEL_COLOR+'" text-anchor="middle">Foot (heel–toe)</text>';
 
     comLines.forEach(function(line){
       const ly = y(line.height);
@@ -705,15 +705,20 @@
       '<thead><tr><th>Position</th><th>Calculated</th><th>Calc. % height</th><th>Board</th><th>Board % height</th><th>Difference</th></tr></thead><tbody>'
       + posRows + '</tbody>';
 
-    // detailed segment table for the "sides" baseline
+    // detailed segment table for the "sides" baseline. "Sides" and "Mass % (one side)" spell out
+    // the doubling explicitly, since Head/Trunk (×1, unpaired midline segments) sit right next to
+    // every limb segment (×2, left+right already summed) — same rule for arms and legs alike.
     const rows = baseModel.segs.map(s => {
+      const onePct = s.massPct / s.sides;
       const massKg = (isFinite(bodyMass) && bodyMass>0) ? fmt((s.massPct/100)*bodyMass,2)+' kg' : '—';
-      return '<tr><td>'+s.name+'</td><td class="num">'+fmt(s.massPct,2)+'%</td><td class="num">'+massKg+'</td><td class="num">'+fmt(s.cmHeight,1)+' cm</td><td class="num">'+fmt((s.cmHeight/baseModel.standingHeight)*100,1)+'%</td></tr>';
+      return '<tr><td>'+s.name+'</td><td class="num">×'+s.sides+'</td><td class="num">'+fmt(onePct,2)+'%</td>'
+        + '<td class="num">'+fmt(s.massPct,2)+'%</td><td class="num">'+massKg+'</td>'
+        + '<td class="num">'+fmt(s.cmHeight,1)+' cm</td><td class="num">'+fmt((s.cmHeight/baseModel.standingHeight)*100,1)+'%</td></tr>';
     }).join('');
     el('segTable').innerHTML =
-      '<thead><tr><th>Segment (arms at sides)</th><th>Mass %</th><th>Mass</th><th>CM height</th><th>CM % of height</th></tr></thead><tbody>'
+      '<thead><tr><th>Segment (arms at sides)</th><th>Sides</th><th>Mass % (one side)</th><th>Mass % (total)</th><th>Mass (total)</th><th>CM height</th><th>CM % of height</th></tr></thead><tbody>'
       + rows
-      + '<tr><td><strong>Total</strong></td><td class="num"><strong>'+fmt(baseModel.totalMassPct,2)+'%</strong></td><td></td><td></td><td></td></tr>'
+      + '<tr><td><strong>Total</strong></td><td></td><td></td><td class="num"><strong>'+fmt(baseModel.totalMassPct,2)+'%</strong></td><td></td><td></td><td></td></tr>'
       + '</tbody>';
 
     // diagram: one calculated + one measured line per position (skip missing measured lines)
@@ -739,13 +744,13 @@
       moiStat(fmt(moi.totalI_com,3)+' kg·m²', 'whole-body MOI about COM');
 
       const moiRows = moi.rows.map(r =>
-        '<tr><td>'+r.name+'</td><td class="num">'+fmt(r.massKg,2)+' kg</td><td class="num">'+fmt(r.I_own,3)+'</td>'
+        '<tr><td>'+r.name+'</td><td class="num">×'+r.sides+'</td><td class="num">'+fmt(r.massKg,2)+' kg</td><td class="num">'+fmt(r.I_own,3)+'</td>'
         + '<td class="num">'+fmt(Math.abs(r.cmHeight-baseModel.comHeight),1)+' cm</td><td class="num">'+fmt(r.I_com,3)+'</td></tr>'
       ).join('');
       el('moiSegTable').innerHTML =
-        '<thead><tr><th>Segment</th><th>Mass</th><th>Own MOI (kg·m²)</th><th>Dist. to whole-body COM</th><th>MOI about COM (kg·m²)</th></tr></thead><tbody>'
+        '<thead><tr><th>Segment</th><th>Sides</th><th>Mass (total)</th><th>Own MOI (kg·m²)</th><th>Dist. to whole-body COM</th><th>MOI about COM (kg·m²)</th></tr></thead><tbody>'
         + moiRows
-        + '<tr><td><strong>Total</strong></td><td></td><td></td><td></td><td class="num"><strong>'+fmt(moi.totalI_com,3)+'</strong></td></tr>'
+        + '<tr><td><strong>Total</strong></td><td></td><td></td><td></td><td></td><td class="num"><strong>'+fmt(moi.totalI_com,3)+'</strong></td></tr>'
         + '</tbody>';
 
       const jointRows = moi.joints.map(j => '<tr><td>'+j.label+'</td><td class="num">'+fmt(j.I,3)+' kg·m²</td></tr>').join('');
