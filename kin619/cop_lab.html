@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>COP Lab — SES 619</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.2.0/chartjs-plugin-zoom.min.js"></script>
+<style>
+  :root{
+    --ink:#16232C;
+    --muted:#5C7080;
+    --line:#D8E2E7;
+    --panel:#FFFFFF;
+    --bg:#F3F6F8;
+    --navy:#0B3D91;
+    --navy-dark:#082C6B;
+    --teal:#1C7293;
+    --amber:#E8871E;
+    --green:#1B8A5A;
+    --red:#D64545;
+    --purple:#7B2D8E;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+    line-height:1.45;
+    padding:2.5rem 1.25rem 4rem;
+  }
+  .wrap{max-width:1080px;margin:0 auto;}
+
+  .sitenav{display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1.5rem;}
+  .sitenav a{
+    font-size:0.82rem;
+    font-weight:600;
+    color:var(--navy);
+    text-decoration:none;
+    padding:0.35rem 0.75rem;
+    border:1px solid var(--line);
+    border-radius:20px;
+    background:#fff;
+  }
+  .sitenav a:hover{border-color:var(--navy);}
+  .sitenav a.active{background:var(--navy);color:#fff;border-color:var(--navy);}
+
+  header{margin-bottom:2rem;}
+  header .kicker{
+    font-size:0.85rem;
+    color:var(--teal);
+    font-weight:600;
+    margin:0 0 0.35rem;
+  }
+  h1{
+    font-size:1.9rem;
+    margin:0 0 0.5rem;
+    letter-spacing:-0.01em;
+  }
+  header p{
+    color:var(--muted);
+    max-width:74ch;
+    margin:0;
+    font-size:0.98rem;
+  }
+
+  section.panel{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:1.5rem;
+    margin-bottom:1.5rem;
+  }
+  section.panel h2{
+    font-size:1.05rem;
+    margin:0 0 0.6rem;
+  }
+  .hint{
+    font-size:0.83rem;
+    color:var(--muted);
+    margin:0.35rem 0 0.9rem;
+  }
+
+  label{
+    display:block;
+    font-size:0.85rem;
+    font-weight:600;
+    color:var(--ink);
+    margin-bottom:0.4rem;
+  }
+  textarea{
+    width:100%;
+    min-height:160px;
+    resize:vertical;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:0.86rem;
+    padding:0.75rem;
+    border:1px solid var(--line);
+    border-radius:8px;
+    background:#FBFCFD;
+    color:var(--ink);
+  }
+  textarea:focus{outline:2px solid var(--navy);outline-offset:1px;}
+
+  .row{
+    display:flex;
+    gap:1.25rem;
+    flex-wrap:wrap;
+    align-items:flex-end;
+    margin-top:1rem;
+  }
+  .field{min-width:170px;}
+  select,input[type="number"],input[type="text"]{
+    width:100%;
+    padding:0.5rem 0.6rem;
+    border:1px solid var(--line);
+    border-radius:6px;
+    font-size:0.95rem;
+    font-family:inherit;
+    background:#fff;
+    color:var(--ink);
+  }
+  .checkline{
+    display:flex;
+    align-items:center;
+    gap:0.5rem;
+    font-size:0.9rem;
+    color:var(--ink);
+    padding-bottom:0.55rem;
+  }
+  .checkline input{width:16px;height:16px;}
+  .checkline label{margin:0;font-weight:500;}
+
+  .actions{
+    display:flex;
+    gap:0.75rem;
+    align-items:center;
+    flex-wrap:wrap;
+    margin-top:1rem;
+  }
+  button{
+    font-family:inherit;
+    font-size:0.92rem;
+    font-weight:600;
+    padding:0.6rem 1.1rem;
+    border-radius:7px;
+    border:1px solid transparent;
+    cursor:pointer;
+  }
+  button.primary{background:var(--navy);color:#fff;}
+  button.primary:hover{background:var(--navy-dark);}
+  button.ghost{background:transparent;color:var(--navy);border-color:var(--line);}
+  button.ghost:hover{border-color:var(--navy);}
+  button.small{padding:0.4rem 0.8rem;font-size:0.82rem;}
+
+  .status{font-size:0.87rem;color:var(--red);margin-top:0.75rem;min-height:1.2em;}
+  .status.ok{color:var(--green);}
+
+  .stats{
+    display:flex;
+    flex-wrap:wrap;
+    gap:0;
+    border:1px solid var(--line);
+    border-radius:8px;
+    overflow:hidden;
+    margin-bottom:1.5rem;
+  }
+  .stat{
+    flex:1 1 150px;
+    padding:0.8rem 1rem;
+    border-right:1px solid var(--line);
+    background:var(--panel);
+  }
+  .stat:last-child{border-right:none;}
+  .stat .v{font-size:1.1rem;font-weight:700;color:var(--navy);}
+  .stat .l{font-size:0.78rem;color:var(--muted);margin-top:0.15rem;}
+
+  .legend-note{
+    display:flex;
+    gap:1.25rem;
+    flex-wrap:wrap;
+    font-size:0.82rem;
+    color:var(--muted);
+    margin:-0.4rem 0 0.9rem;
+  }
+  .legend-note span{display:inline-flex;align-items:center;gap:0.4rem;}
+  .swatch{width:14px;height:3px;border-radius:2px;display:inline-block;}
+  .swatch.dashed{background:none;border-top:2px dashed var(--amber);height:0;}
+
+  .chart-holder{position:relative;height:260px;}
+  #setupSection, #resultsSection{display:none;}
+
+  .layout2{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;}
+  @media (max-width:760px){ .layout2{grid-template-columns:1fr;} }
+
+  .pathwrap{
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:8px;
+    display:flex;
+    justify-content:center;
+    padding:0.75rem;
+  }
+
+  table.datatab{width:100%;border-collapse:collapse;font-size:0.85rem;}
+  table.datatab th{
+    text-align:left;
+    padding:0.5rem 0.6rem;
+    border-bottom:2px solid var(--line);
+    color:var(--muted);
+    font-weight:600;
+    font-size:0.75rem;
+    text-transform:uppercase;
+    letter-spacing:0.03em;
+  }
+  table.datatab td{padding:0.5rem 0.6rem;border-bottom:1px solid var(--line);}
+  table.datatab td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;}
+
+  footer{
+    margin-top:2rem;
+    font-size:0.82rem;
+    color:var(--muted);
+    max-width:74ch;
+  }
+  footer a{color:var(--navy);}
+
+  @media (max-width:640px){
+    body{padding:1.5rem 1rem 3rem;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <nav class="sitenav">
+    <a href="../home.html">Home</a>
+    <a href="index.html">KIN 619 Home</a>
+    <a href="fft_tool.html">FFT Quick-Look</a>
+    <a href="filter_tool.html">Filter Lab</a>
+    <a href="derivative_tool.html">Derivative Lab</a>
+    <a href="filter_compare.html">Filter Compare</a>
+    <a href="anthro_lab.html">Anthropometrics Lab</a>
+    <a href="segment_animator.html">Segment Animator</a>
+    <a href="grf_lab.html">GRF Lab</a>
+    <a href="cop_lab.html" class="active">COP Lab</a>
+  </nav>
+
+  <header>
+    <p class="kicker">SES 619 — Postural Control</p>
+    <h1>COP Lab</h1>
+    <p>Paste center-of-pressure data (time plus ML/X and AP/Y position), filter it, and see the X and Y stabilograms plus the COP path with Prieto et al.'s (1996) postural-steadiness measures — including the 95% confidence ellipse — calculated and drawn directly on the plots. Runs entirely in your browser — nothing is uploaded anywhere.</p>
+  </header>
+
+  <section class="panel">
+    <h2>1. Your data</h2>
+    <label for="data">Center-of-pressure data</label>
+    <textarea id="data" placeholder="Paste a header row, then one row per frame. First column is time (seconds) or a frame number — see options below. Remaining columns are your COP components, named however your export names them (COPx, COP.X, ML, ...). Comma or tab separated."></textarea>
+    <p class="hint">If your export has several header rows (file path, channel name, units, axis), delete all but the one row with the column names you want to use, so the pasted header is a single row.</p>
+    <div class="row">
+      <div class="checkline">
+        <input type="checkbox" id="frameIndexMode">
+        <label for="frameIndexMode">First column is a frame number, not seconds</label>
+      </div>
+      <div class="field" id="fsField" style="display:none">
+        <label for="fsOverride">Sampling rate (Hz)</label>
+        <input type="number" id="fsOverride" min="0.001" step="any" placeholder="e.g. 1000">
+      </div>
+    </div>
+    <div class="actions">
+      <button class="ghost" id="loadExample" type="button">Load example data</button>
+      <button class="primary" id="parseBtn" type="button">Parse data</button>
+    </div>
+    <div class="status" id="parseStatus"></div>
+  </section>
+
+  <section class="panel" id="setupSection">
+    <h2>2. Columns &amp; filter</h2>
+    <div class="row">
+      <div class="field">
+        <label for="colX">Medio-lateral (X) column</label>
+        <select id="colX"></select>
+      </div>
+      <div class="field">
+        <label for="colY">Antero-posterior (Y) column</label>
+        <select id="colY"></select>
+      </div>
+      <div class="field">
+        <label for="units">Position units (label only)</label>
+        <input type="text" id="units" value="cm">
+      </div>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label for="order">Filter order (passes)</label>
+        <select id="order">
+          <option value="1">1 pass — forward (causal, has lag)</option>
+          <option value="2">2 passes — zero-lag</option>
+          <option value="3">3 passes — forward-heavy (has lag)</option>
+          <option value="4" selected>4 passes — zero-lag</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="cutoff">Low-pass cutoff (Hz)</label>
+        <input type="number" id="cutoff" value="10" min="0.001" step="any">
+      </div>
+      <div class="checkline">
+        <input type="checkbox" id="noFilter">
+        <label for="noFilter">Don't filter — use raw data as-is</label>
+      </div>
+      <div class="actions">
+        <button class="primary" id="processBtn" type="button">Filter &amp; analyze</button>
+      </div>
+    </div>
+    <p class="hint">Postural sway COP is typically low-pass filtered around 10&ndash;12.5&nbsp;Hz to remove force-plate noise while keeping genuine sway content — see <a href="filter_compare.html">Filter Compare</a> if you want to check that choice against your own data.</p>
+    <div class="status" id="processStatus"></div>
+  </section>
+
+  <section id="resultsSection">
+    <div class="stats" id="statsRow"></div>
+
+    <section class="panel">
+      <h2>Stabilograms</h2>
+      <div class="legend-note">
+        <span><span class="swatch" style="background:#0B3D91"></span>Position</span>
+        <span><span class="swatch dashed"></span>Range (max&minus;min)</span>
+      </div>
+      <div class="layout2">
+        <div>
+          <p class="hint" style="margin-top:0">Medio-lateral (X)</p>
+          <div class="chart-holder"><canvas id="chartX"></canvas></div>
+        </div>
+        <div>
+          <p class="hint" style="margin-top:0">Antero-posterior (Y)</p>
+          <div class="chart-holder"><canvas id="chartY"></canvas></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>COP path (statokinesigram)</h2>
+      <p class="hint">Equal-aspect plot of Y vs. X (so the ellipse below is drawn undistorted) &mdash; gray dot is the mean COP position, the ellipse is the 95% confidence ellipse from Prieto et al. (1996).</p>
+      <div class="pathwrap"><svg id="pathSvg" width="420" height="420" viewBox="0 0 420 420" xmlns="http://www.w3.org/2000/svg"></svg></div>
+    </section>
+
+    <section class="panel">
+      <h2>Prieto (1996) postural steadiness measures</h2>
+      <p class="hint">ML = medio-lateral (X), AP = antero-posterior (Y), Resultant = combined 2-D measure.</p>
+      <table class="datatab" id="prietoTable"></table>
+    </section>
+  </section>
+
+  <footer>
+    Measures follow Prieto, T.E., Myklebust, J.B., Hoffmann, R.G., Lovett, E.G., &amp; Myklebust, B.M. (1996), "Measures of postural steadiness: differences between healthy young and elderly adults," <em>IEEE Transactions on Biomedical Engineering</em> 43(9), 956&ndash;966, using the formula summary in Quijoux et al. (2021), "A review of center of pressure (COP) variables to quantify standing balance in elderly people: Algorithms and open-access code," <em>Physiological Reports</em> 9(22). MDIST/RDIST use the mean COP position as origin; TOTEX (path length) and mean velocity use the actual per-sample time differences, not an assumed constant rate. The 95% confidence ellipse area is 2&pi;&times;[(N&minus;1)/(N&minus;2)]&times;F<sub>0.95,2,N&minus;2</sub>&times;&radic;(&lambda;<sub>1</sub>&lambda;<sub>2</sub>), where &lambda;<sub>1</sub>,&lambda;<sub>2</sub> are the eigenvalues of the COP covariance matrix and F<sub>0.95,2,N&minus;2</sub> is the 95th-percentile F-statistic with 2 and N&minus;2 degrees of freedom (computed here from its closed form for 2 numerator degrees of freedom, rather than a table). All measures are computed on the filtered data shown (or raw, if filtering is turned off).
+    <p style="margin-top:1rem;color:var(--muted)">Created by Abbie Ferris, PhD — University of Northern Colorado</p>
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  const el = (id) => document.getElementById(id);
+
+  let colNames = [];
+  let times = [];
+  let dt = null;
+  let cols = [];
+  let mapping = { X:null, Y:null };
+  let filtered = { X:null, Y:null };
+  let chartX = null, chartY = null;
+
+  // ================= parsing =================
+  function parseWide(text, opts){
+    opts = opts || {};
+    const rawLines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+    if (rawLines.length < 3) return { error: 'Paste a header row plus at least a couple of frames of data.' };
+    const rows = rawLines.map(l => l.split(/[,\t]+/).map(s => s.trim()));
+    const header = rows[0];
+    if (header.length < 2) return { error: 'Need a time column plus at least one COP-component column.' };
+    const names = header.slice(1);
+
+    const dataRows = rows.slice(1);
+    const nCols = header.length;
+    for (const r of dataRows){
+      if (r.length !== nCols) return { error: 'A data row has '+r.length+' values but the header has '+nCols+' columns.' };
+    }
+
+    const c0 = dataRows.map(r => parseFloat(r[0]));
+    if (c0.some(Number.isNaN)) return { error: 'Could not read the first column as numbers.' };
+
+    let tArr, fsOut;
+    if (opts.frameIndexMode){
+      if (!(opts.fs > 0)) return { error: 'Enter a sampling rate (Hz) — required when the first column is a frame number rather than seconds.' };
+      fsOut = opts.fs;
+      const dtv = 1/fsOut;
+      tArr = c0.map(f => (f - c0[0]) * dtv);
+    } else {
+      const diffs = [];
+      for (let i=1;i<c0.length;i++) diffs.push(c0[i]-c0[i-1]);
+      diffs.sort((a,b)=>a-b);
+      const dtv = diffs[Math.floor(diffs.length/2)];
+      if (!(dtv > 0)) return { error: 'First column does not look like it is increasing steadily. If it\'s a frame number rather than seconds, check "First column is a frame number" above.' };
+      tArr = c0;
+      fsOut = 1/dtv;
+    }
+
+    const colArrs = [];
+    for (let c = 1; c < nCols; c++){
+      const arr = dataRows.map(r => parseFloat(r[c]));
+      if (arr.some(Number.isNaN)) return { error: 'Column "'+header[c]+'" has a non-numeric value.' };
+      colArrs.push(arr);
+    }
+
+    return { names, times: tArr, fs: fsOut, cols: colArrs };
+  }
+
+  function guessColumn(pattern, names){
+    for (let i=0;i<names.length;i++) if (pattern.test(names[i])) return i;
+    return -1;
+  }
+
+  function populateMapping(){
+    const opts = colNames.map((n,i) => '<option value="'+i+'">'+n+'</option>').join('');
+    ['colX','colY'].forEach(id => el(id).innerHTML = opts);
+    const gx = guessColumn(/(^|[^a-z])(cop)?[._]?x($|[^a-z])|\bml\b/i, colNames);
+    const gy = guessColumn(/(^|[^a-z])(cop)?[._]?y($|[^a-z])|\bap\b/i, colNames);
+    el('colX').value = gx >= 0 ? gx : 0;
+    el('colY').value = gy >= 0 ? gy : Math.min(1, colNames.length-1);
+  }
+
+  el('frameIndexMode').addEventListener('change', function(){
+    el('fsField').style.display = this.checked ? '' : 'none';
+  });
+
+  // ================= example data: synthetic quiet-standing sway =================
+  el('loadExample').addEventListener('click', function(){
+    const fs = 100, dur = 20, n = Math.round(fs*dur);
+    const lines = ['Time_s,COPx,COPy'];
+    let x = 0, y = 0, vx = 0, vy = 0;
+    for (let i=0;i<n;i++){
+      const t = i/fs;
+      // simple random-walk-with-restoring-force sway model (not real capture data)
+      const ax = -3.2*x - 0.35*vx + (Math.random()*2-1)*6;
+      const ay = -2.6*y - 0.30*vy + (Math.random()*2-1)*7;
+      vx += ax/fs; vy += ay/fs;
+      x += vx/fs; y += vy/fs;
+      const xo = x + 0.15*Math.sin(2*Math.PI*0.3*t);
+      const yo = y + 0.6 + 0.12*Math.sin(2*Math.PI*0.22*t+1);
+      lines.push(t.toFixed(3)+','+xo.toFixed(4)+','+yo.toFixed(4));
+    }
+    el('data').value = lines.join('\n');
+    el('parseStatus').textContent = 'Synthetic quiet-standing sway example loaded (not real capture data) — click Parse data.';
+    el('parseStatus').className = 'status ok';
+    el('resultsSection').style.display = 'none';
+    el('setupSection').style.display = 'none';
+  });
+
+  // ================= Butterworth filter (same design as Filter Lab / GRF Lab) =================
+  function cadd(a,b){ return {re:a.re+b.re, im:a.im+b.im}; }
+  function cmul(a,b){ return {re:a.re*b.re - a.im*b.im, im:a.re*b.im + a.im*b.re}; }
+  function cdiv(a,b){ const d=b.re*b.re+b.im*b.im; return {re:(a.re*b.re+a.im*b.im)/d, im:(a.im*b.re-a.re*b.im)/d}; }
+  function csub(a,b){ return {re:a.re-b.re, im:a.im-b.im}; }
+  function polyFromRoots(roots){
+    let coeffs = [{re:1,im:0}];
+    for (const r of roots){
+      const next = new Array(coeffs.length+1).fill(null).map(() => ({re:0,im:0}));
+      for (let i=0;i<coeffs.length;i++){
+        next[i] = cadd(next[i], coeffs[i]);
+        next[i+1] = cadd(next[i+1], cmul({re:-r.re, im:-r.im}, coeffs[i]));
+      }
+      coeffs = next;
+    }
+    return coeffs;
+  }
+  function evalPoly(coeffs, z){
+    let result = {re:0,im:0};
+    for (const c of coeffs) result = cadd(cmul(result, z), c);
+    return result;
+  }
+  function designButterworth1(cutoffHz, fs){
+    const K = 2*fs;
+    const wc = K * Math.tan(Math.PI * cutoffHz / fs);
+    const proto = [{re:Math.cos(Math.PI), im:Math.sin(Math.PI)}];
+    const sPoles = proto.map(p => ({re:p.re*wc, im:p.im*wc}));
+    const zZeros = [{re:-1,im:0}];
+    const zPoles = sPoles.map(s => cdiv(cadd({re:K,im:0}, s), csub({re:K,im:0}, s)));
+    const Apoly = polyFromRoots(zPoles), Bpoly = polyFromRoots(zZeros);
+    const Href = cdiv(evalPoly(Bpoly, {re:1,im:0}), evalPoly(Apoly, {re:1,im:0}));
+    const gain = 1/Href.re;
+    return { b: Bpoly.map(c => c.re*gain), a: Apoly.map(c => c.re) };
+  }
+  function applyFilterDF(b, a, x){
+    const N = x.length, nb = b.length, na = a.length;
+    const y = new Array(N).fill(0);
+    for (let n=0;n<N;n++){
+      let acc = 0;
+      for (let k=0;k<nb;k++) if (n-k>=0) acc += b[k]*x[n-k];
+      for (let k=1;k<na;k++) if (n-k>=0) acc -= a[k]*y[n-k];
+      y[n] = acc;
+    }
+    return y;
+  }
+  function applyPassCascade(cutoffHz, fs, nPasses, x){
+    const {b, a} = designButterworth1(cutoffHz, fs);
+    const padLen = Math.max(0, Math.min(3, x.length-1));
+    let y;
+    if (padLen === 0){ y = x; }
+    else {
+      const left = x.slice(1, padLen+1).slice().reverse().map(v => 2*x[0]-v);
+      const right = x.slice(x.length-padLen-1, x.length-1).slice().reverse().map(v => 2*x[x.length-1]-v);
+      y = left.concat(x, right);
+    }
+    for (let p = 1; p <= nPasses; p++){
+      y = (p % 2 === 1) ? applyFilterDF(b, a, y) : applyFilterDF(b, a, y.slice().reverse()).slice().reverse();
+    }
+    return padLen === 0 ? y : y.slice(padLen, padLen + x.length);
+  }
+
+  function fmt(v, d=2){
+    if (v===null || v===undefined || !isFinite(v)) return '—';
+    return v.toLocaleString(undefined, {maximumFractionDigits:d, minimumFractionDigits:0});
+  }
+  function statBlock(value, label){
+    const div = document.createElement('div');
+    div.className = 'stat';
+    div.innerHTML = '<div class="v">'+value+'</div><div class="l">'+label+'</div>';
+    return div;
+  }
+
+  // ================= parse =================
+  el('parseBtn').addEventListener('click', function(){
+    const statusEl = el('parseStatus');
+    statusEl.className = 'status';
+    const frameIndexMode = el('frameIndexMode').checked;
+    const fsOverride = parseFloat(el('fsOverride').value);
+    const parsed = parseWide(el('data').value, { frameIndexMode, fs: fsOverride });
+    if (parsed.error){ statusEl.textContent = parsed.error; return; }
+
+    colNames = parsed.names;
+    times = parsed.times;
+    cols = parsed.cols;
+    dt = 1/parsed.fs;
+
+    populateMapping();
+    el('setupSection').style.display = 'block';
+    el('resultsSection').style.display = 'none';
+    statusEl.textContent = 'Loaded '+times.length+' frames at '+fmt(parsed.fs,2)+' Hz with '+colNames.length+' column(s). Assign X/Y below.';
+    statusEl.classList.add('ok');
+  });
+
+  el('noFilter').addEventListener('change', function(){
+    const off = this.checked;
+    ['order','cutoff'].forEach(id => el(id).disabled = off);
+  });
+
+  // ================= Prieto measures =================
+  function fCrit95(d2){
+    // closed-form 95th percentile of F(2, d2): valid because the F(2,d2) CDF has a closed
+    // form when the numerator has 2 degrees of freedom (regularized incomplete beta with a=1).
+    return (d2/2) * (Math.pow(0.05, -2/d2) - 1);
+  }
+
+  function computePrieto(X, Y, tArr){
+    const N = X.length;
+    const T = tArr[N-1] - tArr[0];
+    const mx = X.reduce((s,v)=>s+v,0)/N;
+    const my = Y.reduce((s,v)=>s+v,0)/N;
+
+    let sumAbsX=0, sumAbsY=0, sumR=0, varX=0, varY=0, sumR2=0, cov=0;
+    for (let i=0;i<N;i++){
+      const dx = X[i]-mx, dy = Y[i]-my;
+      sumAbsX += Math.abs(dx); sumAbsY += Math.abs(dy);
+      const r2 = dx*dx+dy*dy;
+      sumR += Math.sqrt(r2); sumR2 += r2;
+      varX += dx*dx; varY += dy*dy; cov += dx*dy;
+    }
+    varX/=N; varY/=N; cov/=N;
+    const MDIST_ML = sumAbsX/N, MDIST_AP = sumAbsY/N, MDIST = sumR/N;
+    const RDIST_ML = Math.sqrt(varX), RDIST_AP = Math.sqrt(varY), RDIST = Math.sqrt(varX+varY);
+    const RANGE_ML = Math.max(...X)-Math.min(...X);
+    const RANGE_AP = Math.max(...Y)-Math.min(...Y);
+
+    let totexML=0, totexAP=0, totex=0;
+    for (let i=0;i<N-1;i++){
+      const dx = X[i+1]-X[i], dy = Y[i+1]-Y[i];
+      totexML += Math.abs(dx); totexAP += Math.abs(dy);
+      totex += Math.sqrt(dx*dx+dy*dy);
+    }
+    const MVELO_ML = totexML/T, MVELO_AP = totexAP/T, MVELO = totex/T;
+    const MFREQ_ML = MVELO_ML/(2*Math.PI*MDIST_ML);
+    const MFREQ_AP = MVELO_AP/(2*Math.PI*MDIST_AP);
+    const MFREQ = MVELO/(2*Math.PI*MDIST);
+
+    // 95% confidence ellipse (Prieto et al. 1996)
+    const avg = (varX+varY)/2, diff = (varX-varY)/2;
+    const disc = Math.sqrt(diff*diff + cov*cov);
+    const lambda1 = avg + disc, lambda2 = avg - disc; // lambda1 >= lambda2
+    const theta = 0.5*Math.atan2(2*cov, varX-varY); // radians, orientation of major axis
+    const d2 = N-2;
+    const F95 = fCrit95(d2);
+    const k = 2*(N-1)/(N-2)*F95;
+    const area = Math.PI*k*Math.sqrt(lambda1*lambda2);
+    const semiMajor = Math.sqrt(Math.max(0,k*lambda1));
+    const semiMinor = Math.sqrt(Math.max(0,k*lambda2));
+
+    return {
+      N, T, mx, my, varX, varY, cov,
+      MDIST_ML, MDIST_AP, MDIST, RDIST_ML, RDIST_AP, RDIST,
+      RANGE_ML, RANGE_AP, totexML, totexAP, totex,
+      MVELO_ML, MVELO_AP, MVELO, MFREQ_ML, MFREQ_AP, MFREQ,
+      ellipse: { area, semiMajor, semiMinor, theta, lambda1, lambda2 }
+    };
+  }
+
+  // ================= filter & analyze =================
+  el('processBtn').addEventListener('click', function(){
+    const statusEl = el('processStatus');
+    statusEl.className = 'status';
+
+    mapping.X = parseInt(el('colX').value, 10);
+    mapping.Y = parseInt(el('colY').value, 10);
+    if (!(mapping.X >= 0) || !(mapping.Y >= 0) || mapping.X === mapping.Y){
+      statusEl.textContent = 'Choose two different columns for X and Y.';
+      return;
+    }
+
+    const fs = 1/dt;
+    const noFilter = el('noFilter').checked;
+    const order = parseInt(el('order').value, 10);
+    const cutoff = parseFloat(el('cutoff').value);
+    if (!noFilter && (!(cutoff>0) || cutoff >= fs/2)){
+      statusEl.textContent = 'Cutoff frequency must be greater than 0 and less than the Nyquist frequency ('+fmt(fs/2,2)+' Hz).';
+      return;
+    }
+
+    const rawX = cols[mapping.X], rawY = cols[mapping.Y];
+    filtered.X = noFilter ? rawX.slice() : applyPassCascade(cutoff, fs, order, rawX);
+    filtered.Y = noFilter ? rawY.slice() : applyPassCascade(cutoff, fs, order, rawY);
+
+    statusEl.textContent = 'Processed.';
+    statusEl.classList.add('ok');
+
+    const units = el('units').value || 'cm';
+    const p = computePrieto(filtered.X, filtered.Y, times);
+
+    const statsRowEl = el('statsRow');
+    statsRowEl.innerHTML = '';
+    statsRowEl.appendChild(statBlock(fmt(p.N,0), 'samples'));
+    statsRowEl.appendChild(statBlock(fmt(fs,2)+' Hz', 'sampling rate'));
+    statsRowEl.appendChild(statBlock(fmt(p.T,2)+' s', 'duration'));
+    statsRowEl.appendChild(statBlock(noFilter ? 'None' : order+'-pass, '+fmt(cutoff,1)+' Hz', 'low-pass filter'));
+    statsRowEl.appendChild(statBlock(fmt(p.ellipse.area,2)+' '+units+'²', '95% ellipse area'));
+
+    // ---- stabilograms ----
+    function stabChart(prev, canvasId, values, mn, mx, label, color){
+      if (prev) prev.destroy();
+      const pts = times.map((t,i)=>({x:t,y:values[i]}));
+      return new Chart(el(canvasId), {
+        type:'line',
+        data:{ datasets:[
+          { label:label, data:pts, borderColor:color, backgroundColor:'transparent', borderWidth:1.4, pointRadius:0, tension:0 },
+          { label:'max', data:[{x:times[0],y:mx},{x:times[times.length-1],y:mx}], borderColor:'#E8871E', borderDash:[4,3], borderWidth:1.3, pointRadius:0, fill:false },
+          { label:'min', data:[{x:times[0],y:mn},{x:times[times.length-1],y:mn}], borderColor:'#E8871E', borderDash:[4,3], borderWidth:1.3, pointRadius:0, fill:false }
+        ]},
+        options:{
+          animation:false, responsive:true, maintainAspectRatio:false,
+          plugins:{ legend:{display:false}, zoom:{ pan:{enabled:true,mode:'xy'}, zoom:{wheel:{enabled:true},pinch:{enabled:true},mode:'xy'} } },
+          scales:{ x:{type:'linear', title:{display:true,text:'Time (s)'}}, y:{ title:{display:true, text:'Position ('+units+')'} } }
+        }
+      });
+    }
+    chartX = stabChart(chartX, 'chartX', filtered.X, Math.min(...filtered.X), Math.max(...filtered.X), 'X', '#0B3D91');
+    chartY = stabChart(chartY, 'chartY', filtered.Y, Math.min(...filtered.Y), Math.max(...filtered.Y), 'Y', '#1C7293');
+
+    // ---- COP path + ellipse (custom SVG, equal aspect) ----
+    el('pathSvg').innerHTML = buildPathSvg(filtered.X, filtered.Y, p, units);
+
+    // ---- Prieto table ----
+    function row(label, ml, ap, res, d=3){
+      return '<tr><td>'+label+'</td><td class="num">'+fmt(ml,d)+'</td><td class="num">'+fmt(ap,d)+'</td><td class="num">'+fmt(res,d)+'</td></tr>';
+    }
+    el('prietoTable').innerHTML =
+      '<thead><tr><th>Measure</th><th>ML (X)</th><th>AP (Y)</th><th>Resultant</th></tr></thead><tbody>'
+      + row('Mean distance from mean COP ('+units+')', p.MDIST_ML, p.MDIST_AP, p.MDIST)
+      + row('RMS distance ('+units+')', p.RDIST_ML, p.RDIST_AP, p.RDIST)
+      + row('Range ('+units+')', p.RANGE_ML, p.RANGE_AP, null)
+      + row('Path length / TOTEX ('+units+')', p.totexML, p.totexAP, p.totex, 2)
+      + row('Mean velocity ('+units+'/s)', p.MVELO_ML, p.MVELO_AP, p.MVELO, 3)
+      + row('Mean frequency (Hz)', p.MFREQ_ML, p.MFREQ_AP, p.MFREQ)
+      + '<tr><td>95% confidence ellipse area ('+units+'²)</td><td></td><td></td><td class="num">'+fmt(p.ellipse.area,3)+'</td></tr>'
+      + '<tr><td>Ellipse semi-major / semi-minor axis ('+units+')</td><td></td><td></td><td class="num">'+fmt(p.ellipse.semiMajor,3)+' / '+fmt(p.ellipse.semiMinor,3)+'</td></tr>'
+      + '<tr><td>Ellipse orientation (deg from X-axis)</td><td></td><td></td><td class="num">'+fmt(p.ellipse.theta*180/Math.PI,1)+'</td></tr>'
+      + '</tbody>';
+
+    el('resultsSection').style.display = 'block';
+  });
+
+  function buildPathSvg(X, Y, p, units){
+    const W = 420, H = 420, pad = 36;
+    const xMin = Math.min(...X), xMax = Math.max(...X), yMin = Math.min(...Y), yMax = Math.max(...Y);
+    // include the ellipse extent too, so it's never clipped
+    const cosT = Math.cos(p.ellipse.theta), sinT = Math.sin(p.ellipse.theta);
+    const ellExtentX = Math.sqrt((p.ellipse.semiMajor*cosT)**2 + (p.ellipse.semiMinor*sinT)**2);
+    const ellExtentY = Math.sqrt((p.ellipse.semiMajor*sinT)**2 + (p.ellipse.semiMinor*cosT)**2);
+    const dataMinX = Math.min(xMin, p.mx-ellExtentX), dataMaxX = Math.max(xMax, p.mx+ellExtentX);
+    const dataMinY = Math.min(yMin, p.my-ellExtentY), dataMaxY = Math.max(yMax, p.my+ellExtentY);
+    const spanX = Math.max(1e-9, dataMaxX-dataMinX), spanY = Math.max(1e-9, dataMaxY-dataMinY);
+    const drawSize = Math.min(W,H) - 2*pad;
+    const scale = drawSize / Math.max(spanX, spanY); // equal aspect: same px/unit both axes
+    const cx0 = (dataMinX+dataMaxX)/2, cy0 = (dataMinY+dataMaxY)/2;
+    function sx(v){ return W/2 + (v-cx0)*scale; }
+    function sy(v){ return H/2 - (v-cy0)*scale; } // Y increases upward on the plot
+
+    let svg = '';
+    // gridlines through the mean
+    svg += '<line x1="'+pad+'" y1="'+sy(p.my)+'" x2="'+(W-pad)+'" y2="'+sy(p.my)+'" stroke="#D8E2E7" stroke-width="1"/>';
+    svg += '<line x1="'+sx(p.mx)+'" y1="'+pad+'" x2="'+sx(p.mx)+'" y2="'+(H-pad)+'" stroke="#D8E2E7" stroke-width="1"/>';
+
+    // COP path
+    let pts = '';
+    for (let i=0;i<X.length;i++) pts += sx(X[i]).toFixed(1)+','+sy(Y[i]).toFixed(1)+' ';
+    svg += '<polyline points="'+pts.trim()+'" fill="none" stroke="#0B3D91" stroke-width="1" opacity="0.55"/>';
+
+    // 95% confidence ellipse
+    const rx = p.ellipse.semiMajor*scale, ry = p.ellipse.semiMinor*scale;
+    const angleDeg = -p.ellipse.theta*180/Math.PI; // flip sign: SVG y is inverted vs. data y here
+    svg += '<ellipse cx="'+sx(p.mx)+'" cy="'+sy(p.my)+'" rx="'+rx.toFixed(1)+'" ry="'+ry.toFixed(1)+'" '
+      + 'transform="rotate('+angleDeg.toFixed(2)+' '+sx(p.mx).toFixed(1)+' '+sy(p.my).toFixed(1)+')" '
+      + 'fill="rgba(214,69,69,0.12)" stroke="#D64545" stroke-width="1.6"/>';
+
+    // mean marker
+    svg += '<circle cx="'+sx(p.mx)+'" cy="'+sy(p.my)+'" r="4" fill="#16232C"/>';
+
+    // scale bar (bottom-left), length = nearest "nice" number under 1/4 of the drawn span
+    const spanUnits = Math.max(spanX, spanY);
+    const rough = spanUnits/4;
+    const mag = Math.pow(10, Math.floor(Math.log10(rough)));
+    const niceSteps = [1,2,5,10];
+    let barLen = mag;
+    for (const s of niceSteps){ if (s*mag <= rough*1.5) barLen = s*mag; }
+    const barPx = barLen*scale;
+    const bx0 = pad, by0 = H-16;
+    svg += '<line x1="'+bx0+'" y1="'+by0+'" x2="'+(bx0+barPx)+'" y2="'+by0+'" stroke="#334155" stroke-width="2"/>';
+    svg += '<text x="'+bx0+'" y="'+(by0-6)+'" font-size="10" fill="#334155">'+fmt(barLen,2)+' '+units+'</text>';
+
+    svg += '<text x="'+(W-pad)+'" y="'+(sy(p.my)-6)+'" font-size="10" fill="#5C7080" text-anchor="end">X (ML)</text>';
+    svg += '<text x="'+(sx(p.mx)+6)+'" y="'+(pad+10)+'" font-size="10" fill="#5C7080">Y (AP)</text>';
+
+    return svg;
+  }
+})();
+</script>
+</body>
+</html>

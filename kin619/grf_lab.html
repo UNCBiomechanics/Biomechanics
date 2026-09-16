@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GRF Lab — SES 619</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.2.0/chartjs-plugin-zoom.min.js"></script>
+<style>
+  :root{
+    --ink:#16232C;
+    --muted:#5C7080;
+    --line:#D8E2E7;
+    --panel:#FFFFFF;
+    --bg:#F3F6F8;
+    --navy:#0B3D91;
+    --navy-dark:#082C6B;
+    --teal:#1C7293;
+    --amber:#E8871E;
+    --green:#1B8A5A;
+    --red:#D64545;
+    --purple:#7B2D8E;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+    line-height:1.45;
+    padding:2.5rem 1.25rem 4rem;
+  }
+  .wrap{max-width:1080px;margin:0 auto;}
+
+  .sitenav{display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1.5rem;}
+  .sitenav a{
+    font-size:0.82rem;
+    font-weight:600;
+    color:var(--navy);
+    text-decoration:none;
+    padding:0.35rem 0.75rem;
+    border:1px solid var(--line);
+    border-radius:20px;
+    background:#fff;
+  }
+  .sitenav a:hover{border-color:var(--navy);}
+  .sitenav a.active{background:var(--navy);color:#fff;border-color:var(--navy);}
+
+  header{margin-bottom:2rem;}
+  header .kicker{
+    font-size:0.85rem;
+    color:var(--teal);
+    font-weight:600;
+    margin:0 0 0.35rem;
+  }
+  h1{
+    font-size:1.9rem;
+    margin:0 0 0.5rem;
+    letter-spacing:-0.01em;
+  }
+  header p{
+    color:var(--muted);
+    max-width:74ch;
+    margin:0;
+    font-size:0.98rem;
+  }
+
+  section.panel{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:1.5rem;
+    margin-bottom:1.5rem;
+  }
+  section.panel h2{
+    font-size:1.05rem;
+    margin:0 0 0.6rem;
+  }
+  .hint{
+    font-size:0.83rem;
+    color:var(--muted);
+    margin:0.35rem 0 0.9rem;
+  }
+
+  label{
+    display:block;
+    font-size:0.85rem;
+    font-weight:600;
+    color:var(--ink);
+    margin-bottom:0.4rem;
+  }
+  textarea{
+    width:100%;
+    min-height:160px;
+    resize:vertical;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:0.86rem;
+    padding:0.75rem;
+    border:1px solid var(--line);
+    border-radius:8px;
+    background:#FBFCFD;
+    color:var(--ink);
+  }
+  textarea:focus{outline:2px solid var(--navy);outline-offset:1px;}
+
+  .row{
+    display:flex;
+    gap:1.25rem;
+    flex-wrap:wrap;
+    align-items:flex-end;
+    margin-top:1rem;
+  }
+  .field{min-width:170px;}
+  select,input[type="number"],input[type="text"]{
+    width:100%;
+    padding:0.5rem 0.6rem;
+    border:1px solid var(--line);
+    border-radius:6px;
+    font-size:0.95rem;
+    font-family:inherit;
+    background:#fff;
+    color:var(--ink);
+  }
+  .checkline{
+    display:flex;
+    align-items:center;
+    gap:0.5rem;
+    font-size:0.9rem;
+    color:var(--ink);
+    padding-bottom:0.55rem;
+  }
+  .checkline input{width:16px;height:16px;}
+  .checkline label{margin:0;font-weight:500;}
+
+  .actions{
+    display:flex;
+    gap:0.75rem;
+    align-items:center;
+    flex-wrap:wrap;
+    margin-top:1rem;
+  }
+  button{
+    font-family:inherit;
+    font-size:0.92rem;
+    font-weight:600;
+    padding:0.6rem 1.1rem;
+    border-radius:7px;
+    border:1px solid transparent;
+    cursor:pointer;
+  }
+  button.primary{background:var(--navy);color:#fff;}
+  button.primary:hover{background:var(--navy-dark);}
+  button.ghost{background:transparent;color:var(--navy);border-color:var(--line);}
+  button.ghost:hover{border-color:var(--navy);}
+  button.small{padding:0.4rem 0.8rem;font-size:0.82rem;}
+  button:disabled{opacity:0.45;cursor:default;}
+
+  .status{font-size:0.87rem;color:var(--red);margin-top:0.75rem;min-height:1.2em;}
+  .status.ok{color:var(--green);}
+  .status.warn{color:var(--amber);}
+
+  .stats{
+    display:flex;
+    flex-wrap:wrap;
+    gap:0;
+    border:1px solid var(--line);
+    border-radius:8px;
+    overflow:hidden;
+    margin-bottom:1.5rem;
+  }
+  .stat{
+    flex:1 1 150px;
+    padding:0.8rem 1rem;
+    border-right:1px solid var(--line);
+    background:var(--panel);
+  }
+  .stat:last-child{border-right:none;}
+  .stat .v{font-size:1.1rem;font-weight:700;color:var(--navy);}
+  .stat .l{font-size:0.78rem;color:var(--muted);margin-top:0.15rem;}
+
+  .legend-note{
+    display:flex;
+    gap:1.25rem;
+    flex-wrap:wrap;
+    font-size:0.82rem;
+    color:var(--muted);
+    margin:-0.4rem 0 0.9rem;
+  }
+  .legend-note span{display:inline-flex;align-items:center;gap:0.4rem;}
+  .swatch{width:14px;height:3px;border-radius:2px;display:inline-block;}
+
+  .chart-holder{position:relative;height:340px;}
+  #resultsSection, #setupSection, #analysisSection{display:none;}
+
+  .mode-row{display:flex;gap:0.75rem;flex-wrap:wrap;align-items:center;}
+  .pick-hint{font-size:0.85rem;color:var(--teal);font-weight:600;min-height:1.2em;}
+
+  table.datatab{width:100%;border-collapse:collapse;font-size:0.85rem;}
+  table.datatab th{
+    text-align:left;
+    padding:0.5rem 0.6rem;
+    border-bottom:2px solid var(--line);
+    color:var(--muted);
+    font-weight:600;
+    font-size:0.75rem;
+    text-transform:uppercase;
+    letter-spacing:0.03em;
+  }
+  table.datatab td{padding:0.5rem 0.6rem;border-bottom:1px solid var(--line);}
+  table.datatab td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;}
+
+  footer{
+    margin-top:2rem;
+    font-size:0.82rem;
+    color:var(--muted);
+    max-width:74ch;
+  }
+  footer a{color:var(--navy);}
+
+  @media (max-width:640px){
+    body{padding:1.5rem 1rem 3rem;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <nav class="sitenav">
+    <a href="../home.html">Home</a>
+    <a href="index.html">KIN 619 Home</a>
+    <a href="fft_tool.html">FFT Quick-Look</a>
+    <a href="filter_tool.html">Filter Lab</a>
+    <a href="derivative_tool.html">Derivative Lab</a>
+    <a href="filter_compare.html">Filter Compare</a>
+    <a href="anthro_lab.html">Anthropometrics Lab</a>
+    <a href="segment_animator.html">Segment Animator</a>
+    <a href="grf_lab.html" class="active">GRF Lab</a>
+    <a href="cop_lab.html">COP Lab</a>
+  </nav>
+
+  <header>
+    <p class="kicker">SES 619 — Ground Reaction Force</p>
+    <h1>GRF Lab</h1>
+    <p>Paste ground reaction force data (time plus one or more force components), filter it, and click two points directly on the chart to measure rate of force development or impulse. Runs entirely in your browser — nothing is uploaded anywhere.</p>
+  </header>
+
+  <section class="panel">
+    <h2>1. Your data</h2>
+    <label for="data">Force-plate data</label>
+    <textarea id="data" placeholder="Paste a header row, then one row per frame. First column is time (seconds) or a frame number — see options below. Remaining columns are your force components, named however your export names them (Fx, Fz1, Force.Fz1, Vertical, ...). Comma or tab separated."></textarea>
+    <p class="hint">If your export (e.g. from Vicon) has several header rows (file path, channel name, units, axis), delete all but the one row with the column names you want to use, so the pasted header is a single row.</p>
+    <div class="row">
+      <div class="checkline">
+        <input type="checkbox" id="frameIndexMode">
+        <label for="frameIndexMode">First column is a frame number, not seconds</label>
+      </div>
+      <div class="field" id="fsField" style="display:none">
+        <label for="fsOverride">Sampling rate (Hz)</label>
+        <input type="number" id="fsOverride" min="0.001" step="any" placeholder="e.g. 1000">
+      </div>
+    </div>
+    <div class="actions">
+      <button class="ghost" id="loadExample" type="button">Load example data</button>
+      <button class="primary" id="parseBtn" type="button">Parse data</button>
+    </div>
+    <div class="status" id="parseStatus"></div>
+  </section>
+
+  <section class="panel" id="setupSection">
+    <h2>2. Columns &amp; filter</h2>
+    <p class="hint">Assign whichever of your pasted columns are the force components you want to work with. Leave any axis set to "None" if you don't have that component (e.g. a vertical-only load cell).</p>
+    <div class="row">
+      <div class="field">
+        <label for="colX">X component</label>
+        <select id="colX"></select>
+      </div>
+      <div class="field">
+        <label for="colY">Y component</label>
+        <select id="colY"></select>
+      </div>
+      <div class="field">
+        <label for="colZ">Z component (usually vertical)</label>
+        <select id="colZ"></select>
+      </div>
+      <div class="field">
+        <label for="units">Force units (label only)</label>
+        <input type="text" id="units" value="N">
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="field">
+        <label for="order">Filter order (passes)</label>
+        <select id="order">
+          <option value="1">1 pass — forward (causal, has lag)</option>
+          <option value="2">2 passes — zero-lag</option>
+          <option value="3">3 passes — forward-heavy (has lag)</option>
+          <option value="4" selected>4 passes — zero-lag</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="cutoff">Low-pass cutoff (Hz)</label>
+        <input type="number" id="cutoff" value="50" min="0.001" step="any">
+      </div>
+      <div class="checkline">
+        <input type="checkbox" id="noFilter">
+        <label for="noFilter">Don't filter — use raw data as-is</label>
+      </div>
+      <div class="actions">
+        <button class="primary" id="processBtn" type="button">Filter &amp; plot</button>
+      </div>
+    </div>
+    <p class="hint">GRF signals carry real energy at high frequencies (impact peaks, rapid loading) — an aggressive cutoff will blunt exactly the peak magnitude and rate of force development you're trying to measure. If you're not sure what cutoff is defensible for your task, use <a href="filter_compare.html">Filter Compare</a> first.</p>
+    <div class="status" id="processStatus"></div>
+  </section>
+
+  <section id="resultsSection">
+    <div class="stats" id="statsRow"></div>
+
+    <section class="panel">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:0.75rem;flex-wrap:wrap">
+        <h2 style="margin:0">Force vs. time</h2>
+        <button class="ghost small" id="resetZoom" type="button">Reset zoom</button>
+      </div>
+      <div class="legend-note" id="seriesLegend"></div>
+      <div class="row" style="margin-top:0" id="showRawRow">
+        <div class="checkline">
+          <input type="checkbox" id="showRaw">
+          <label for="showRaw">Also show unfiltered (raw) data, thin dotted</label>
+        </div>
+      </div>
+      <p class="hint" style="margin-top:-0.5rem">Scroll or pinch to zoom, drag to pan. While a pick mode below is armed, clicking the chart records a point instead of panning.</p>
+      <div class="chart-holder"><canvas id="forceChart"></canvas></div>
+    </section>
+
+    <section class="panel" id="analysisSection">
+      <h2>Point-to-point analysis</h2>
+      <div class="row" style="margin-top:0">
+        <div class="field">
+          <label for="activeComp">Component to analyze</label>
+          <select id="activeComp"></select>
+        </div>
+        <div class="mode-row">
+          <button class="ghost" id="rfdModeBtn" type="button">Pick RFD points</button>
+          <button class="ghost" id="impulseModeBtn" type="button">Pick impulse points</button>
+          <button class="ghost small" id="clearPicksBtn" type="button">Clear picks</button>
+        </div>
+      </div>
+      <p class="pick-hint" id="pickHint"></p>
+
+      <div class="stats" id="rfdStats" style="display:none"></div>
+      <div class="stats" id="impulseStats" style="display:none"></div>
+    </section>
+  </section>
+
+  <footer>
+    Rate of force development (RFD) between two picked points A and B is the average slope &Delta;F&frasl;&Delta;t = (F<sub>B</sub>&minus;F<sub>A</sub>)&frasl;(t<sub>B</sub>&minus;t<sub>A</sub>) &mdash; not the instantaneous (peak) RFD, which would need a derivative over a moving window (see <a href="derivative_tool.html">Derivative Lab</a> for that). Impulse is the trapezoidal-rule integral of the filtered force curve between the two picked times, &int;F&nbsp;dt &asymp; &Sigma; &frac12;(F<sub>n</sub>+F<sub>n+1</sub>)(t<sub>n+1</sub>&minus;t<sub>n</sub>), shown as the shaded region under the curve. Both use whichever component is selected as "Component to analyze," and both read from the filtered curve (or the raw curve if filtering is turned off). Low-pass filtering is the same fixed 1st-order Butterworth pass-cascade used in <a href="filter_tool.html">Filter Lab</a> — order sets how many alternating-direction passes are cascaded together; even orders end zero-lag, odd orders keep one pass's worth of lag.
+    <p style="margin-top:1rem;color:var(--muted)">Created by Abbie Ferris, PhD — University of Northern Colorado</p>
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  const el = (id) => document.getElementById(id);
+  const COMP_COLOR = { X:'#0B3D91', Y:'#1C7293', Z:'#7B2D8E' };
+  const RFD_COLOR = '#E8871E';
+  const IMPULSE_COLOR = '#D64545';
+
+  // ================= state =================
+  let colNames = [];   // raw pasted column names (excluding time column)
+  let times = [];       // seconds
+  let dt = null;
+  let cols = [];         // cols[colIndex] = array of values, one per frame, colIndex matches colNames
+  let mapping = { X:null, Y:null, Z:null }; // colIndex or null
+  let filtered = { X:null, Y:null, Z:null }; // filtered (or raw, if not filtering) arrays per axis
+  let raw = { X:null, Y:null, Z:null };
+  let chart = null;
+  let pickMode = null; // 'rfd' | 'impulse' | null
+  let rfdPick = [];     // [{i,t,v}, ...] up to 2
+  let impulsePick = [];
+
+  // ================= parsing (Time/Frame + N named columns) =================
+  function parseWide(text, opts){
+    opts = opts || {};
+    const rawLines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+    if (rawLines.length < 3) return { error: 'Paste a header row plus at least a couple of frames of data.' };
+    const rows = rawLines.map(l => l.split(/[,\t]+/).map(s => s.trim()));
+    const header = rows[0];
+    if (header.length < 2) return { error: 'Need a time column plus at least one force-component column.' };
+    const names = header.slice(1);
+
+    const dataRows = rows.slice(1);
+    const nCols = header.length;
+    for (const r of dataRows){
+      if (r.length !== nCols) return { error: 'A data row has '+r.length+' values but the header has '+nCols+' columns.' };
+    }
+
+    const c0 = dataRows.map(r => parseFloat(r[0]));
+    if (c0.some(Number.isNaN)) return { error: 'Could not read the first column as numbers.' };
+
+    let tArr, fsOut;
+    if (opts.frameIndexMode){
+      if (!(opts.fs > 0)) return { error: 'Enter a sampling rate (Hz) — required when the first column is a frame number rather than seconds.' };
+      fsOut = opts.fs;
+      const dtv = 1/fsOut;
+      tArr = c0.map(f => (f - c0[0]) * dtv);
+    } else {
+      const diffs = [];
+      for (let i=1;i<c0.length;i++) diffs.push(c0[i]-c0[i-1]);
+      diffs.sort((a,b)=>a-b);
+      const dtv = diffs[Math.floor(diffs.length/2)];
+      if (!(dtv > 0)) return { error: 'First column does not look like it is increasing steadily. If it\'s a frame number rather than seconds, check "First column is a frame number" above.' };
+      tArr = c0;
+      fsOut = 1/dtv;
+    }
+
+    const colArrs = [];
+    for (let c = 1; c < nCols; c++){
+      const arr = dataRows.map(r => parseFloat(r[c]));
+      if (arr.some(Number.isNaN)) return { error: 'Column "'+header[c]+'" has a non-numeric value.' };
+      colArrs.push(arr);
+    }
+
+    return { names, times: tArr, fs: fsOut, cols: colArrs };
+  }
+
+  function guessColumn(pattern, names){
+    for (let i=0;i<names.length;i++) if (pattern.test(names[i])) return i;
+    return -1;
+  }
+
+  function populateMapping(){
+    const opts = ['<option value="-1">None</option>'].concat(colNames.map((n,i) => '<option value="'+i+'">'+n+'</option>')).join('');
+    ['colX','colY','colZ'].forEach(id => el(id).innerHTML = opts);
+    const gx = guessColumn(/(^|[^a-z])f?x1?($|[^a-z])/i, colNames);
+    const gy = guessColumn(/(^|[^a-z])f?y1?($|[^a-z])/i, colNames);
+    const gz = guessColumn(/(^|[^a-z])f?z1?($|[^a-z])|vert/i, colNames);
+    el('colX').value = gx;
+    el('colY').value = gy;
+    el('colZ').value = gz;
+  }
+
+  el('frameIndexMode').addEventListener('change', function(){
+    el('fsField').style.display = this.checked ? '' : 'none';
+  });
+
+  // ================= example data: synthetic countermovement-jump vertical GRF =================
+  el('loadExample').addEventListener('click', function(){
+    const fs = 1000, dur = 3.0, n = Math.round(fs*dur);
+    const BW = 700; // N, quiet-standing bodyweight
+    const lines = ['Time_s,Force.Fx1,Force.Fy1,Force.Fz1'];
+    function sigmoid(x){ return 1/(1+Math.exp(-x)); }
+    for (let i=0;i<n;i++){
+      const t = i/fs;
+      let fz;
+      if (t < 1.0){
+        fz = BW + 8*Math.sin(2*Math.PI*11*t); // quiet standing, small noise
+      } else if (t < 1.25){
+        fz = BW - 300*sigmoid((t-1.12)/0.02); // unweighting dip
+      } else if (t < 1.55){
+        const u = (t-1.25)/0.30;
+        fz = (BW-300) + (1900-(BW-300))*sigmoid((u-0.5)*8); // propulsion rise
+      } else if (t < 1.62){
+        fz = 1900*(1-(t-1.55)/0.07); // toe-off, force collapses to zero
+      } else if (t < 1.95){
+        fz = 5*Math.random(); // flight, ~zero
+      } else if (t < 2.05){
+        const u = (t-1.95)/0.10;
+        fz = 2600*sigmoid((u-0.5)*14); // landing impact, fast rise
+      } else if (t < 2.4){
+        fz = 2600*Math.exp(-(t-2.05)/0.10) + BW*(1-Math.exp(-(t-2.05)/0.10)); // settle to standing
+      } else {
+        fz = BW + 6*Math.sin(2*Math.PI*9*t);
+      }
+      fz += (Math.random()*2-1)*4;
+      const fx = 15*Math.sin(2*Math.PI*1.3*t) + (Math.random()*2-1)*3;
+      const fy = 25*Math.sin(2*Math.PI*0.9*t+0.5) + (Math.random()*2-1)*3;
+      lines.push(t.toFixed(4)+','+fx.toFixed(2)+','+fy.toFixed(2)+','+fz.toFixed(2));
+    }
+    el('data').value = lines.join('\n');
+    el('parseStatus').textContent = 'Synthetic countermovement-jump example loaded (not real capture data) — click Parse data.';
+    el('parseStatus').className = 'status ok';
+    el('resultsSection').style.display = 'none';
+    el('setupSection').style.display = 'none';
+  });
+
+  // ================= Butterworth filter (same design as Filter Lab) =================
+  function cadd(a,b){ return {re:a.re+b.re, im:a.im+b.im}; }
+  function cmul(a,b){ return {re:a.re*b.re - a.im*b.im, im:a.re*b.im + a.im*b.re}; }
+  function cdiv(a,b){ const d=b.re*b.re+b.im*b.im; return {re:(a.re*b.re+a.im*b.im)/d, im:(a.im*b.re-a.re*b.im)/d}; }
+  function csub(a,b){ return {re:a.re-b.re, im:a.im-b.im}; }
+  function polyFromRoots(roots){
+    let coeffs = [{re:1,im:0}];
+    for (const r of roots){
+      const next = new Array(coeffs.length+1).fill(null).map(() => ({re:0,im:0}));
+      for (let i=0;i<coeffs.length;i++){
+        next[i] = cadd(next[i], coeffs[i]);
+        next[i+1] = cadd(next[i+1], cmul({re:-r.re, im:-r.im}, coeffs[i]));
+      }
+      coeffs = next;
+    }
+    return coeffs;
+  }
+  function evalPoly(coeffs, z){
+    let result = {re:0,im:0};
+    for (const c of coeffs) result = cadd(cmul(result, z), c);
+    return result;
+  }
+  function designButterworth1(cutoffHz, fs){
+    const K = 2*fs;
+    const wc = K * Math.tan(Math.PI * cutoffHz / fs);
+    const proto = [{re:Math.cos(Math.PI), im:Math.sin(Math.PI)}]; // order-1 prototype pole at s=-1
+    const sPoles = proto.map(p => ({re:p.re*wc, im:p.im*wc}));
+    const zZeros = [{re:-1,im:0}];
+    const zPoles = sPoles.map(s => cdiv(cadd({re:K,im:0}, s), csub({re:K,im:0}, s)));
+    const Apoly = polyFromRoots(zPoles), Bpoly = polyFromRoots(zZeros);
+    const Href = cdiv(evalPoly(Bpoly, {re:1,im:0}), evalPoly(Apoly, {re:1,im:0}));
+    const gain = 1/Href.re;
+    return { b: Bpoly.map(c => c.re*gain), a: Apoly.map(c => c.re) };
+  }
+  function applyFilterDF(b, a, x){
+    const N = x.length, nb = b.length, na = a.length;
+    const y = new Array(N).fill(0);
+    for (let n=0;n<N;n++){
+      let acc = 0;
+      for (let k=0;k<nb;k++) if (n-k>=0) acc += b[k]*x[n-k];
+      for (let k=1;k<na;k++) if (n-k>=0) acc -= a[k]*y[n-k];
+      y[n] = acc;
+    }
+    return y;
+  }
+  function applyPassCascade(cutoffHz, fs, nPasses, x){
+    const {b, a} = designButterworth1(cutoffHz, fs);
+    const padLen = Math.max(0, Math.min(3, x.length-1));
+    let y;
+    if (padLen === 0){ y = x; }
+    else {
+      const left = x.slice(1, padLen+1).slice().reverse().map(v => 2*x[0]-v);
+      const right = x.slice(x.length-padLen-1, x.length-1).slice().reverse().map(v => 2*x[x.length-1]-v);
+      y = left.concat(x, right);
+    }
+    for (let p = 1; p <= nPasses; p++){
+      y = (p % 2 === 1) ? applyFilterDF(b, a, y) : applyFilterDF(b, a, y.slice().reverse()).slice().reverse();
+    }
+    return padLen === 0 ? y : y.slice(padLen, padLen + x.length);
+  }
+
+  function fmt(v, d=2){
+    if (v===null || v===undefined || !isFinite(v)) return '—';
+    return v.toLocaleString(undefined, {maximumFractionDigits:d, minimumFractionDigits:0});
+  }
+  function statBlock(value, label){
+    const div = document.createElement('div');
+    div.className = 'stat';
+    div.innerHTML = '<div class="v">'+value+'</div><div class="l">'+label+'</div>';
+    return div;
+  }
+
+  // ================= parse =================
+  el('parseBtn').addEventListener('click', function(){
+    const statusEl = el('parseStatus');
+    statusEl.className = 'status';
+    const frameIndexMode = el('frameIndexMode').checked;
+    const fsOverride = parseFloat(el('fsOverride').value);
+    const parsed = parseWide(el('data').value, { frameIndexMode, fs: fsOverride });
+    if (parsed.error){ statusEl.textContent = parsed.error; return; }
+
+    colNames = parsed.names;
+    times = parsed.times;
+    cols = parsed.cols;
+    dt = 1/parsed.fs;
+
+    populateMapping();
+    el('setupSection').style.display = 'block';
+    el('resultsSection').style.display = 'none';
+    statusEl.textContent = 'Loaded '+times.length+' frames at '+fmt(parsed.fs,2)+' Hz with '+colNames.length+' column(s). Assign the X/Y/Z components below.';
+    statusEl.classList.add('ok');
+  });
+
+  el('noFilter').addEventListener('change', function(){
+    const off = this.checked;
+    ['order','cutoff'].forEach(id => el(id).disabled = off);
+  });
+
+  // ================= filter & plot =================
+  el('processBtn').addEventListener('click', function(){
+    const statusEl = el('processStatus');
+    statusEl.className = 'status';
+
+    mapping.X = parseInt(el('colX').value, 10);
+    mapping.Y = parseInt(el('colY').value, 10);
+    mapping.Z = parseInt(el('colZ').value, 10);
+    if (mapping.X < 0) mapping.X = null;
+    if (mapping.Y < 0) mapping.Y = null;
+    if (mapping.Z < 0) mapping.Z = null;
+
+    if (mapping.X===null && mapping.Y===null && mapping.Z===null){
+      statusEl.textContent = 'Assign at least one component (X, Y, or Z) to a column.';
+      return;
+    }
+
+    const fs = 1/dt;
+    const noFilter = el('noFilter').checked;
+    const order = parseInt(el('order').value, 10);
+    const cutoff = parseFloat(el('cutoff').value);
+    if (!noFilter && (!(cutoff>0) || cutoff >= fs/2)){
+      statusEl.textContent = 'Cutoff frequency must be greater than 0 and less than the Nyquist frequency ('+fmt(fs/2,2)+' Hz).';
+      return;
+    }
+
+    ['X','Y','Z'].forEach(axis => {
+      if (mapping[axis] === null){ filtered[axis] = null; raw[axis] = null; return; }
+      const vals = cols[mapping[axis]];
+      raw[axis] = vals;
+      filtered[axis] = noFilter ? vals.slice() : applyPassCascade(cutoff, fs, order, vals);
+    });
+
+    statusEl.textContent = 'Processed.';
+    statusEl.classList.add('ok');
+
+    // reset picks
+    rfdPick = []; impulsePick = []; pickMode = null;
+    el('rfdModeBtn').className = 'ghost';
+    el('impulseModeBtn').className = 'ghost';
+    el('rfdStats').style.display = 'none';
+    el('impulseStats').style.display = 'none';
+
+    const statsRowEl = el('statsRow');
+    statsRowEl.innerHTML = '';
+    statsRowEl.appendChild(statBlock(fmt(times.length,0), 'samples'));
+    statsRowEl.appendChild(statBlock(fmt(fs,2)+' Hz', 'sampling rate'));
+    statsRowEl.appendChild(statBlock(fmt(times[times.length-1]-times[0],3)+' s', 'duration'));
+    statsRowEl.appendChild(statBlock(noFilter ? 'None' : order+'-pass, '+fmt(cutoff,1)+' Hz', 'low-pass filter'));
+
+    const seriesLegendEl = el('seriesLegend');
+    seriesLegendEl.innerHTML = '';
+    const activeCompEl = el('activeComp');
+    activeCompEl.innerHTML = '';
+    ['X','Y','Z'].forEach(axis => {
+      if (filtered[axis] === null) return;
+      const name = colNames[mapping[axis]];
+      const sp = document.createElement('span');
+      sp.innerHTML = '<span class="swatch" style="background:'+COMP_COLOR[axis]+'"></span>'+axis+' ('+name+')';
+      seriesLegendEl.appendChild(sp);
+      const opt = document.createElement('option');
+      opt.value = axis; opt.textContent = axis+' ('+name+')';
+      activeCompEl.appendChild(opt);
+    });
+
+    el('showRaw').checked = false;
+    el('resultsSection').style.display = 'block';
+    el('analysisSection').style.display = 'block';
+    updatePickHint();
+    renderChart();
+  });
+
+  el('showRaw').addEventListener('change', renderChart);
+  el('activeComp').addEventListener('change', function(){
+    rfdPick = []; impulsePick = [];
+    el('rfdStats').style.display = 'none';
+    el('impulseStats').style.display = 'none';
+    renderChart();
+  });
+
+  function zoomOpts(){
+    return {
+      pan: { enabled: true, mode: 'xy', modifierKey: null },
+      zoom: { wheel: { enabled: true }, pinch: { enabled: true }, drag: { enabled: false }, mode: 'xy' }
+    };
+  }
+  el('resetZoom').addEventListener('click', function(){ if (chart) chart.resetZoom(); });
+  // attached once (the canvas element itself persists across chart.destroy()/recreate) —
+  // routing click-to-pick through Chart.js's own onClick option, instead of a plain DOM
+  // listener, triggers an internal error in chartjs-plugin-zoom's event bookkeeping.
+  el('forceChart').addEventListener('click', function(evt){ handleChartClick(evt); });
+
+  // ================= pick modes =================
+  function updatePickHint(){
+    const h = el('pickHint');
+    if (pickMode === 'rfd'){
+      h.textContent = 'RFD mode armed — click a point on the chart for point A, then point B. (' + rfdPick.length + ' of 2 picked)';
+    } else if (pickMode === 'impulse'){
+      h.textContent = 'Impulse mode armed — click a point on the chart for the start, then the end. (' + impulsePick.length + ' of 2 picked)';
+    } else {
+      h.textContent = 'Pick a mode above, then click two points on the chart.';
+    }
+  }
+
+  el('rfdModeBtn').addEventListener('click', function(){
+    pickMode = (pickMode === 'rfd') ? null : 'rfd';
+    el('rfdModeBtn').className = pickMode === 'rfd' ? 'primary' : 'ghost';
+    el('impulseModeBtn').className = 'ghost';
+    if (pickMode === 'rfd') rfdPick = [];
+    updatePickHint();
+  });
+  el('impulseModeBtn').addEventListener('click', function(){
+    pickMode = (pickMode === 'impulse') ? null : 'impulse';
+    el('impulseModeBtn').className = pickMode === 'impulse' ? 'primary' : 'ghost';
+    el('rfdModeBtn').className = 'ghost';
+    if (pickMode === 'impulse') impulsePick = [];
+    updatePickHint();
+  });
+  el('clearPicksBtn').addEventListener('click', function(){
+    rfdPick = []; impulsePick = [];
+    el('rfdStats').style.display = 'none';
+    el('impulseStats').style.display = 'none';
+    updatePickHint();
+    renderChart();
+  });
+
+  function nearestIndex(tVal){
+    // times is monotonic increasing; binary search
+    let lo = 0, hi = times.length-1;
+    while (lo < hi){
+      const mid = (lo+hi)>>1;
+      if (times[mid] < tVal) lo = mid+1; else hi = mid;
+    }
+    if (lo > 0 && Math.abs(times[lo-1]-tVal) < Math.abs(times[lo]-tVal)) return lo-1;
+    return lo;
+  }
+
+  function handleChartClick(evt){
+    if (!pickMode || !chart) return;
+    const tVal = chart.scales.x.getValueForPixel(evt.offsetX);
+    if (!isFinite(tVal)) return;
+    const axis = el('activeComp').value;
+    if (!axis || filtered[axis] === null) return;
+    const i = nearestIndex(tVal);
+    const point = { i, t: times[i], v: filtered[axis][i] };
+
+    if (pickMode === 'rfd'){
+      if (rfdPick.length >= 2) rfdPick = [];
+      rfdPick.push(point);
+      if (rfdPick.length === 2) computeRFD();
+    } else if (pickMode === 'impulse'){
+      if (impulsePick.length >= 2) impulsePick = [];
+      impulsePick.push(point);
+      if (impulsePick.length === 2) computeImpulse();
+    }
+    updatePickHint();
+    renderChart();
+  }
+
+  function computeRFD(){
+    let [a,b] = rfdPick;
+    if (a.i > b.i){ const tmp=a; a=b; b=tmp; rfdPick=[a,b]; }
+    const dF = b.v - a.v, dT = b.t - a.t;
+    const rfd = dT !== 0 ? dF/dT : NaN;
+    const units = el('units').value || 'N';
+    const rowEl = el('rfdStats');
+    rowEl.innerHTML = '';
+    rowEl.appendChild(statBlock('('+fmt(a.t,3)+' s, '+fmt(a.v,1)+' '+units+')', 'point A'));
+    rowEl.appendChild(statBlock('('+fmt(b.t,3)+' s, '+fmt(b.v,1)+' '+units+')', 'point B'));
+    rowEl.appendChild(statBlock(fmt(dF,1)+' '+units, 'ΔF'));
+    rowEl.appendChild(statBlock(fmt(dT,4)+' s', 'Δt'));
+    rowEl.appendChild(statBlock(fmt(rfd,1)+' '+units+'/s', 'RFD (ΔF/Δt)'));
+    rowEl.style.display = 'flex';
+  }
+
+  function computeImpulse(){
+    let [a,b] = impulsePick;
+    if (a.i > b.i){ const tmp=a; a=b; b=tmp; impulsePick=[a,b]; }
+    const axis = el('activeComp').value;
+    const vals = filtered[axis];
+    let sum = 0;
+    for (let n=a.i; n<b.i; n++) sum += 0.5*(vals[n]+vals[n+1])*(times[n+1]-times[n]);
+    const units = el('units').value || 'N';
+    const rowEl = el('impulseStats');
+    rowEl.innerHTML = '';
+    rowEl.appendChild(statBlock(fmt(a.t,3)+' s', 'start time'));
+    rowEl.appendChild(statBlock(fmt(b.t,3)+' s', 'end time'));
+    rowEl.appendChild(statBlock(fmt(b.t-a.t,4)+' s', 'Δt'));
+    rowEl.appendChild(statBlock(fmt(sum,2)+' '+units+'·s', 'impulse (∫F dt)'));
+    rowEl.style.display = 'flex';
+  }
+
+  // ================= chart =================
+  function renderChart(){
+    const datasets = [];
+    const showRaw = el('showRaw').checked;
+    ['X','Y','Z'].forEach(axis => {
+      if (filtered[axis] === null) return;
+      const pts = times.map((t,i) => ({x:t, y:filtered[axis][i]}));
+      datasets.push({ label: axis+' (filtered)', data: pts, borderColor: COMP_COLOR[axis], backgroundColor:'transparent', borderWidth:1.6, pointRadius:0, tension:0, order:2 });
+      if (showRaw && raw[axis]){
+        const rpts = times.map((t,i) => ({x:t, y:raw[axis][i]}));
+        datasets.push({ label: axis+' (raw)', data: rpts, borderColor: COMP_COLOR[axis], backgroundColor:'transparent', borderWidth:1, borderDash:[2,2], pointRadius:0, tension:0, order:3 });
+      }
+    });
+
+    // impulse shaded region (drawn behind the lines)
+    if (impulsePick.length === 2){
+      const axis = el('activeComp').value;
+      const vals = filtered[axis];
+      let [a,b] = impulsePick;
+      if (a.i > b.i){ const tmp=a; a=b; b=tmp; }
+      const pts = [];
+      for (let n=a.i; n<=b.i; n++) pts.push({x:times[n], y:vals[n]});
+      datasets.push({ label:'Impulse region', data: pts, borderColor:'transparent', backgroundColor:'rgba(214,69,69,0.28)', fill:'origin', pointRadius:0, tension:0, order:1 });
+    }
+
+    // RFD marker line
+    if (rfdPick.length === 2){
+      let [a,b] = rfdPick;
+      if (a.i > b.i){ const tmp=a; a=b; b=tmp; }
+      datasets.push({
+        label:'RFD points', data:[{x:a.t,y:a.v},{x:b.t,y:b.v}],
+        borderColor: RFD_COLOR, backgroundColor: RFD_COLOR, borderWidth:2.4,
+        pointRadius:5, pointBackgroundColor: RFD_COLOR, showLine:true, tension:0, order:0
+      });
+    }
+
+    if (chart) chart.destroy();
+    chart = new Chart(el('forceChart'), {
+      type: 'line',
+      data: { datasets },
+      options: {
+        animation:false, responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ display:false }, zoom: zoomOpts() },
+        scales:{
+          x:{ type:'linear', title:{display:true, text:'Time (s)'}, ticks:{maxTicksLimit:12} },
+          y:{ title:{display:true, text:'Force ('+(el('units').value||'N')+')'} }
+        }
+      }
+    });
+  }
+})();
+</script>
+</body>
+</html>

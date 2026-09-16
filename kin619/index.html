@@ -138,16 +138,18 @@
     <a href="filter_compare.html">Filter Compare</a>
     <a href="anthro_lab.html">Anthropometrics Lab</a>
     <a href="segment_animator.html">Segment Animator</a>
+    <a href="grf_lab.html">GRF Lab</a>
+    <a href="cop_lab.html">COP Lab</a>
   </nav>
 
   <header>
     <p class="kicker">KIN 619 — Advanced Biomechanics</p>
     <h1>Signal Processing &amp; Anthropometrics Tools</h1>
-    <p>Six browser-based tools for working with motion and force data — no installs, no accounts, nothing you paste is ever uploaded anywhere. Pick a tool below.</p>
+    <p>Eight browser-based tools for working with motion and force data — no installs, no accounts, nothing you paste is ever uploaded anywhere. Pick a tool below.</p>
   </header>
 
   <div class="order-note">
-    <strong>Suggested order if this is your first pass:</strong> Derivative Lab (differentiate position by hand, then check your work) → FFT Quick-Look (see what frequency content is actually in your signal) → Filter Lab (apply a single filter and get clean data back) → Filter Compare (stack multiple filters/datasets to see how choices like order and sample rate change the result) → Anthropometrics Lab (segment-based center of mass, compared against the reaction board method) → Segment Animator (reconstruct and animate a skeleton from raw marker coordinates).
+    <strong>Suggested order if this is your first pass:</strong> Derivative Lab (differentiate position by hand, then check your work) → FFT Quick-Look (see what frequency content is actually in your signal) → Filter Lab (apply a single filter and get clean data back) → Filter Compare (stack multiple filters/datasets to see how choices like order and sample rate change the result) → Anthropometrics Lab (segment-based center of mass, compared against the reaction board method) → Segment Animator (reconstruct and animate a skeleton from raw marker coordinates) → GRF Lab (filter ground reaction forces and pick points to measure RFD and impulse) → COP Lab (stabilograms, COP path, and the Prieto postural-steadiness measures).
   </div>
 
   <div class="tool-grid">
@@ -186,6 +188,18 @@
       <h2>Segment Animator</h2>
       <p>Paste raw marker coordinates, define segments from marker pairs, and watch the reconstructed skeleton move through the trial — with each segment's length and angle updating live as a built-in check on your data.</p>
       <a class="btn" href="segment_animator.html">Open Segment Animator</a>
+    </div>
+    <div class="tool-card">
+      <span class="num">07</span>
+      <h2>GRF Lab</h2>
+      <p>Paste ground reaction force data, filter it, and click two points directly on the chart to measure rate of force development or impulse — with the impulse region shaded right under the curve.</p>
+      <a class="btn" href="grf_lab.html">Open GRF Lab</a>
+    </div>
+    <div class="tool-card">
+      <span class="num">08</span>
+      <h2>COP Lab</h2>
+      <p>Paste center-of-pressure data and get X/Y stabilograms plus the COP path with Prieto et al.'s (1996) postural-steadiness measures — including the 95% confidence ellipse — calculated and drawn on the plots.</p>
+      <a class="btn" href="cop_lab.html">Open COP Lab</a>
     </div>
   </div>
 
