@@ -346,9 +346,9 @@
 
     <section class="panel">
       <h2>Body diagram</h2>
-      <p class="hint">Body outline drawn to scale from your segment lengths (arms-at-sides skeleton shown for reference; the diagram doesn't re-draw the arm angle per position). Solid lines = calculated COM. Dashed lines = reaction board COM. Color marks the arm position. The small teal dots mark the shoulder, elbow, hip, and knee, each labeled with that joint's moment of inertia in kg&middot;m&sup2; (see the Moment of Inertia section below) &mdash; shown only once body mass is entered.</p>
+      <p class="hint">Body outline drawn to scale from your segment lengths (arms-at-sides skeleton shown for reference; the diagram doesn't re-draw the arm angle per position). Gray labels on the left name each segment at its own location. <strong>Solid</strong> lines = calculated COM; <strong>dashed</strong> lines = reaction board COM; color marks the arm position (see legend below the diagram). The small teal dots on the right mark the shoulder, elbow, hip, and knee joints, each labeled with that joint's moment of inertia in kg&middot;m&sup2; (see the Moment of Inertia section below) &mdash; shown only once body mass is entered.</p>
       <div class="layout">
-        <div class="diagram-wrap"><svg id="diagram" width="260" height="340" viewBox="0 0 260 340" xmlns="http://www.w3.org/2000/svg"></svg></div>
+        <div class="diagram-wrap"><svg id="diagram" width="300" height="340" viewBox="0 0 300 340" xmlns="http://www.w3.org/2000/svg"></svg></div>
         <div>
           <div id="diagramLegend" style="margin-bottom:1rem"></div>
           <table class="segtab" id="segTable"></table>
@@ -551,48 +551,88 @@
   }
 
   function buildDiagram(baseModel, len, comLines, joints){
-    const W = 260, H = 340, topMargin = 20, bottomMargin = 20;
+    const W = 300, H = 340, topMargin = 20, bottomMargin = 20;
     const drawH = H - topMargin - bottomMargin;
     const scale = drawH / baseModel.standingHeight; // px per cm
     const y = (h) => (H - bottomMargin) - scale*h;
-    const cx = 130;
+    const cx = 150;
 
     const ankleY = y(0), kneeY = y(baseModel.kneeHeight), hipY = y(baseModel.hipHeight),
           shoulderY = y(baseModel.shoulderHeight), headTopY = y(baseModel.topOfHead);
 
     const hipSpread = 6, legSpread = 11, shoulderSpread = 13, armOutward = 7;
-    const armPx = (len.upperarm + len.forearm) * scale; // real arm length, to scale
+    const armPx = (len.upperarm + len.forearm) * scale; // upper arm + forearm, to scale
+    const handPx = len.hand * scale;
+    // elbow splits the shoulder-to-wrist line at the real upper-arm/forearm length ratio,
+    // so the bend actually lands on the correct landmark instead of an arbitrary midpoint.
+    const elbowFrac = len.upperarm / (len.upperarm + len.forearm);
+    const handFrac = handPx / armPx; // how far past the wrist the hand stub continues, to scale
 
     const headCY = (shoulderY + headTopY)/2;
     const headR = Math.max(8, (shoulderY - headTopY)/2);
 
     const BODY = '#3A4750';
+    const LABEL_COLOR = '#5C7080';
     let svg = '';
+
+    // ---- right-side limb geometry (also used to anchor the joint MOI markers) ----
+    const shR = { x: cx+shoulderSpread, y: shoulderY };
+    const elR = { x: shR.x + armOutward*elbowFrac,        y: shoulderY + len.upperarm*scale };
+    const wrR = { x: shR.x + armOutward,                  y: shoulderY + armPx };
+    const fiR = { x: wrR.x + armOutward*handFrac,         y: wrR.y + handPx };
+    const hipR  = { x: cx+hipSpread,  y: hipY };
+    const kneeR = { x: cx+legSpread,  y: kneeY };
+
+    // ---- left-side limb geometry (mirrored; carries the segment name labels) ----
+    const shL = { x: cx-shoulderSpread, y: shoulderY };
+    const elL = { x: shL.x - armOutward*elbowFrac,        y: shoulderY + len.upperarm*scale };
+    const wrL = { x: shL.x - armOutward,                  y: shoulderY + armPx };
+    const fiL = { x: wrL.x - armOutward*handFrac,         y: wrL.y + handPx };
+    const hipL  = { x: cx-hipSpread,  y: hipY };
+    const kneeL = { x: cx-legSpread,  y: kneeY };
+
     svg += ln(cx, hipY, cx, shoulderY, BODY, 12); // trunk
-    svg += ln(cx-hipSpread, hipY, cx-legSpread, kneeY, BODY, 7); // left thigh
-    svg += ln(cx-legSpread, kneeY, cx-legSpread, ankleY, BODY, 6); // left shank
-    svg += ln(cx+hipSpread, hipY, cx+legSpread, kneeY, BODY, 7); // right thigh
-    svg += ln(cx+legSpread, kneeY, cx+legSpread, ankleY, BODY, 6); // right shank
+    svg += ln(hipL.x, hipL.y, kneeL.x, kneeL.y, BODY, 7); // left thigh
+    svg += ln(kneeL.x, kneeL.y, cx-legSpread, ankleY, BODY, 6); // left shank
+    svg += ln(hipR.x, hipR.y, kneeR.x, kneeR.y, BODY, 7); // right thigh
+    svg += ln(kneeR.x, kneeR.y, cx+legSpread, ankleY, BODY, 6); // right shank
     svg += '<rect x="'+(cx-legSpread-11)+'" y="'+(ankleY-3)+'" width="26" height="6" rx="2" fill="'+BODY+'"/>'; // left foot
     svg += '<rect x="'+(cx+legSpread-15)+'" y="'+(ankleY-3)+'" width="26" height="6" rx="2" fill="'+BODY+'"/>'; // right foot
-    svg += ln(cx-shoulderSpread, shoulderY, cx-shoulderSpread-armOutward, shoulderY+armPx, BODY, 4.5); // left arm, hanging, to-scale length
-    svg += ln(cx+shoulderSpread, shoulderY, cx+shoulderSpread+armOutward, shoulderY+armPx, BODY, 4.5); // right arm
+    svg += ln(shL.x, shL.y, elL.x, elL.y, BODY, 5);   // left upper arm
+    svg += ln(elL.x, elL.y, wrL.x, wrL.y, BODY, 4);   // left forearm
+    svg += ln(wrL.x, wrL.y, fiL.x, fiL.y, BODY, 3);   // left hand
+    svg += ln(shR.x, shR.y, elR.x, elR.y, BODY, 5);   // right upper arm
+    svg += ln(elR.x, elR.y, wrR.x, wrR.y, BODY, 4);   // right forearm
+    svg += ln(wrR.x, wrR.y, fiR.x, fiR.y, BODY, 3);   // right hand
     svg += '<circle cx="'+cx+'" cy="'+headCY+'" r="'+headR+'" fill="'+BODY+'"/>'; // head
+
+    // ---- segment name labels, anchored to the left-side landmarks above ----
+    function seglabel(x, y, text){ return '<text x="'+(x-6)+'" y="'+(y+3)+'" font-size="8" fill="'+LABEL_COLOR+'" text-anchor="end">'+text+'</text>'; }
+    svg += seglabel(cx-headR, headCY, 'Head (vertex–C7)');
+    svg += seglabel(cx, (hipY+shoulderY)/2, 'Trunk (C7–hip)');
+    svg += seglabel((shL.x+elL.x)/2, (shL.y+elL.y)/2, 'Upper arm (shoulder–elbow)');
+    svg += seglabel((elL.x+wrL.x)/2, (elL.y+wrL.y)/2, 'Forearm (elbow–wrist)');
+    svg += seglabel((wrL.x+fiL.x)/2, (wrL.y+fiL.y)/2, 'Hand (wrist–fingertip)');
+    svg += seglabel((hipL.x+kneeL.x)/2, (hipL.y+kneeL.y)/2, 'Thigh (hip–knee)');
+    svg += seglabel(kneeL.x, (kneeY+ankleY)/2, 'Shank (knee–ankle)');
+    svg += '<text x="'+(cx-legSpread-11+13)+'" y="'+(ankleY-6)+'" font-size="8" fill="'+LABEL_COLOR+'" text-anchor="middle">Foot (heel–toe)</text>';
 
     comLines.forEach(function(line){
       const ly = y(line.height);
-      const dash = line.dashed ? '3,3' : '6,4';
-      const width = line.dashed ? 2 : 2.2;
-      svg += '<line x1="12" y1="'+ly+'" x2="'+(W-12)+'" y2="'+ly+'" stroke="'+line.color+'" stroke-width="'+width+'" stroke-dasharray="'+dash+'"/>';
+      const width = line.dashed ? 2 : 2.4;
+      const dashAttr = line.dashed ? ' stroke-dasharray="4,3"' : ''; // solid = calculated, dashed = reaction board
+      svg += '<line x1="12" y1="'+ly+'" x2="'+(W-12)+'" y2="'+ly+'" stroke="'+line.color+'" stroke-width="'+width+'"'+dashAttr+'/>';
       svg += '<circle cx="'+cx+'" cy="'+ly+'" r="3.5" fill="'+line.color+'"/>';
     });
 
     if (joints){
       const JOINT_COLOR = '#1C7293';
+      const JOINT_XY = { shoulder:shR, elbow:elR, hip:hipR, knee:kneeR };
       joints.forEach(function(j){
-        const jy = y(j.height);
-        svg += '<circle cx="'+cx+'" cy="'+jy+'" r="3" fill="'+JOINT_COLOR+'" stroke="#fff" stroke-width="1"/>';
-        svg += '<text x="'+(cx+17)+'" y="'+(jy+3)+'" font-size="8.5" fill="'+JOINT_COLOR+'">'+j.key.charAt(0).toUpperCase()+j.key.slice(1)+' '+fmt(j.I,2)+'</text>';
+        const p = JOINT_XY[j.key];
+        if (!p) return;
+        svg += '<circle cx="'+p.x+'" cy="'+p.y+'" r="3" fill="'+JOINT_COLOR+'" stroke="#fff" stroke-width="1"/>';
+        svg += '<text x="'+(p.x+6)+'" y="'+(p.y+3)+'" font-size="8.5" fill="'+JOINT_COLOR+'">'+j.key.charAt(0).toUpperCase()+j.key.slice(1)+' '+fmt(j.I,2)+'</text>';
       });
     }
 
