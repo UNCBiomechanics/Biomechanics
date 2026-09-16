@@ -284,6 +284,11 @@
         <p class="field-hint">Knee joint line to ankle (lateral malleolus)</p>
         <input type="number" id="lenShank" min="0" step="any">
       </div>
+      <div>
+        <label for="lenFoot">Foot (cm)</label>
+        <p class="field-hint">Heel (calcaneus) to tip of longest toe</p>
+        <input type="number" id="lenFoot" min="0" step="any">
+      </div>
     </div>
   </section>
 
@@ -341,7 +346,7 @@
 
     <section class="panel">
       <h2>Body diagram</h2>
-      <p class="hint">Body outline drawn to scale from your segment lengths (arms-at-sides skeleton shown for reference; the diagram doesn't re-draw the arm angle per position). Solid lines = calculated COM. Dashed lines = reaction board COM. Color marks the arm position.</p>
+      <p class="hint">Body outline drawn to scale from your segment lengths (arms-at-sides skeleton shown for reference; the diagram doesn't re-draw the arm angle per position). Solid lines = calculated COM. Dashed lines = reaction board COM. Color marks the arm position. The small teal dots mark the shoulder, elbow, hip, and knee, each labeled with that joint's moment of inertia in kg&middot;m&sup2; (see the Moment of Inertia section below) &mdash; shown only once body mass is entered.</p>
       <div class="layout">
         <div class="diagram-wrap"><svg id="diagram" width="260" height="340" viewBox="0 0 260 340" xmlns="http://www.w3.org/2000/svg"></svg></div>
         <div>
@@ -350,10 +355,23 @@
         </div>
       </div>
     </section>
+
+    <section class="panel" id="moiPanel">
+      <h2>Moment of inertia (arms at sides)</h2>
+      <p class="hint">Uses de Leva's (1996) radius of gyration about each segment's medio-lateral axis &mdash; the axis this diagram's flexion/extension motion rotates about &mdash; combined with your measured segment lengths, then the parallel-axis theorem to reference every segment to the whole-body center of mass or to a joint. Needs body mass, entered above, to convert from mass percentages to kg&middot;m&sup2;.</p>
+      <div class="status warn" id="moiNoMass">Enter body mass above to calculate moment of inertia.</div>
+      <div id="moiContent" style="display:none">
+        <div class="stats" id="moiStatsRow"></div>
+        <p class="hint" style="margin-top:0">Per-segment breakdown &mdash; own moment of inertia about the segment's own center of mass, then shifted (parallel-axis theorem) to the whole-body COM:</p>
+        <table class="segtab" id="moiSegTable" style="margin-bottom:1.5rem"></table>
+        <p class="hint" style="margin-top:0">Moment of inertia of each limb, swinging as a rigid pendulum about the named joint &mdash; also marked directly on the diagram above:</p>
+        <table class="segtab" id="moiJointTable"></table>
+      </div>
+    </section>
   </section>
 
   <footer>
-    Segment mass and center-of-mass coefficients: de Leva, P. (1996), "Adjustments to Zatsiorsky-Seluyanov's segment inertia parameters," <em>Journal of Biomechanics</em> 29(9), 1223–1230. Simplifications used here: feet are assumed to lie flat on the ground, so foot mass is included at ground level rather than positioned along the (horizontal) heel-to-toe axis; the small vertical thickness of the foot at the ankle is neglected; left and right sides are assumed symmetric from a single-side measurement; the head segment's C7 landmark is approximated at shoulder height. These are standard, small simplifications for a teaching-lab estimate — they are also exactly the kind of assumptions worth comparing against your reaction-board measurement to see how much they matter in practice.
+    Segment mass, center-of-mass, and radius-of-gyration coefficients: de Leva, P. (1996), "Adjustments to Zatsiorsky-Seluyanov's segment inertia parameters," <em>Journal of Biomechanics</em> 29(9), 1223–1230. Simplifications used here: feet are assumed to lie flat on the ground, so foot mass is included at ground level rather than positioned along the (horizontal) heel-to-toe axis; the small vertical thickness of the foot at the ankle is neglected; left and right sides are assumed symmetric from a single-side measurement; the head segment's C7 landmark is approximated at shoulder height. These are standard, small simplifications for a teaching-lab estimate — they are also exactly the kind of assumptions worth comparing against your reaction-board measurement to see how much they matter in practice. The moment-of-inertia section adds one more assumption: each limb segment's own long axis is treated as aligned with the body's vertical axis, which holds for the arms-at-sides posture modeled there but not for a limb swung out to the side.
     <p style="margin-top:1rem;color:var(--muted)">Created by Abbie Ferris, PhD — University of Northern Colorado</p>
   </footer>
 
@@ -365,26 +383,28 @@
 
   const DELEVA = {
     male: {
-      head:     { massPct:6.94,  cmPct:50.02 },
-      trunk:    { massPct:43.46, cmPct:51.38 },
-      upperarm: { massPct:2.71,  cmPct:57.72 },
-      forearm:  { massPct:1.62,  cmPct:45.74 },
-      hand:     { massPct:0.61,  cmPct:79.00 },
-      thigh:    { massPct:14.16, cmPct:40.95 },
-      shank:    { massPct:4.33,  cmPct:43.95 },
-      foot:     { massPct:1.37,  cmPct:44.15 }
+      head:     { massPct:6.94,  cmPct:50.02, gyrPct:31.5 },
+      trunk:    { massPct:43.46, cmPct:51.38, gyrPct:30.6 },
+      upperarm: { massPct:2.71,  cmPct:57.72, gyrPct:26.9 },
+      forearm:  { massPct:1.62,  cmPct:45.74, gyrPct:26.5 },
+      hand:     { massPct:0.61,  cmPct:79.00, gyrPct:51.3 },
+      thigh:    { massPct:14.16, cmPct:40.95, gyrPct:32.9 },
+      shank:    { massPct:4.33,  cmPct:43.95, gyrPct:24.6 },
+      foot:     { massPct:1.37,  cmPct:44.15, gyrPct:24.5 }
     },
     female: {
-      head:     { massPct:6.68,  cmPct:48.41 },
-      trunk:    { massPct:42.57, cmPct:49.64 },
-      upperarm: { massPct:2.55,  cmPct:57.54 },
-      forearm:  { massPct:1.38,  cmPct:45.59 },
-      hand:     { massPct:0.56,  cmPct:74.74 },
-      thigh:    { massPct:14.78, cmPct:36.12 },
-      shank:    { massPct:4.81,  cmPct:43.52 },
-      foot:     { massPct:1.29,  cmPct:40.14 }
+      head:     { massPct:6.68,  cmPct:48.41, gyrPct:29.5 },
+      trunk:    { massPct:42.57, cmPct:49.64, gyrPct:29.2 },
+      upperarm: { massPct:2.55,  cmPct:57.54, gyrPct:26.0 },
+      forearm:  { massPct:1.38,  cmPct:45.59, gyrPct:25.7 },
+      hand:     { massPct:0.56,  cmPct:74.74, gyrPct:45.4 },
+      thigh:    { massPct:14.78, cmPct:36.12, gyrPct:36.4 },
+      shank:    { massPct:4.81,  cmPct:43.52, gyrPct:26.3 },
+      foot:     { massPct:1.29,  cmPct:40.14, gyrPct:27.9 }
     }
   };
+  // gyrPct: radius of gyration about the segment's medio-lateral axis (% of segment length),
+  // i.e. the axis this page's sagittal-plane flexion/extension diagram rotates about.
 
   const POSITIONS = [
     { key:'sides', label:'Arms at sides',      color:'#0B3D91', r1id:'boardR1Sides' },
@@ -403,6 +423,7 @@
     el('lenHand').value = 19;
     el('lenThigh').value = 44;
     el('lenShank').value = 44;
+    el('lenFoot').value = 26;
     el('boardL').value = 220;
     el('boardR0').value = 15;
     el('boardW').value = '';
@@ -452,24 +473,24 @@
     let armSegs = [];
     if (mode === 'sides'){
       const c = armChain('down', D, len, shoulderHeight);
-      ['upperarm','forearm','hand'].forEach(k => armSegs.push({ name:cap(k)+' (both, at sides)', massPct:c[k].massPct*2, cmHeight:c[k].cmHeight }));
+      ['upperarm','forearm','hand'].forEach(k => armSegs.push({ name:cap(k)+' (both, at sides)', part:k, massPct:c[k].massPct*2, cmHeight:c[k].cmHeight }));
     } else if (mode === 'two'){
       const c = armChain('up', D, len, shoulderHeight);
-      ['upperarm','forearm','hand'].forEach(k => armSegs.push({ name:cap(k)+' (both, overhead)', massPct:c[k].massPct*2, cmHeight:c[k].cmHeight }));
+      ['upperarm','forearm','hand'].forEach(k => armSegs.push({ name:cap(k)+' (both, overhead)', part:k, massPct:c[k].massPct*2, cmHeight:c[k].cmHeight }));
     } else { // 'one'
       const down = armChain('down', D, len, shoulderHeight), up = armChain('up', D, len, shoulderHeight);
       ['upperarm','forearm','hand'].forEach(k => {
-        armSegs.push({ name:cap(k)+' (resting arm)', massPct:down[k].massPct, cmHeight:down[k].cmHeight });
-        armSegs.push({ name:cap(k)+' (raised arm)',  massPct:up[k].massPct,   cmHeight:up[k].cmHeight   });
+        armSegs.push({ name:cap(k)+' (resting arm)', part:k, massPct:down[k].massPct, cmHeight:down[k].cmHeight });
+        armSegs.push({ name:cap(k)+' (raised arm)',  part:k, massPct:up[k].massPct,   cmHeight:up[k].cmHeight   });
       });
     }
 
     const otherSegs = [
-      { name:'Head',       massPct:D.head.massPct,      cmHeight: shoulderHeight + (D.head.cmPct/100)*len.head },
-      { name:'Trunk',      massPct:D.trunk.massPct,     cmHeight: (hipHeight+len.trunk) - (D.trunk.cmPct/100)*len.trunk },
-      { name:'Thigh (×2)', massPct:D.thigh.massPct*2,   cmHeight: (kneeHeight+len.thigh) - (D.thigh.cmPct/100)*len.thigh },
-      { name:'Shank (×2)', massPct:D.shank.massPct*2,   cmHeight: (ankleHeight+len.shank) - (D.shank.cmPct/100)*len.shank },
-      { name:'Foot (×2)',  massPct:D.foot.massPct*2,    cmHeight: 0 }
+      { name:'Head',       part:'head',  massPct:D.head.massPct,      cmHeight: shoulderHeight + (D.head.cmPct/100)*len.head },
+      { name:'Trunk',      part:'trunk', massPct:D.trunk.massPct,     cmHeight: (hipHeight+len.trunk) - (D.trunk.cmPct/100)*len.trunk },
+      { name:'Thigh (×2)', part:'thigh', massPct:D.thigh.massPct*2,   cmHeight: (kneeHeight+len.thigh) - (D.thigh.cmPct/100)*len.thigh },
+      { name:'Shank (×2)', part:'shank', massPct:D.shank.massPct*2,   cmHeight: (ankleHeight+len.shank) - (D.shank.cmPct/100)*len.shank },
+      { name:'Foot (×2)',  part:'foot',  massPct:D.foot.massPct*2,    cmHeight: 0 }
     ];
 
     const segs = armSegs.concat(otherSegs);
@@ -489,7 +510,47 @@
 
   function ln(x1,y1,x2,y2,c,w){ return '<line x1="'+x1+'" y1="'+y1+'" x2="'+x2+'" y2="'+y2+'" stroke="'+c+'" stroke-width="'+w+'" stroke-linecap="round"/>'; }
 
-  function buildDiagram(baseModel, len, comLines){
+  // MOI (about the medio-lateral / flexion-extension axis) for the "arms at sides" baseline model.
+  // ownI: mass * (radius of gyration)^2, radius of gyration = de Leva's gyrPct% of the segment's real length.
+  // Segment CM heights and part tags come straight from baseModel.segs, so this stays in sync with the COM model above.
+  function computeMOI(baseModel, len, sex, bodyMass){
+    const D = DELEVA[sex];
+    const lenM = { head:len.head/100, trunk:len.trunk/100, upperarm:len.upperarm/100, forearm:len.forearm/100,
+                   hand:len.hand/100, thigh:len.thigh/100, shank:len.shank/100, foot:len.foot/100 };
+
+    function ownI(part, massKg){
+      const k = (D[part].gyrPct/100) * lenM[part];
+      return massKg * k * k;
+    }
+
+    const rows = baseModel.segs.map(function(s){
+      const massKg = (bodyMass/100) * s.massPct;
+      const I_own = ownI(s.part, massKg);
+      const d_m = Math.abs(s.cmHeight - baseModel.comHeight) / 100;
+      return { name:s.name, part:s.part, massKg:massKg, I_own:I_own, cmHeight:s.cmHeight, I_com: I_own + massKg*d_m*d_m };
+    });
+    const totalI_com = rows.reduce((sum,r) => sum + r.I_com, 0);
+
+    const elbowHeight = baseModel.shoulderHeight - len.upperarm; // baseline "sides" (arm hanging down) geometry
+    const JOINTS = [
+      { key:'shoulder', label:'Shoulder — whole arm (upper arm + forearm + hand)', height:baseModel.shoulderHeight, parts:['upperarm','forearm','hand'] },
+      { key:'elbow',    label:'Elbow — forearm + hand',                            height:elbowHeight,               parts:['forearm','hand'] },
+      { key:'hip',      label:'Hip — whole leg (thigh + shank + foot)',            height:baseModel.hipHeight,       parts:['thigh','shank','foot'] },
+      { key:'knee',     label:'Knee — shank + foot',                               height:baseModel.kneeHeight,      parts:['shank','foot'] }
+    ];
+    const joints = JOINTS.map(function(j){
+      const chainRows = rows.filter(r => j.parts.indexOf(r.part) !== -1);
+      const I = chainRows.reduce(function(sum, r){
+        const d_m = Math.abs(r.cmHeight - j.height) / 100;
+        return sum + r.I_own + r.massKg*d_m*d_m;
+      }, 0);
+      return { key:j.key, label:j.label, height:j.height, I:I };
+    });
+
+    return { rows, totalI_com, joints };
+  }
+
+  function buildDiagram(baseModel, len, comLines, joints){
     const W = 260, H = 340, topMargin = 20, bottomMargin = 20;
     const drawH = H - topMargin - bottomMargin;
     const scale = drawH / baseModel.standingHeight; // px per cm
@@ -526,6 +587,15 @@
       svg += '<circle cx="'+cx+'" cy="'+ly+'" r="3.5" fill="'+line.color+'"/>';
     });
 
+    if (joints){
+      const JOINT_COLOR = '#1C7293';
+      joints.forEach(function(j){
+        const jy = y(j.height);
+        svg += '<circle cx="'+cx+'" cy="'+jy+'" r="3" fill="'+JOINT_COLOR+'" stroke="#fff" stroke-width="1"/>';
+        svg += '<text x="'+(cx+17)+'" y="'+(jy+3)+'" font-size="8.5" fill="'+JOINT_COLOR+'">'+j.key.charAt(0).toUpperCase()+j.key.slice(1)+' '+fmt(j.I,2)+'</text>';
+      });
+    }
+
     svg += '<line x1="8" y1="'+ankleY+'" x2="'+(W-8)+'" y2="'+ankleY+'" stroke="#334155" stroke-width="1.5"/>';
     svg += '<text x="8" y="'+(ankleY+14)+'" font-size="10" fill="#334155">ground</text>';
 
@@ -536,12 +606,12 @@
     const statusEl = el('status');
     statusEl.className = 'status';
 
-    const ids = ['lenHead','lenTrunk','lenUpperarm','lenForearm','lenHand','lenThigh','lenShank'];
-    const keys = ['head','trunk','upperarm','forearm','hand','thigh','shank'];
+    const ids = ['lenHead','lenTrunk','lenUpperarm','lenForearm','lenHand','lenThigh','lenShank','lenFoot'];
+    const keys = ['head','trunk','upperarm','forearm','hand','thigh','shank','foot'];
     const len = {};
     for (let i=0;i<ids.length;i++){
       const v = parseFloat(el(ids[i]).value);
-      if (!(v > 0)){ statusEl.textContent = 'Enter all seven segment lengths (positive numbers, in cm).'; document.getElementById('results').style.display='none'; return; }
+      if (!(v > 0)){ statusEl.textContent = 'Enter all eight segment lengths (positive numbers, in cm).'; document.getElementById('results').style.display='none'; return; }
       len[keys[i]] = v;
     }
 
@@ -614,7 +684,39 @@
       const measured = reactionBoardD(boardR0, R1, boardL, boardW);
       if (measured !== null) comLines.push({ height: measured, color:p.color, dashed:true });
     });
-    el('diagram').innerHTML = buildDiagram(baseModel, len, comLines);
+
+    // moment of inertia (needs an actual body mass to convert mass % into kg·m²)
+    let moiJoints = null;
+    if (isFinite(bodyMass) && bodyMass>0){
+      const moi = computeMOI(baseModel, len, sex, bodyMass);
+      moiJoints = moi.joints;
+      el('moiNoMass').style.display = 'none';
+      el('moiContent').style.display = '';
+
+      const moiStatsEl = el('moiStatsRow');
+      moiStatsEl.innerHTML = '';
+      function moiStat(v,l){ const d=document.createElement('div'); d.className='stat'; d.innerHTML='<div class="v">'+v+'</div><div class="l">'+l+'</div>'; moiStatsEl.appendChild(d); }
+      moiStat(fmt(moi.totalI_com,3)+' kg·m²', 'whole-body MOI about COM');
+
+      const moiRows = moi.rows.map(r =>
+        '<tr><td>'+r.name+'</td><td class="num">'+fmt(r.massKg,2)+' kg</td><td class="num">'+fmt(r.I_own,3)+'</td>'
+        + '<td class="num">'+fmt(Math.abs(r.cmHeight-baseModel.comHeight),1)+' cm</td><td class="num">'+fmt(r.I_com,3)+'</td></tr>'
+      ).join('');
+      el('moiSegTable').innerHTML =
+        '<thead><tr><th>Segment</th><th>Mass</th><th>Own MOI (kg·m²)</th><th>Dist. to whole-body COM</th><th>MOI about COM (kg·m²)</th></tr></thead><tbody>'
+        + moiRows
+        + '<tr><td><strong>Total</strong></td><td></td><td></td><td></td><td class="num"><strong>'+fmt(moi.totalI_com,3)+'</strong></td></tr>'
+        + '</tbody>';
+
+      const jointRows = moi.joints.map(j => '<tr><td>'+j.label+'</td><td class="num">'+fmt(j.I,3)+' kg·m²</td></tr>').join('');
+      el('moiJointTable').innerHTML =
+        '<thead><tr><th>Joint (rigid pendulum swinging about this axis)</th><th>MOI</th></tr></thead><tbody>' + jointRows + '</tbody>';
+    } else {
+      el('moiNoMass').style.display = '';
+      el('moiContent').style.display = 'none';
+    }
+
+    el('diagram').innerHTML = buildDiagram(baseModel, len, comLines, moiJoints);
 
     // legend
     el('diagramLegend').innerHTML = POSITIONS.map(p =>
