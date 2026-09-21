@@ -256,18 +256,8 @@
   <section class="panel">
     <h2>1. Your data</h2>
     <label for="data">Center-of-pressure data</label>
-    <textarea id="data" placeholder="Paste a header row, then one row per frame. First column is time (seconds) or a frame number — see options below. Remaining columns are your COP components, named however your export names them (COPx, COP.X, ML, ...). Comma or tab separated."></textarea>
+    <textarea id="data" placeholder="Paste a header row, then one row per frame — comma or tab separated. Any column can be time, a COP component, or something else; nothing is assumed from column order — you'll assign each column's role in step 2."></textarea>
     <p class="hint">If your export has several header rows (file path, channel name, units, axis), delete all but the one row with the column names you want to use, so the pasted header is a single row.</p>
-    <div class="row">
-      <div class="checkline">
-        <input type="checkbox" id="frameIndexMode">
-        <label for="frameIndexMode">First column is a frame number, not seconds</label>
-      </div>
-      <div class="field" id="fsField" style="display:none">
-        <label for="fsOverride">Sampling rate (Hz)</label>
-        <input type="number" id="fsOverride" min="0.001" step="any" placeholder="e.g. 1000">
-      </div>
-    </div>
     <div class="actions">
       <button class="ghost" id="loadExample" type="button">Load example data</button>
       <button class="primary" id="parseBtn" type="button">Parse data</button>
@@ -277,7 +267,24 @@
 
   <section class="panel" id="setupSection">
     <h2>2. Columns &amp; filter</h2>
+    <p class="hint">Tell us what each pasted column actually is — nothing is assumed from column order or position.</p>
     <div class="row">
+      <div class="field">
+        <label for="colTime">Time column</label>
+        <select id="colTime"></select>
+      </div>
+      <div class="checkline" id="frameModeLine" style="display:none">
+        <input type="checkbox" id="frameIndexMode">
+        <label for="frameIndexMode">This column is a frame number, not seconds</label>
+      </div>
+      <div class="field" id="fsField" style="display:none">
+        <label for="fsOverride">Sampling rate (Hz)</label>
+        <input type="number" id="fsOverride" min="0.001" step="any" placeholder="e.g. 1000">
+      </div>
+    </div>
+    <p class="hint" id="timeHint" style="margin-top:0"></p>
+
+    <div class="row" style="margin-top:0">
       <div class="field">
         <label for="colX">Medio-lateral (X) column</label>
         <select id="colX"></select>
@@ -340,7 +347,14 @@
 
     <section class="panel">
       <h2>COP path (statokinesigram)</h2>
-      <p class="hint">Equal-aspect plot of Y vs. X (so the ellipse below is drawn undistorted) &mdash; gray dot is the mean COP position, the ellipse is the 95% confidence ellipse from Prieto et al. (1996).</p>
+      <p class="hint">Equal-aspect plot of Y vs. X, so none of the shapes below are distorted.</p>
+      <div class="legend-note">
+        <span><span class="swatch" style="background:#0B3D91;opacity:0.55"></span>COP path</span>
+        <span><span style="width:9px;height:9px;border-radius:50%;background:#16232C;display:inline-block"></span>Mean COP</span>
+        <span><span class="swatch" style="background:none;border-top:2px dashed #E8871E;height:0"></span>Range box (ML &times; AP)</span>
+        <span><span class="swatch" style="background:none;border-top:2px dashed #1C7293;height:0"></span>RMS distance (resultant)</span>
+        <span><span class="swatch" style="background:none;border-top:2px solid #D64545;height:0"></span>95% confidence ellipse</span>
+      </div>
       <div class="pathwrap"><svg id="pathSvg" width="420" height="420" viewBox="0 0 420 420" xmlns="http://www.w3.org/2000/svg"></svg></div>
     </section>
 
@@ -364,21 +378,19 @@
 
   let colNames = [];
   let times = [];
-  let dt = null;
   let cols = [];
   let mapping = { X:null, Y:null };
   let filtered = { X:null, Y:null };
   let chartX = null, chartY = null;
 
-  // ================= parsing =================
-  function parseWide(text, opts){
-    opts = opts || {};
+  // ================= parsing (no assumptions about column order — every column, including
+  // any "time" column, is just a named numeric column until step 2 assigns it a role) =================
+  function parseWide(text){
     const rawLines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
     if (rawLines.length < 3) return { error: 'Paste a header row plus at least a couple of frames of data.' };
     const rows = rawLines.map(l => l.split(/[,\t]+/).map(s => s.trim()));
     const header = rows[0];
-    if (header.length < 2) return { error: 'Need a time column plus at least one COP-component column.' };
-    const names = header.slice(1);
+    if (header.length < 2) return { error: 'Need at least two columns (e.g. a time column plus one COP component, or two COP components if you don\'t have time).' };
 
     const dataRows = rows.slice(1);
     const nCols = header.length;
@@ -386,33 +398,14 @@
       if (r.length !== nCols) return { error: 'A data row has '+r.length+' values but the header has '+nCols+' columns.' };
     }
 
-    const c0 = dataRows.map(r => parseFloat(r[0]));
-    if (c0.some(Number.isNaN)) return { error: 'Could not read the first column as numbers.' };
-
-    let tArr, fsOut;
-    if (opts.frameIndexMode){
-      if (!(opts.fs > 0)) return { error: 'Enter a sampling rate (Hz) — required when the first column is a frame number rather than seconds.' };
-      fsOut = opts.fs;
-      const dtv = 1/fsOut;
-      tArr = c0.map(f => (f - c0[0]) * dtv);
-    } else {
-      const diffs = [];
-      for (let i=1;i<c0.length;i++) diffs.push(c0[i]-c0[i-1]);
-      diffs.sort((a,b)=>a-b);
-      const dtv = diffs[Math.floor(diffs.length/2)];
-      if (!(dtv > 0)) return { error: 'First column does not look like it is increasing steadily. If it\'s a frame number rather than seconds, check "First column is a frame number" above.' };
-      tArr = c0;
-      fsOut = 1/dtv;
-    }
-
     const colArrs = [];
-    for (let c = 1; c < nCols; c++){
+    for (let c = 0; c < nCols; c++){
       const arr = dataRows.map(r => parseFloat(r[c]));
       if (arr.some(Number.isNaN)) return { error: 'Column "'+header[c]+'" has a non-numeric value.' };
       colArrs.push(arr);
     }
 
-    return { names, times: tArr, fs: fsOut, cols: colArrs };
+    return { names: header, cols: colArrs };
   }
 
   function guessColumn(pattern, names){
@@ -421,6 +414,13 @@
   }
 
   function populateMapping(){
+    const timeOpts = ['<option value="-1">None — generate time from a sampling rate</option>']
+      .concat(colNames.map((n,i) => '<option value="'+i+'">'+n+'</option>')).join('');
+    el('colTime').innerHTML = timeOpts;
+    const gt = guessColumn(/(^|[^a-z])(time|frame|item|sample)s?($|[^a-z])|^t$/i, colNames);
+    el('colTime').value = gt;
+    syncTimeFields();
+
     const opts = colNames.map((n,i) => '<option value="'+i+'">'+n+'</option>').join('');
     ['colX','colY'].forEach(id => el(id).innerHTML = opts);
     const gx = guessColumn(/(^|[^a-z])(cop)?[._]?x($|[^a-z])|\bml\b/i, colNames);
@@ -429,9 +429,17 @@
     el('colY').value = gy >= 0 ? gy : Math.min(1, colNames.length-1);
   }
 
-  el('frameIndexMode').addEventListener('change', function(){
-    el('fsField').style.display = this.checked ? '' : 'none';
-  });
+  function syncTimeFields(){
+    const hasTimeCol = parseInt(el('colTime').value, 10) >= 0;
+    el('frameModeLine').style.display = hasTimeCol ? '' : 'none';
+    const frameMode = hasTimeCol && el('frameIndexMode').checked;
+    el('fsField').style.display = (!hasTimeCol || frameMode) ? '' : 'none';
+    el('timeHint').textContent = hasTimeCol
+      ? 'That column\'s values will be read directly as seconds, unless you check "frame number" above.'
+      : 'No time column selected — samples are assumed evenly spaced at the sampling rate you enter, starting at t=0.';
+  }
+  el('colTime').addEventListener('change', syncTimeFields);
+  el('frameIndexMode').addEventListener('change', syncTimeFields);
 
   // ================= example data: synthetic quiet-standing sway =================
   el('loadExample').addEventListener('click', function(){
@@ -532,20 +540,18 @@
   el('parseBtn').addEventListener('click', function(){
     const statusEl = el('parseStatus');
     statusEl.className = 'status';
-    const frameIndexMode = el('frameIndexMode').checked;
-    const fsOverride = parseFloat(el('fsOverride').value);
-    const parsed = parseWide(el('data').value, { frameIndexMode, fs: fsOverride });
+    const parsed = parseWide(el('data').value);
     if (parsed.error){ statusEl.textContent = parsed.error; return; }
 
-    colNames = parsed.names;
-    times = parsed.times;
+    // blank header cells (common in raw force-plate exports — e.g. an unlabeled frame/index
+    // column) would otherwise render as an empty, invisible-looking option in the dropdowns below.
+    colNames = parsed.names.map((n,i) => (n && n.trim()) ? n : 'Column '+(i+1)+' (unnamed)');
     cols = parsed.cols;
-    dt = 1/parsed.fs;
 
     populateMapping();
     el('setupSection').style.display = 'block';
     el('resultsSection').style.display = 'none';
-    statusEl.textContent = 'Loaded '+times.length+' frames at '+fmt(parsed.fs,2)+' Hz with '+colNames.length+' column(s). Assign X/Y below.';
+    statusEl.textContent = 'Loaded '+cols[0].length+' rows with '+colNames.length+' column(s). Assign the Time column and X/Y below — nothing is assumed from column order.';
     statusEl.classList.add('ok');
   });
 
@@ -625,7 +631,36 @@
       return;
     }
 
-    const fs = 1/dt;
+    // ---- resolve the Time column into an actual times[] array + sampling rate ----
+    const timeColIdx = parseInt(el('colTime').value, 10);
+    const frameIndexMode = timeColIdx >= 0 && el('frameIndexMode').checked;
+    const fsOverride = parseFloat(el('fsOverride').value);
+    let fs;
+    if (timeColIdx < 0){
+      if (!(fsOverride > 0)){ statusEl.textContent = 'Enter a sampling rate (Hz) — required when there\'s no Time column selected.'; return; }
+      fs = fsOverride;
+      const n = cols[0].length;
+      times = Array.from({length:n}, (_,i) => i/fs);
+    } else {
+      const tcol = cols[timeColIdx];
+      if (frameIndexMode){
+        if (!(fsOverride > 0)){ statusEl.textContent = 'Enter a sampling rate (Hz) — required when the Time column is a frame number rather than seconds.'; return; }
+        fs = fsOverride;
+        times = tcol.map(f => (f - tcol[0]) / fs);
+      } else {
+        const diffs = [];
+        for (let i=1;i<tcol.length;i++) diffs.push(tcol[i]-tcol[i-1]);
+        diffs.sort((a,b)=>a-b);
+        const dtv = diffs[Math.floor(diffs.length/2)];
+        if (!(dtv > 0)){
+          statusEl.textContent = 'The column assigned as Time ("'+colNames[timeColIdx]+'") does not increase steadily, so it can\'t be read as seconds. Either pick a different column as Time, check "frame number" if it\'s a frame count, or choose "None" to generate time from a sampling rate instead.';
+          return;
+        }
+        times = tcol.slice();
+        fs = 1/dtv;
+      }
+    }
+
     const noFilter = el('noFilter').checked;
     const order = parseInt(el('order').value, 10);
     const cutoff = parseFloat(el('cutoff').value);
@@ -717,6 +752,15 @@
     svg += '<line x1="'+pad+'" y1="'+sy(p.my)+'" x2="'+(W-pad)+'" y2="'+sy(p.my)+'" stroke="#D8E2E7" stroke-width="1"/>';
     svg += '<line x1="'+sx(p.mx)+'" y1="'+pad+'" x2="'+sx(p.mx)+'" y2="'+(H-pad)+'" stroke="#D8E2E7" stroke-width="1"/>';
 
+    // range box: bounding rectangle [min,max] on each axis, i.e. RANGE-ML x RANGE-AP
+    const rbX0 = sx(xMin), rbX1 = sx(xMax), rbY0 = sy(yMax), rbY1 = sy(yMin);
+    svg += '<rect x="'+rbX0.toFixed(1)+'" y="'+rbY0.toFixed(1)+'" width="'+(rbX1-rbX0).toFixed(1)+'" height="'+(rbY1-rbY0).toFixed(1)+'" '
+      + 'fill="none" stroke="#E8871E" stroke-width="1.4" stroke-dasharray="5,3"/>';
+
+    // RMS (resultant) distance from mean, drawn as a dashed circle
+    const rmsR = p.RDIST*scale;
+    svg += '<circle cx="'+sx(p.mx)+'" cy="'+sy(p.my)+'" r="'+rmsR.toFixed(1)+'" fill="none" stroke="#1C7293" stroke-width="1.4" stroke-dasharray="2,3"/>';
+
     // COP path
     let pts = '';
     for (let i=0;i<X.length;i++) pts += sx(X[i]).toFixed(1)+','+sy(Y[i]).toFixed(1)+' ';
@@ -729,8 +773,13 @@
       + 'transform="rotate('+angleDeg.toFixed(2)+' '+sx(p.mx).toFixed(1)+' '+sy(p.my).toFixed(1)+')" '
       + 'fill="rgba(214,69,69,0.12)" stroke="#D64545" stroke-width="1.6"/>';
 
-    // mean marker
+    // mean marker + label
     svg += '<circle cx="'+sx(p.mx)+'" cy="'+sy(p.my)+'" r="4" fill="#16232C"/>';
+    svg += '<text x="'+(sx(p.mx)+7)+'" y="'+(sy(p.my)-7)+'" font-size="10" fill="#16232C">Mean</text>';
+
+    // range-box labels (ML width along the bottom edge, AP height along the right edge)
+    svg += '<text x="'+((rbX0+rbX1)/2).toFixed(1)+'" y="'+(rbY1+14).toFixed(1)+'" font-size="9.5" fill="#B45309" text-anchor="middle">Range ML '+fmt(xMax-xMin,2)+' '+units+'</text>';
+    svg += '<text x="'+(rbX1+5).toFixed(1)+'" y="'+((rbY0+rbY1)/2).toFixed(1)+'" font-size="9.5" fill="#B45309" text-anchor="start">Range AP '+fmt(yMax-yMin,2)+' '+units+'</text>';
 
     // scale bar (bottom-left), length = nearest "nice" number under 1/4 of the drawn span
     const spanUnits = Math.max(spanX, spanY);

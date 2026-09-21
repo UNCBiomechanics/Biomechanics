@@ -248,18 +248,8 @@
   <section class="panel">
     <h2>1. Your data</h2>
     <label for="data">Force-plate data</label>
-    <textarea id="data" placeholder="Paste a header row, then one row per frame. First column is time (seconds) or a frame number — see options below. Remaining columns are your force components, named however your export names them (Fx, Fz1, Force.Fz1, Vertical, ...). Comma or tab separated."></textarea>
+    <textarea id="data" placeholder="Paste a header row, then one row per frame — comma or tab separated. Any column can be time, a force component, or something else; nothing is assumed from column order — you'll assign each column's role in step 2."></textarea>
     <p class="hint">If your export (e.g. from Vicon) has several header rows (file path, channel name, units, axis), delete all but the one row with the column names you want to use, so the pasted header is a single row.</p>
-    <div class="row">
-      <div class="checkline">
-        <input type="checkbox" id="frameIndexMode">
-        <label for="frameIndexMode">First column is a frame number, not seconds</label>
-      </div>
-      <div class="field" id="fsField" style="display:none">
-        <label for="fsOverride">Sampling rate (Hz)</label>
-        <input type="number" id="fsOverride" min="0.001" step="any" placeholder="e.g. 1000">
-      </div>
-    </div>
     <div class="actions">
       <button class="ghost" id="loadExample" type="button">Load example data</button>
       <button class="primary" id="parseBtn" type="button">Parse data</button>
@@ -269,8 +259,25 @@
 
   <section class="panel" id="setupSection">
     <h2>2. Columns &amp; filter</h2>
-    <p class="hint">Assign whichever of your pasted columns are the force components you want to work with. Leave any axis set to "None" if you don't have that component (e.g. a vertical-only load cell).</p>
+    <p class="hint">Tell us what each pasted column actually is — nothing is assumed from column order or position.</p>
     <div class="row">
+      <div class="field">
+        <label for="colTime">Time column</label>
+        <select id="colTime"></select>
+      </div>
+      <div class="checkline" id="frameModeLine" style="display:none">
+        <input type="checkbox" id="frameIndexMode">
+        <label for="frameIndexMode">This column is a frame number, not seconds</label>
+      </div>
+      <div class="field" id="fsField" style="display:none">
+        <label for="fsOverride">Sampling rate (Hz)</label>
+        <input type="number" id="fsOverride" min="0.001" step="any" placeholder="e.g. 1000">
+      </div>
+    </div>
+    <p class="hint" id="timeHint" style="margin-top:0"></p>
+
+    <p class="hint" style="margin-bottom:0.5rem">Assign whichever of your remaining columns are the force components you want to work with. Leave any axis set to "None" if you don't have that component (e.g. a vertical-only load cell).</p>
+    <div class="row" style="margin-top:0">
       <div class="field">
         <label for="colX">X component</label>
         <select id="colX"></select>
@@ -369,9 +376,8 @@
   const IMPULSE_COLOR = '#D64545';
 
   // ================= state =================
-  let colNames = [];   // raw pasted column names (excluding time column)
-  let times = [];       // seconds
-  let dt = null;
+  let colNames = [];   // raw pasted column names, in original pasted order — nothing is assumed about which one is time
+  let times = [];       // seconds, computed at "Filter & plot" time once the Time column is known
   let cols = [];         // cols[colIndex] = array of values, one per frame, colIndex matches colNames
   let mapping = { X:null, Y:null, Z:null }; // colIndex or null
   let filtered = { X:null, Y:null, Z:null }; // filtered (or raw, if not filtering) arrays per axis
@@ -381,15 +387,14 @@
   let rfdPick = [];     // [{i,t,v}, ...] up to 2
   let impulsePick = [];
 
-  // ================= parsing (Time/Frame + N named columns) =================
-  function parseWide(text, opts){
-    opts = opts || {};
+  // ================= parsing (no assumptions about column order — every column, including
+  // any "time" column, is just a named numeric column until step 2 assigns it a role) =================
+  function parseWide(text){
     const rawLines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
     if (rawLines.length < 3) return { error: 'Paste a header row plus at least a couple of frames of data.' };
     const rows = rawLines.map(l => l.split(/[,\t]+/).map(s => s.trim()));
     const header = rows[0];
-    if (header.length < 2) return { error: 'Need a time column plus at least one force-component column.' };
-    const names = header.slice(1);
+    if (header.length < 2) return { error: 'Need at least two columns (e.g. a time column plus one force component, or two force components if you don\'t have time).' };
 
     const dataRows = rows.slice(1);
     const nCols = header.length;
@@ -397,33 +402,14 @@
       if (r.length !== nCols) return { error: 'A data row has '+r.length+' values but the header has '+nCols+' columns.' };
     }
 
-    const c0 = dataRows.map(r => parseFloat(r[0]));
-    if (c0.some(Number.isNaN)) return { error: 'Could not read the first column as numbers.' };
-
-    let tArr, fsOut;
-    if (opts.frameIndexMode){
-      if (!(opts.fs > 0)) return { error: 'Enter a sampling rate (Hz) — required when the first column is a frame number rather than seconds.' };
-      fsOut = opts.fs;
-      const dtv = 1/fsOut;
-      tArr = c0.map(f => (f - c0[0]) * dtv);
-    } else {
-      const diffs = [];
-      for (let i=1;i<c0.length;i++) diffs.push(c0[i]-c0[i-1]);
-      diffs.sort((a,b)=>a-b);
-      const dtv = diffs[Math.floor(diffs.length/2)];
-      if (!(dtv > 0)) return { error: 'First column does not look like it is increasing steadily. If it\'s a frame number rather than seconds, check "First column is a frame number" above.' };
-      tArr = c0;
-      fsOut = 1/dtv;
-    }
-
     const colArrs = [];
-    for (let c = 1; c < nCols; c++){
+    for (let c = 0; c < nCols; c++){
       const arr = dataRows.map(r => parseFloat(r[c]));
       if (arr.some(Number.isNaN)) return { error: 'Column "'+header[c]+'" has a non-numeric value.' };
       colArrs.push(arr);
     }
 
-    return { names, times: tArr, fs: fsOut, cols: colArrs };
+    return { names: header, cols: colArrs };
   }
 
   function guessColumn(pattern, names){
@@ -432,8 +418,15 @@
   }
 
   function populateMapping(){
-    const opts = ['<option value="-1">None</option>'].concat(colNames.map((n,i) => '<option value="'+i+'">'+n+'</option>')).join('');
-    ['colX','colY','colZ'].forEach(id => el(id).innerHTML = opts);
+    const timeOpts = ['<option value="-1">None — generate time from a sampling rate</option>']
+      .concat(colNames.map((n,i) => '<option value="'+i+'">'+n+'</option>')).join('');
+    el('colTime').innerHTML = timeOpts;
+    const gt = guessColumn(/(^|[^a-z])(time|frame|item|sample)s?($|[^a-z])|^t$/i, colNames);
+    el('colTime').value = gt;
+    syncTimeFields();
+
+    const compOpts = ['<option value="-1">None</option>'].concat(colNames.map((n,i) => '<option value="'+i+'">'+n+'</option>')).join('');
+    ['colX','colY','colZ'].forEach(id => el(id).innerHTML = compOpts);
     const gx = guessColumn(/(^|[^a-z])f?x1?($|[^a-z])/i, colNames);
     const gy = guessColumn(/(^|[^a-z])f?y1?($|[^a-z])/i, colNames);
     const gz = guessColumn(/(^|[^a-z])f?z1?($|[^a-z])|vert/i, colNames);
@@ -442,9 +435,17 @@
     el('colZ').value = gz;
   }
 
-  el('frameIndexMode').addEventListener('change', function(){
-    el('fsField').style.display = this.checked ? '' : 'none';
-  });
+  function syncTimeFields(){
+    const hasTimeCol = parseInt(el('colTime').value, 10) >= 0;
+    el('frameModeLine').style.display = hasTimeCol ? '' : 'none';
+    const frameMode = hasTimeCol && el('frameIndexMode').checked;
+    el('fsField').style.display = (!hasTimeCol || frameMode) ? '' : 'none';
+    el('timeHint').textContent = hasTimeCol
+      ? 'That column\'s values will be read directly as seconds, unless you check "frame number" above.'
+      : 'No time column selected — samples are assumed evenly spaced at the sampling rate you enter, starting at t=0.';
+  }
+  el('colTime').addEventListener('change', syncTimeFields);
+  el('frameIndexMode').addEventListener('change', syncTimeFields);
 
   // ================= example data: synthetic countermovement-jump vertical GRF =================
   el('loadExample').addEventListener('click', function(){
@@ -562,20 +563,18 @@
   el('parseBtn').addEventListener('click', function(){
     const statusEl = el('parseStatus');
     statusEl.className = 'status';
-    const frameIndexMode = el('frameIndexMode').checked;
-    const fsOverride = parseFloat(el('fsOverride').value);
-    const parsed = parseWide(el('data').value, { frameIndexMode, fs: fsOverride });
+    const parsed = parseWide(el('data').value);
     if (parsed.error){ statusEl.textContent = parsed.error; return; }
 
-    colNames = parsed.names;
-    times = parsed.times;
+    // blank header cells (common in raw force-plate exports — e.g. an unlabeled frame/index
+    // column) would otherwise render as an empty, invisible-looking option in the dropdowns below.
+    colNames = parsed.names.map((n,i) => (n && n.trim()) ? n : 'Column '+(i+1)+' (unnamed)');
     cols = parsed.cols;
-    dt = 1/parsed.fs;
 
     populateMapping();
     el('setupSection').style.display = 'block';
     el('resultsSection').style.display = 'none';
-    statusEl.textContent = 'Loaded '+times.length+' frames at '+fmt(parsed.fs,2)+' Hz with '+colNames.length+' column(s). Assign the X/Y/Z components below.';
+    statusEl.textContent = 'Loaded '+cols[0].length+' rows with '+colNames.length+' column(s). Assign the Time column and the X/Y/Z components below — nothing is assumed from column order.';
     statusEl.classList.add('ok');
   });
 
@@ -601,7 +600,36 @@
       return;
     }
 
-    const fs = 1/dt;
+    // ---- resolve the Time column into an actual times[] array + sampling rate ----
+    const timeColIdx = parseInt(el('colTime').value, 10);
+    const frameIndexMode = timeColIdx >= 0 && el('frameIndexMode').checked;
+    const fsOverride = parseFloat(el('fsOverride').value);
+    let fs;
+    if (timeColIdx < 0){
+      if (!(fsOverride > 0)){ statusEl.textContent = 'Enter a sampling rate (Hz) — required when there\'s no Time column selected.'; return; }
+      fs = fsOverride;
+      const n = cols[0].length;
+      times = Array.from({length:n}, (_,i) => i/fs);
+    } else {
+      const tcol = cols[timeColIdx];
+      if (frameIndexMode){
+        if (!(fsOverride > 0)){ statusEl.textContent = 'Enter a sampling rate (Hz) — required when the Time column is a frame number rather than seconds.'; return; }
+        fs = fsOverride;
+        times = tcol.map(f => (f - tcol[0]) / fs);
+      } else {
+        const diffs = [];
+        for (let i=1;i<tcol.length;i++) diffs.push(tcol[i]-tcol[i-1]);
+        diffs.sort((a,b)=>a-b);
+        const dtv = diffs[Math.floor(diffs.length/2)];
+        if (!(dtv > 0)){
+          statusEl.textContent = 'The column assigned as Time ("'+colNames[timeColIdx]+'") does not increase steadily, so it can\'t be read as seconds. Either pick a different column as Time, check "frame number" if it\'s a frame count, or choose "None" to generate time from a sampling rate instead.';
+          return;
+        }
+        times = tcol.slice();
+        fs = 1/dtv;
+      }
+    }
+
     const noFilter = el('noFilter').checked;
     const order = parseInt(el('order').value, 10);
     const cutoff = parseFloat(el('cutoff').value);
