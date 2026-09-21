@@ -368,6 +368,7 @@
   <footer>
     Measures follow Prieto, T.E., Myklebust, J.B., Hoffmann, R.G., Lovett, E.G., &amp; Myklebust, B.M. (1996), "Measures of postural steadiness: differences between healthy young and elderly adults," <em>IEEE Transactions on Biomedical Engineering</em> 43(9), 956&ndash;966, using the formula summary in Quijoux et al. (2021), "A review of center of pressure (COP) variables to quantify standing balance in elderly people: Algorithms and open-access code," <em>Physiological Reports</em> 9(22). MDIST/RDIST use the mean COP position as origin; TOTEX (path length) and mean velocity use the actual per-sample time differences, not an assumed constant rate. The 95% confidence ellipse area is 2&pi;&times;[(N&minus;1)/(N&minus;2)]&times;F<sub>0.95,2,N&minus;2</sub>&times;&radic;(&lambda;<sub>1</sub>&lambda;<sub>2</sub>), where &lambda;<sub>1</sub>,&lambda;<sub>2</sub> are the eigenvalues of the COP covariance matrix and F<sub>0.95,2,N&minus;2</sub> is the 95th-percentile F-statistic with 2 and N&minus;2 degrees of freedom (computed here from its closed form for 2 numerator degrees of freedom, rather than a table). All measures are computed on the filtered data shown (or raw, if filtering is turned off).
     <p style="margin-top:1rem;color:var(--muted)">Created by Abbie Ferris, PhD — University of Northern Colorado</p>
+    <p style="margin-top:0.25rem;color:var(--muted);font-size:0.78rem">Last updated: 2026-09-21</p>
   </footer>
 
 </div>
@@ -385,14 +386,24 @@
 
   // ================= parsing (no assumptions about column order — every column, including
   // any "time" column, is just a named numeric column until step 2 assigns it a role) =================
+  function looksNumeric(cell){
+    return cell !== '' && /^[+-]?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/i.test(cell);
+  }
+
   function parseWide(text){
     const rawLines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
-    if (rawLines.length < 3) return { error: 'Paste a header row plus at least a couple of frames of data.' };
+    if (rawLines.length < 2) return { error: 'Paste at least two rows of data.' };
     const rows = rawLines.map(l => l.split(/[,\t]+/).map(s => s.trim()));
-    const header = rows[0];
-    if (header.length < 2) return { error: 'Need at least two columns (e.g. a time column plus one COP component, or two COP components if you don\'t have time).' };
+    const firstRow = rows[0];
+    if (firstRow.length < 2) return { error: 'Need at least two columns (e.g. a time column plus one COP component, or two COP components if you don\'t have time).' };
 
-    const dataRows = rows.slice(1);
+    // auto-detect whether row 1 is a header or already data: if every cell in it parses as a
+    // plain number, there's no header row — treat every pasted row (including the first) as
+    // data, with generic column names, instead of silently swallowing that row as labels.
+    const noHeader = firstRow.every(looksNumeric);
+    const header = noHeader ? firstRow.map((_,i) => 'Column '+(i+1)) : firstRow;
+    const dataRows = noHeader ? rows : rows.slice(1);
+
     const nCols = header.length;
     for (const r of dataRows){
       if (r.length !== nCols) return { error: 'A data row has '+r.length+' values but the header has '+nCols+' columns.' };
@@ -405,7 +416,7 @@
       colArrs.push(arr);
     }
 
-    return { names: header, cols: colArrs };
+    return { names: header, cols: colArrs, noHeader };
   }
 
   function guessColumn(pattern, names){
@@ -551,7 +562,8 @@
     populateMapping();
     el('setupSection').style.display = 'block';
     el('resultsSection').style.display = 'none';
-    statusEl.textContent = 'Loaded '+cols[0].length+' rows with '+colNames.length+' column(s). Assign the Time column and X/Y below — nothing is assumed from column order.';
+    const headerNote = parsed.noHeader ? ' No header row was detected (every cell in row 1 looked numeric), so every pasted row was kept as data and columns were labeled Column 1, Column 2, etc. — rename via the dropdowns below if that\'s wrong.' : '';
+    statusEl.textContent = 'Loaded '+cols[0].length+' rows with '+colNames.length+' column(s). Assign the Time column and X/Y below — nothing is assumed from column order.'+headerNote;
     statusEl.classList.add('ok');
   });
 

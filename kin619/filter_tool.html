@@ -354,6 +354,7 @@
   <footer>
     Notes: low-pass/high-pass filters are built as a cascade of fixed 1st-order (1-pole) Butterworth passes, alternating direction starting forward — Order sets how many passes. A forward pass delays the signal (causal lag); a backward pass (reversing the data, filtering, reversing back) removes exactly the lag the preceding forward pass introduced. So even pass counts (2, 4) end on a backward pass and cancel back to zero net lag — Winter's "zero-lag" filtering — while odd pass counts (1, 3) end on a forward pass and keep one pass's worth of lag; every pass still adds real roll-off regardless of direction, so more passes always means a sharper cutoff. Notch filtering is unaffected by this — it's a standard 2nd-order band-stop with its own separate zero-phase option. Signal ends are padded by reflection before each backward pass to reduce edge transients.
     <p style="margin-top:1rem;color:var(--muted)">Created by Abbie Ferris, PhD — University of Northern Colorado</p>
+    <p style="margin-top:0.25rem;color:var(--muted);font-size:0.78rem">Last updated: 2026-09-21</p>
   </footer>
 
 </div>

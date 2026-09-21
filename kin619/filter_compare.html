@@ -454,6 +454,7 @@
   <footer>
     Notes: RMS in the comparison table is the whole-record root-mean-square of that comparison's signal, sqrt(mean(x²)) — a DC offset in your data will inflate it. That is different from the residual RMS in the analysis above, which is sqrt(mean((filtered − raw)²)) — the quantity Winter's method actually plots against cutoff frequency. "Half-power" is the frequency where a filter's magnitude response crosses 0.7071 (−3 dB), found numerically for each filter design rather than assumed equal to the cutoff you typed; for the notch filter, the table instead reports the null frequency and the approximate −3 dB bandwidth (center frequency ÷ Q). Low-pass/high-pass Order is the number of alternating-direction passes of a fixed 1st-order (1-pole) section: a forward pass delays the signal, and the following backward pass removes exactly the lag the forward pass introduced — so even pass counts (2, 4) cancel back to zero net lag ("zero-lag," Winter's convention) while odd pass counts (1, 3) end on a forward pass and keep one pass's worth of lag. Every pass still adds real roll-off regardless of direction. Add a 1-pass and a 2-pass version of the same filter to the comparison to see that lag directly on the time-domain chart.
     <p style="margin-top:1rem;color:var(--muted)">Created by Abbie Ferris, PhD — University of Northern Colorado</p>
+    <p style="margin-top:0.25rem;color:var(--muted);font-size:0.78rem">Last updated: 2026-09-21</p>
   </footer>
 
 </div>
