@@ -217,6 +217,16 @@
   .cmp-copy:hover{border-color:var(--navy);}
   .empty-row td{color:var(--muted);font-style:italic;padding:1rem 0.6rem;}
 
+  .stack-row{
+    display:flex;align-items:center;gap:0.6rem;
+    padding:0.5rem 0.7rem;border:1px solid var(--line);border-radius:6px;
+    background:#FBFCFD;margin-bottom:0.4rem;font-size:0.85rem;
+  }
+  .stack-row .stack-idx{font-weight:700;color:var(--navy);min-width:1.2rem;}
+  .stack-row .stack-arrow{color:var(--muted);}
+  .stack-remove{background:transparent;border:none;color:var(--red);font-size:1.1rem;cursor:pointer;padding:0 0.3rem;line-height:1;margin-left:auto;}
+  .stack-remove:hover{color:#a53333;}
+
   footer{
     margin-top:2rem;
     font-size:0.82rem;
@@ -360,7 +370,8 @@
   </section>
 
   <section class="panel" id="builderPanel" style="display:none">
-    <h2>Add a filter to compare</h2>
+    <h2>Build a filter (or a stack of filters) to compare</h2>
+    <p class="hint">Add one or more stages below — each new stage filters the <strong>output of the previous stage</strong>, not the raw data. A single stage works exactly like before; add a second (e.g. a low-pass, then a notch) to see the layered result as one line. Click "Add stack to comparison" when you're done.</p>
     <div class="row">
       <div class="field" id="applyToField" style="display:none">
         <label for="applyTo">Apply to dataset</label>
@@ -410,11 +421,20 @@
         <label for="zerophase">Zero-phase (filter forward + backward)</label>
       </div>
       <div class="actions">
-        <button class="primary" id="addComparison" type="button">Add to comparison</button>
+        <button class="ghost" id="addStage" type="button">+ Add stage to stack</button>
       </div>
     </div>
-    <p class="hint">Add "Low-pass, 1 pass" and "2 passes" at the same cutoff to see the backward pass cancel the forward pass's lag directly on the chart. Add "2 passes" and "4 passes" at the same cutoff to compare roll-off steepness between two zero-lag options.</p>
+    <p class="hint">Add "Low-pass, 1 pass" and "2 passes" at the same cutoff to see the backward pass cancel the forward pass's lag directly on the chart. Add "2 passes" and "4 passes" at the same cutoff to compare roll-off steepness between two zero-lag options. Moving RMS is not a linear filter — if you put it in a stack, stage order actually changes the result (unlike low-pass/high-pass/notch stages, which commute), and that comparison won't get a frequency-response curve.</p>
     <div class="status" id="builderStatus"></div>
+
+    <div id="stackArea" style="display:none;margin-top:1rem">
+      <p class="hint" style="margin-bottom:0.5rem"><strong>Pending stack</strong> (applies to <span id="stackDsLabel"></span> — clear the stack to switch datasets):</p>
+      <div id="stackList"></div>
+      <div class="actions" style="margin-left:0;margin-top:0.75rem">
+        <button class="primary" id="commitStack" type="button">Add stack to comparison</button>
+        <button class="ghost small" id="clearStack" type="button">Clear stack</button>
+      </div>
+    </div>
   </section>
 
   <section class="panel" id="tablePanel" style="display:none">
@@ -453,7 +473,7 @@
   </section>
 
   <footer>
-    Notes: RMS in the comparison table is the whole-record root-mean-square of that comparison's signal, sqrt(mean(x²)) — a DC offset in your data will inflate it. That is different from the residual RMS in the analysis above, which is sqrt(mean((filtered − raw)²)) — the quantity Winter's method actually plots against cutoff frequency. "Half-power" is the frequency where a filter's magnitude response crosses 0.7071 (−3 dB), found numerically for each filter design rather than assumed equal to the cutoff you typed; for the notch filter, the table instead reports the null frequency and the approximate −3 dB bandwidth (center frequency ÷ Q). Low-pass/high-pass Order is the number of alternating-direction passes of a fixed 1st-order (1-pole) section: a forward pass delays the signal, and the following backward pass removes exactly the lag the forward pass introduced — so even pass counts (2, 4) cancel back to zero net lag ("zero-lag," Winter's convention) while odd pass counts (1, 3) end on a forward pass and keep one pass's worth of lag. Every pass still adds real roll-off regardless of direction. Add a 1-pass and a 2-pass version of the same filter to the comparison to see that lag directly on the time-domain chart.
+    Notes: a filter <strong>stack</strong> applies each stage to the previous stage's output in sequence (e.g. a low-pass first, then a notch) and reports the result as one comparison line. For low-pass/high-pass/notch stages this is mathematically order-independent — cascaded linear filters commute, so "low-pass then notch" and "notch then low-pass" produce identical output — and the stack's frequency-response curve shown above is just the product of each stage's own |H(f)|. Moving RMS breaks that: it's not a linear filter, so if it's part of a stack, the order you add stages in changes the result, and that comparison is left off the frequency-response chart entirely (labeled "mixed" internally). RMS in the comparison table is the whole-record root-mean-square of that comparison's final signal, sqrt(mean(x²)) — a DC offset in your data will inflate it. That's different from the residual RMS in the analysis above, which is sqrt(mean((filtered − raw)²)) — the quantity Winter's method actually plots against cutoff frequency. "Half-power" is the frequency where a filter's magnitude response crosses 0.7071 (−3 dB), found numerically for each filter design rather than assumed equal to the cutoff you typed; for a notch stage, the table instead reports the null frequency and the approximate −3 dB bandwidth (center frequency ÷ Q) — a multi-stage stack's half-power column lists one value per stage in order. Low-pass/high-pass Order is the number of alternating-direction passes of a fixed 1st-order (1-pole) section: a forward pass delays the signal, and the following backward pass removes exactly the lag the forward pass introduced — so even pass counts (2, 4) cancel back to zero net lag ("zero-lag," Winter's convention) while odd pass counts (1, 3) end on a forward pass and keep one pass's worth of lag. Every pass still adds real roll-off regardless of direction. Add a 1-pass and a 2-pass version of the same filter to the comparison to see that lag directly on the time-domain chart.
     <p style="margin-top:1rem;color:var(--muted)">Created by Abbie Ferris, PhD — University of Northern Colorado</p>
     <p style="margin-top:0.25rem;color:var(--muted);font-size:0.78rem">Last updated: 2026-09-22</p>
   </footer>
@@ -469,6 +489,8 @@
   let comparisons = [];
   let cmpIdSeq = 1;
   let timeChart = null, freqChart = null, raChart = null;
+  let pendingStack = [];        // array of computed stage results (values,b,a,nPasses,kind,label,halfPowerText)
+  let pendingStackDataset = null; // 'A' | 'B' | null
 
   function zoomOpts(){
     return {
@@ -698,6 +720,10 @@
     if (comparisons.length !== before){
       statusEl.textContent += ' Comparisons using this dataset were cleared — re-add them.';
     }
+    if (pendingStackDataset === letter){
+      pendingStack = []; pendingStackDataset = null; renderStack();
+      statusEl.textContent += ' Pending filter stack for this dataset was cleared too.';
+    }
     resetResidualPanel();
 
     syncUIState();
@@ -714,6 +740,7 @@
   el('removeB').addEventListener('click', function(){
     DS.B = { loaded:false };
     comparisons = comparisons.filter(c => c.dataset !== 'B');
+    if (pendingStackDataset === 'B'){ pendingStack = []; pendingStackDataset = null; renderStack(); }
     el('dataB').value = '';
     el('statusB').textContent = '';
     el('datasetBBlock').style.display = 'none';
@@ -757,6 +784,8 @@
     el('builderPanel').style.display = anyLoaded ? '' : 'none';
     el('applyToField').style.display = (DS.A.loaded && DS.B.loaded) ? '' : 'none';
     if (!DS.B.loaded) el('applyTo').value = 'A';
+    if (pendingStack.length){ el('applyTo').value = pendingStackDataset; el('applyTo').disabled = true; }
+    else { el('applyTo').disabled = false; }
     el('residualPanel').style.display = anyLoaded ? '' : 'none';
     el('raDatasetField').style.display = (DS.A.loaded && DS.B.loaded) ? '' : 'none';
     if (!DS.B.loaded) el('raDataset').value = 'A';
@@ -850,75 +879,171 @@
   el('raRun').addEventListener('click', runResidualAnalysis);
 
   el('raAddToComparison').addEventListener('click', function(){
+    if (pendingStack.length){
+      el('builderStatus').className = 'status warn';
+      el('builderStatus').textContent = 'You have a pending filter stack below — add it to the comparison or clear it before adding a cutoff from the residual analysis.';
+      el('builderPanel').scrollIntoView({behavior:'smooth', block:'start'});
+      return;
+    }
     const letter = (DS.A.loaded && DS.B.loaded) ? el('raDataset').value : (DS.A.loaded ? 'A' : 'B');
     if (DS.A.loaded && DS.B.loaded) el('applyTo').value = letter;
     el('ftype').value = el('raType').value;
     syncBuilderFields();
     el('order').value = el('raOrder').value;
     el('cutoff').value = el('raPickCutoff').value;
-    el('addComparison').click();
+    if (addStageFromBuilder()) commitStack();
     el('builderPanel').scrollIntoView({behavior:'smooth', block:'start'});
   });
 
-  // ================= add / remove / toggle comparisons =================
-  el('addComparison').addEventListener('click', function(){
-    const statusEl = el('builderStatus');
-    statusEl.className = 'status';
-    const letter = (DS.A.loaded && DS.B.loaded) ? el('applyTo').value : (DS.A.loaded ? 'A' : 'B');
-    const ds = DS[letter];
-    if (!ds || !ds.loaded){ statusEl.textContent = 'Load a dataset first.'; return; }
-    const fs = ds.fs, nyquist = fs/2, type = el('ftype').value;
+  // ================= filter stages (a "stack" is one or more stages applied in sequence,
+  // each stage filtering the PREVIOUS stage's output — or the raw data, for the first stage) =================
 
-    let values, label, b=null, a=null, kind=type, halfPowerText, nPasses=1;
+  // reads the builder fields into a plain params snapshot, so a stage can be replayed later
+  // (e.g. after an earlier stage in the same stack is removed) without depending on live DOM state.
+  function readStageParams(type){
+    if (type === 'rms') return { type, rmsWindowMs: parseFloat(el('rmsWindow').value) };
+    if (type === 'notch') return { type, notchFreq: parseFloat(el('notchFreq').value), notchQ: parseFloat(el('notchQ').value), zerophase: el('zerophase').checked };
+    return { type, order: parseInt(el('order').value, 10), cutoff: parseFloat(el('cutoff').value) };
+  }
 
-    if (type === 'rms'){
-      const winMs = parseFloat(el('rmsWindow').value);
-      if (!(winMs > 0)){ statusEl.textContent = 'Window length must be a positive number.'; return; }
+  // computes one stage's result given whatever array it's fed (raw data, or the prior stage's output)
+  function computeStage(params, x, fs){
+    const nyquist = fs/2;
+    if (params.type === 'rms'){
+      const winMs = params.rmsWindowMs;
+      if (!(winMs > 0)) return { error: 'Window length must be a positive number.' };
       const winSamples = Math.max(1, Math.round(winMs/1000*fs));
-      values = movingRMS(ds.values, winSamples);
-      label = letter+' · Moving RMS ('+fmt(winMs,0)+' ms window)';
-      halfPowerText = 'n/a (not linear)';
-    } else if (type === 'notch'){
-      const f0 = parseFloat(el('notchFreq').value);
-      const Q = parseFloat(el('notchQ').value);
+      const values = movingRMS(x, winSamples);
+      return { values, b:null, a:null, nPasses:1, kind:'rms', params,
+        label:'Moving RMS ('+fmt(winMs,0)+' ms window)', halfPowerText:'n/a (not linear)' };
+    }
+    if (params.type === 'notch'){
+      const f0 = params.notchFreq, Q = params.notchQ;
       if (!(f0 > 0) || f0 >= nyquist){
-        statusEl.textContent = 'Center frequency must be > 0 and < the Nyquist frequency for this dataset ('+fmt(nyquist,2)+' Hz). '
-          + (f0 >= fs/2 && f0 <= fs*1.5 ? 'Since fs = '+fmt(fs,1)+' Hz, anything at/above '+fmt(nyquist,2)+' Hz cannot be represented in this data at all — a true '+fmt(f0,0)+' Hz noise source sampled at '+fmt(fs,1)+' Hz aliases down to a much lower apparent frequency (often near DC). Sample faster if you need to notch this out directly.' : '');
-        return;
+        return { error: 'Center frequency must be > 0 and < the Nyquist frequency for this dataset ('+fmt(nyquist,2)+' Hz). '
+          + (f0 >= fs/2 && f0 <= fs*1.5 ? 'Since fs = '+fmt(fs,1)+' Hz, anything at/above '+fmt(nyquist,2)+' Hz cannot be represented in this data at all — a true '+fmt(f0,0)+' Hz noise source sampled at '+fmt(fs,1)+' Hz aliases down to a much lower apparent frequency (often near DC). Sample faster if you need to notch this out directly.' : '') };
       }
-      if (!(Q > 0)){ statusEl.textContent = 'Q factor must be a positive number.'; return; }
-      ({b, a} = designNotch(f0, fs, Q));
-      const zeroPhase = el('zerophase').checked;
-      values = zeroPhase ? filtfilt(b, a, ds.values) : applyFilterDF(b, a, ds.values);
-      label = letter+' · Notch @ '+fmt(f0,1)+' Hz (Q='+fmt(Q,1)+')'+(zeroPhase?' zero-phase':' causal');
+      if (!(Q > 0)) return { error: 'Q factor must be a positive number.' };
+      const {b, a} = designNotch(f0, fs, Q);
+      const values = params.zerophase ? filtfilt(b, a, x) : applyFilterDF(b, a, x);
       const nullF = findNotchNull(b, a, fs);
       const bw = f0/Q;
-      halfPowerText = 'null @ '+fmt(nullF,2)+' Hz, ~'+fmt(bw,2)+' Hz wide';
-    } else {
-      const order = parseInt(el('order').value, 10);
-      const cutoff = parseFloat(el('cutoff').value);
-      if (!(cutoff > 0) || cutoff >= nyquist){
-        statusEl.textContent = 'Cutoff frequency must be > 0 and < the Nyquist frequency for this dataset ('+fmt(nyquist,2)+' Hz).';
+      return { values, b, a, nPasses:1, kind:'notch', params,
+        label:'Notch @ '+fmt(f0,1)+' Hz (Q='+fmt(Q,1)+')'+(params.zerophase?' zero-phase':' causal'),
+        halfPowerText:'null @ '+fmt(nullF,2)+' Hz, ~'+fmt(bw,2)+' Hz wide' };
+    }
+    // low / high
+    const order = params.order, cutoff = params.cutoff, type = params.type;
+    if (!(cutoff > 0) || cutoff >= nyquist){
+      return { error: 'Cutoff frequency must be > 0 and < the Nyquist frequency for this dataset ('+fmt(nyquist,2)+' Hz).' };
+    }
+    const {b, a} = designButterworth(1, cutoff, fs, type);
+    const values = applyPassCascade(cutoff, fs, type, order, x);
+    const passWord = order === 1 ? 'pass' : 'passes';
+    const hp = findHalfPower(b, a, fs, type, order);
+    return { values, b, a, nPasses:order, kind:type, params,
+      label:(type==='low'?'LP':'HP')+' '+order+' '+passWord+' @ '+fmt(cutoff,1)+' Hz'+(order%2===0?' zero-lag':' causal, has lag'),
+      halfPowerText: hp===null ? '—' : '-3dB @ '+fmt(hp,2)+' Hz' };
+  }
+
+  function renderStack(){
+    const area = el('stackArea');
+    if (!pendingStack.length){ area.style.display = 'none'; el('stackList').innerHTML = ''; return; }
+    area.style.display = '';
+    el('stackDsLabel').textContent = 'Dataset ' + pendingStackDataset;
+    el('stackList').innerHTML = pendingStack.map((s,i) =>
+      '<div class="stack-row">'
+      + '<span class="stack-idx">'+(i+1)+'.</span>'
+      + (i>0 ? '<span class="stack-arrow">&rarr;</span>' : '')
+      + '<span>'+s.label+'</span>'
+      + '<button class="stack-remove" onclick="window._fcRemoveStage('+i+')" title="Remove this stage">&times;</button>'
+      + '</div>'
+    ).join('');
+  }
+
+  function addStageFromBuilder(){
+    const statusEl = el('builderStatus');
+    statusEl.className = 'status';
+    const letter = pendingStack.length ? pendingStackDataset
+      : ((DS.A.loaded && DS.B.loaded) ? el('applyTo').value : (DS.A.loaded ? 'A' : 'B'));
+    const ds = DS[letter];
+    if (!ds || !ds.loaded){ statusEl.textContent = 'Load a dataset first.'; return false; }
+
+    const inputValues = pendingStack.length ? pendingStack[pendingStack.length-1].values : ds.values;
+    const params = readStageParams(el('ftype').value);
+    const r = computeStage(params, inputValues, ds.fs);
+    if (r.error){ statusEl.textContent = r.error; return false; }
+
+    pendingStackDataset = letter;
+    pendingStack.push(r);
+    renderStack();
+    statusEl.textContent = 'Stage added.' + (pendingStack.length > 1 ? ' Add another, or add the stack to the comparison below.' : '');
+    statusEl.classList.add('ok');
+    syncUIState();
+    return true;
+  }
+  el('addStage').addEventListener('click', addStageFromBuilder);
+
+  function removeStage(i){
+    // every stage after i was computed from stage i's output, so removing i means replaying
+    // stages i+1..end (using their stored params) against whatever now feeds into that slot.
+    const remainingParams = pendingStack.filter((_, idx) => idx !== i).map(s => s.params);
+    const ds = DS[pendingStackDataset];
+    let cur = ds.values;
+    const rebuilt = [];
+    for (const params of remainingParams){
+      const r = computeStage(params, cur, ds.fs);
+      if (r.error){
+        // shouldn't normally happen (params were valid before), but bail out safely if it does
+        el('builderStatus').className = 'status warn';
+        el('builderStatus').textContent = 'Could not replay the stack after removing that stage: ' + r.error;
         return;
       }
-      ({b, a} = designButterworth(1, cutoff, fs, type));
-      nPasses = order;
-      values = applyPassCascade(cutoff, fs, type, order, ds.values);
-      const passWord = order === 1 ? 'pass' : 'passes';
-      label = letter+' · '+(type==='low'?'LP':'HP')+' '+order+' '+passWord+' @ '+fmt(cutoff,1)+' Hz'+(order%2===0?' zero-lag':' causal, has lag');
-      const hp = findHalfPower(b, a, fs, type, nPasses);
-      halfPowerText = hp===null ? '—' : '-3dB @ '+fmt(hp,2)+' Hz';
+      rebuilt.push(r);
+      cur = r.values;
     }
+    pendingStack = rebuilt;
+    if (!pendingStack.length) pendingStackDataset = null;
+    renderStack();
+    syncUIState();
+  }
+  window._fcRemoveStage = removeStage;
 
+  el('clearStack').addEventListener('click', function(){
+    pendingStack = [];
+    pendingStackDataset = null;
+    renderStack();
+    syncUIState();
+    el('builderStatus').textContent = '';
+    el('builderStatus').className = 'status';
+  });
+
+  function commitStack(){
+    const statusEl = el('builderStatus');
+    statusEl.className = 'status';
+    if (!pendingStack.length){ statusEl.textContent = 'Add at least one filter stage first.'; return; }
+    const letter = pendingStackDataset;
+    const allLinear = pendingStack.every(s => s.kind !== 'rms');
+    const label = letter+' · '+pendingStack.map(s => s.label).join(' → ');
+    const finalValues = pendingStack[pendingStack.length-1].values;
     const color = COLORS[comparisons.length % COLORS.length];
     comparisons.push({
-      id: cmpIdSeq++, dataset: letter, kind, label, color, visible:true,
-      values, b, a, nPasses, halfPowerText
+      id: cmpIdSeq++, dataset: letter,
+      kind: pendingStack.length === 1 ? pendingStack[0].kind : (allLinear ? 'chain' : 'mixed'),
+      label, color, visible:true,
+      values: finalValues,
+      stages: pendingStack.map(s => ({b:s.b, a:s.a, nPasses:s.nPasses})),
+      halfPowerText: pendingStack.map(s => s.halfPowerText).join(' / ')
     });
-    statusEl.textContent = 'Added.';
+    pendingStack = [];
+    pendingStackDataset = null;
+    renderStack();
+    statusEl.textContent = 'Added to comparison.';
     statusEl.classList.add('ok');
+    syncUIState();
     rebuildAll();
-  });
+  }
+  el('commitStack').addEventListener('click', commitStack);
 
   el('clearAll').addEventListener('click', function(){
     comparisons = [];
@@ -1014,9 +1139,17 @@
     });
   }
 
+  // product of each linear stage's magnitude response — valid because cascaded LTI filters'
+  // magnitude responses multiply, regardless of how many stages or what order they're applied in.
+  function stackMagAt(c, f, fs){
+    let m = 1;
+    for (const s of c.stages) m *= magAt(s.b, s.a, f, fs, s.nPasses);
+    return m;
+  }
+
   function renderFreqChart(){
     const wrap = el('freqChartWrap');
-    const active = comparisons.filter(c => c.visible && c.kind !== 'rms' && c.b && c.a);
+    const active = comparisons.filter(c => c.visible && c.kind !== 'rms' && c.kind !== 'mixed' && c.stages && c.stages.length);
     if (!active.length){ wrap.style.display='none'; if (freqChart){ freqChart.destroy(); freqChart=null; } return; }
     wrap.style.display = '';
     const maxNyq = Math.max(...active.map(c => DS[c.dataset].fs/2));
@@ -1026,7 +1159,7 @@
       const fsC = DS[c.dataset].fs, nyqC = fsC/2;
       return {
         label:c.label,
-        data:freqs.map(f => f < nyqC ? magAt(c.b, c.a, f, fsC, c.nPasses) : null),
+        data:freqs.map(f => f < nyqC ? stackMagAt(c, f, fsC) : null),
         borderColor:c.color, backgroundColor:'transparent', borderWidth:1.9,
         pointRadius:0, tension:0.05,
         borderDash: c.dataset==='B' ? [6,3] : []
