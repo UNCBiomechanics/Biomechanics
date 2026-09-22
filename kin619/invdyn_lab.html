@@ -1,0 +1,1285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inverse Dynamics Lab — SES 619</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.2.0/chartjs-plugin-zoom.min.js"></script>
+<style>
+  :root{
+    --ink:#16232C;
+    --muted:#5C7080;
+    --line:#D8E2E7;
+    --panel:#FFFFFF;
+    --bg:#F3F6F8;
+    --navy:#0B3D91;
+    --navy-dark:#082C6B;
+    --teal:#1C7293;
+    --amber:#E8871E;
+    --green:#1B8A5A;
+    --red:#D64545;
+    --purple:#7B2D8E;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+    line-height:1.45;
+    padding:2.5rem 1.25rem 4rem;
+  }
+  .wrap{max-width:1100px;margin:0 auto;}
+
+  .sitenav{display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1.5rem;}
+  .sitenav a{
+    font-size:0.82rem;
+    font-weight:600;
+    color:var(--navy);
+    text-decoration:none;
+    padding:0.35rem 0.75rem;
+    border:1px solid var(--line);
+    border-radius:20px;
+    background:#fff;
+  }
+  .sitenav a:hover{border-color:var(--navy);}
+  .sitenav a.active{background:var(--navy);color:#fff;border-color:var(--navy);}
+
+  header{margin-bottom:2rem;}
+  header .kicker{
+    font-size:0.85rem;
+    color:var(--teal);
+    font-weight:600;
+    margin:0 0 0.35rem;
+  }
+  h1{
+    font-size:1.9rem;
+    margin:0 0 0.5rem;
+    letter-spacing:-0.01em;
+  }
+  header p{
+    color:var(--muted);
+    max-width:76ch;
+    margin:0;
+    font-size:0.98rem;
+  }
+
+  section.panel{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:1.5rem;
+    margin-bottom:1.5rem;
+  }
+  section.panel h2{
+    font-size:1.05rem;
+    margin:0 0 0.6rem;
+  }
+  .hint{
+    font-size:0.83rem;
+    color:var(--muted);
+    margin:0.35rem 0 0.9rem;
+  }
+  .field-hint{
+    font-size:0.8rem;
+    color:var(--ink);
+    background:#EEF3F6;
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:0.4rem 0.6rem;
+    margin:0.3rem 0 0;
+    line-height:1.35;
+  }
+  .field-hint strong{ color:var(--navy); }
+
+  label{
+    display:block;
+    font-size:0.85rem;
+    font-weight:600;
+    color:var(--ink);
+    margin-bottom:0.35rem;
+  }
+  textarea{
+    width:100%;
+    min-height:140px;
+    resize:vertical;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:0.86rem;
+    padding:0.75rem;
+    border:1px solid var(--line);
+    border-radius:8px;
+    background:#FBFCFD;
+    color:var(--ink);
+  }
+  textarea:focus{outline:2px solid var(--navy);outline-offset:1px;}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:1.1rem;}
+  .row{display:flex;gap:1.25rem;flex-wrap:wrap;align-items:flex-end;margin-top:1rem;}
+  .row:first-child{margin-top:0;}
+  .field{min-width:170px;}
+  select,input[type="number"],input[type="text"]{
+    width:100%;
+    padding:0.5rem 0.6rem;
+    border:1px solid var(--line);
+    border-radius:6px;
+    font-size:0.95rem;
+    font-family:inherit;
+    background:#fff;
+    color:var(--ink);
+  }
+  .checkline{display:flex;align-items:center;gap:0.5rem;font-size:0.9rem;color:var(--ink);padding-bottom:0.55rem;}
+  .checkline input{width:16px;height:16px;}
+  .checkline label{margin:0;font-weight:500;}
+
+  .actions{display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap;margin-top:1rem;}
+  button{
+    font-family:inherit;
+    font-size:0.92rem;
+    font-weight:600;
+    padding:0.6rem 1.1rem;
+    border-radius:7px;
+    border:1px solid transparent;
+    cursor:pointer;
+  }
+  button.primary{background:var(--navy);color:#fff;}
+  button.primary:hover{background:var(--navy-dark);}
+  button.ghost{background:transparent;color:var(--navy);border-color:var(--line);}
+  button.ghost:hover{border-color:var(--navy);}
+  button.small{padding:0.4rem 0.8rem;font-size:0.82rem;}
+  button:disabled{opacity:0.45;cursor:default;}
+
+  .status{font-size:0.87rem;color:var(--red);margin-top:0.75rem;min-height:1.2em;}
+  .status.ok{color:var(--green);}
+  .status.warn{color:var(--amber);}
+
+  .stats{display:flex;flex-wrap:wrap;gap:0;border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-bottom:1.5rem;}
+  .stat{flex:1 1 150px;padding:0.8rem 1rem;border-right:1px solid var(--line);background:var(--panel);}
+  .stat:last-child{border-right:none;}
+  .stat .v{font-size:1.1rem;font-weight:700;color:var(--navy);}
+  .stat .l{font-size:0.78rem;color:var(--muted);margin-top:0.15rem;}
+
+  .legend-note{display:flex;gap:1.25rem;flex-wrap:wrap;font-size:0.82rem;color:var(--muted);margin:-0.4rem 0 0.9rem;}
+  .legend-note span{display:inline-flex;align-items:center;gap:0.4rem;}
+  .swatch{width:14px;height:3px;border-radius:2px;display:inline-block;}
+  .dot{width:9px;height:9px;border-radius:50%;display:inline-block;}
+
+  .chart-holder{position:relative;height:300px;}
+
+  table.datatab{width:100%;border-collapse:collapse;font-size:0.85rem;}
+  table.datatab th{
+    text-align:left;padding:0.5rem 0.6rem;border-bottom:2px solid var(--line);
+    color:var(--muted);font-weight:600;font-size:0.75rem;text-transform:uppercase;letter-spacing:0.03em;
+  }
+  table.datatab td{padding:0.5rem 0.6rem;border-bottom:1px solid var(--line);}
+  table.datatab td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;}
+
+  .chain-row{display:flex;gap:0.6rem;align-items:center;margin-bottom:0.5rem;}
+  .chain-row .idx{width:1.6rem;font-size:0.8rem;color:var(--muted);text-align:right;}
+  .chain-row input{flex:1;}
+  .chain-row button{flex:none;}
+
+  .seg-card{border:1px solid var(--line);border-radius:8px;padding:0.9rem 1rem;margin-bottom:0.9rem;background:#FBFCFD;}
+  .seg-card .seg-title{font-weight:700;font-size:0.9rem;margin-bottom:0.5rem;}
+  .seg-card .seg-derived{font-size:0.8rem;color:var(--muted);margin-top:0.4rem;}
+
+  #chainSection, #segSection, #grfSetup, #jointSetup, #resultsSection{display:none;}
+
+  .diagram-wrap{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:1rem;display:flex;justify-content:center;}
+
+  .scrub-row{display:flex;gap:1rem;align-items:center;flex-wrap:wrap;margin:0.75rem 0;}
+  .scrub-row input[type="range"]{flex:1;min-width:200px;}
+  .scrub-readout{font-size:0.85rem;color:var(--ink);font-weight:600;white-space:nowrap;}
+
+  .eq-block{
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:0.8rem;
+    background:#0B1B2B;
+    color:#D8E2E7;
+    border-radius:8px;
+    padding:0.9rem 1rem;
+    margin-bottom:0.8rem;
+    overflow-x:auto;
+    white-space:pre;
+  }
+  .eq-block .hdr{color:#7FD1E8;font-weight:700;}
+
+  footer{margin-top:2rem;font-size:0.82rem;color:var(--muted);max-width:76ch;}
+  footer a{color:var(--navy);}
+
+  @media (max-width:640px){ body{padding:1.5rem 1rem 3rem;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <nav class="sitenav">
+    <a href="../home.html">Home</a>
+    <a href="index.html">KIN 619 Home</a>
+    <a href="fft_tool.html">FFT Quick-Look</a>
+    <a href="filter_tool.html">Filter Lab</a>
+    <a href="derivative_tool.html">Derivative Lab</a>
+    <a href="filter_compare.html">Filter Compare</a>
+    <a href="anthro_lab.html">Anthropometrics Lab</a>
+    <a href="segment_animator.html">Segment Animator</a>
+    <a href="grf_lab.html">GRF Lab</a>
+    <a href="cop_lab.html">COP Lab</a>
+    <a href="invdyn_lab.html" class="active">Inverse Dynamics</a>
+  </nav>
+
+  <header>
+    <p class="kicker">SES 619 — Link-Segment Mechanics</p>
+    <h1>Inverse Dynamics Lab</h1>
+    <p>Combine ground reaction forces with joint-center coordinates to solve 2D sagittal-plane joint reaction forces and net muscle moments, bottom-up from the ground contact point through as many segments as you define — with a live free-body-diagram schematic showing the equations plugged in at whatever instant you're looking at. Runs entirely in your browser — nothing is uploaded anywhere.</p>
+  </header>
+
+  <section class="panel">
+    <h2>1. Subject &amp; conventions</h2>
+    <div class="grid">
+      <div>
+        <label for="sex">Sex</label>
+        <select id="sex">
+          <option value="male" selected>Male</option>
+          <option value="female">Female</option>
+        </select>
+        <p class="field-hint">Used to look up de Leva's (1996) segment mass %, center-of-mass %, and radius-of-gyration % for whichever segment type you assign each link below.</p>
+      </div>
+      <div>
+        <label for="bodyMass">Body mass (kg)</label>
+        <input type="number" id="bodyMass" min="0" step="any" placeholder="e.g. 72">
+        <p class="field-hint">Required — converts de Leva's mass percentages into kg for the Newton-Euler equations.</p>
+      </div>
+      <div>
+        <label for="posUnits">Joint marker position units</label>
+        <select id="posUnits">
+          <option value="1">Meters</option>
+          <option value="0.01">Centimeters</option>
+          <option value="0.001" selected>Millimeters</option>
+        </select>
+        <p class="field-hint">Everything is converted to meters internally.</p>
+      </div>
+      <div>
+        <label for="floorY">Floor / force-plate surface height</label>
+        <input type="number" id="floorY" value="0" step="any">
+        <p class="field-hint">In the same units and vertical coordinate system as your joint markers (usually 0).</p>
+      </div>
+    </div>
+    <p class="field-hint" style="margin-top:0.9rem"><strong>Coordinate convention:</strong> X = horizontal (anteroposterior), Y = vertical (positive = up), in <strong>both</strong> your force data and your marker data, sharing the same horizontal origin — if your force plate and motion-capture system don't already share one, translate one dataset before pasting. Force data must be in newtons (N). g = 9.81 m/s².</p>
+  </section>
+
+  <section class="panel">
+    <h2>2. Segment chain</h2>
+    <p class="hint">List the points of your chain <strong>in order from the ground contact end upward</strong> — e.g. Toe, Ankle, Knee, Hip, Shoulder, Elbow, Wrist. Each consecutive pair becomes one rigid segment; the tool solves for the joint reaction force and net muscle moment at every point after the first, working up from the ground.</p>
+    <div id="chainPoints"></div>
+    <div class="actions" style="margin-top:0.5rem">
+      <button class="ghost small" id="addPoint" type="button">+ Add chain point</button>
+      <button class="ghost small" id="loadExample" type="button">Load example (Toe–Ankle–Knee–Hip)</button>
+    </div>
+
+    <div id="segSection">
+      <h2 style="margin-top:1.5rem">Segment parameters</h2>
+      <p class="hint">Each segment's mass %, center-of-mass % (measured from its proximal — upper — end), and radius of gyration % come from de Leva (1996), auto-filled once you pick a segment type below (override the sex above and these update). Segment <em>length</em> is computed directly from your pasted marker distance, not entered by hand. If a segment doesn't match a standard de Leva type, choose Custom and enter the three parameters yourself.</p>
+      <div id="segCards"></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>3. Ground reaction force data</h2>
+    <label for="grfData">Force-plate data</label>
+    <textarea id="grfData" placeholder="Paste a header row, then one row per frame — comma or tab separated. Needs a Time column, horizontal (Fx) and vertical (Fy) force, and the horizontal center-of-pressure position (COPx). Nothing is assumed from column order — you'll assign each column's role below."></textarea>
+    <div class="actions">
+      <button class="primary" id="parseGrfBtn" type="button">Parse force data</button>
+    </div>
+    <div class="status" id="grfParseStatus"></div>
+
+    <div id="grfSetup">
+      <div class="row">
+        <div class="field">
+          <label for="grfColTime">Time column</label>
+          <select id="grfColTime"></select>
+        </div>
+        <div class="checkline" id="grfFrameModeLine" style="display:none">
+          <input type="checkbox" id="grfFrameIndexMode">
+          <label for="grfFrameIndexMode">This column is a frame number, not seconds</label>
+        </div>
+        <div class="field" id="grfFsField" style="display:none">
+          <label for="grfFsOverride">Sampling rate (Hz)</label>
+          <input type="number" id="grfFsOverride" min="0.001" step="any">
+        </div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label for="grfColFx">Fx (horizontal force)</label>
+          <select id="grfColFx"></select>
+        </div>
+        <div class="field">
+          <label for="grfColFy">Fy (vertical force)</label>
+          <select id="grfColFy"></select>
+        </div>
+        <div class="field">
+          <label for="grfColCop">COPx (center of pressure)</label>
+          <select id="grfColCop"></select>
+        </div>
+        <div class="field">
+          <label for="copUnits">COPx units</label>
+          <select id="copUnits">
+            <option value="1" selected>Meters</option>
+            <option value="0.01">Centimeters</option>
+            <option value="0.001">Millimeters</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label for="grfOrder">Filter order (passes)</label>
+          <select id="grfOrder">
+            <option value="1">1 pass — forward (causal, has lag)</option>
+            <option value="2" selected>2 passes — zero-lag</option>
+            <option value="3">3 passes — forward-heavy (has lag)</option>
+            <option value="4">4 passes — zero-lag</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="grfCutoff">Low-pass cutoff (Hz)</label>
+          <input type="number" id="grfCutoff" value="50" min="0.001" step="any">
+        </div>
+      </div>
+      <p class="hint">No free-moment (Mz) input is needed here: by definition, the center of pressure is the point where the in-plane (sagittal-bending) moment of the ground's force distribution is zero — that's what makes it the COP. Any Mz your plate reports is about the <em>vertical</em> axis (friction/torsional), a different axis than this 2D sagittal model.</p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>4. Joint-center coordinate data</h2>
+    <label for="jointData">Marker / joint-center data</label>
+    <textarea id="jointData" placeholder="Paste a header row, then one row per frame. Needs a Time column plus an X and a Y column for every chain point you listed above."></textarea>
+    <div class="actions">
+      <button class="primary" id="parseJointBtn" type="button">Parse joint data</button>
+    </div>
+    <div class="status" id="jointParseStatus"></div>
+
+    <div id="jointSetup">
+      <div class="row">
+        <div class="field">
+          <label for="jointColTime">Time column</label>
+          <select id="jointColTime"></select>
+        </div>
+        <div class="checkline" id="jointFrameModeLine" style="display:none">
+          <input type="checkbox" id="jointFrameIndexMode">
+          <label for="jointFrameIndexMode">This column is a frame number, not seconds</label>
+        </div>
+        <div class="field" id="jointFsField" style="display:none">
+          <label for="jointFsOverride">Sampling rate (Hz)</label>
+          <input type="number" id="jointFsOverride" min="0.001" step="any">
+        </div>
+      </div>
+      <p class="hint">If this is sampled at a different rate than your force data (common — mocap is often slower), it's linearly interpolated onto the force data's time base once both are parsed; the analysis window is trimmed to where the two overlap.</p>
+      <div id="jointColMap"></div>
+      <div class="row">
+        <div class="field">
+          <label for="jointOrder">Filter order (passes)</label>
+          <select id="jointOrder">
+            <option value="1">1 pass — forward (causal, has lag)</option>
+            <option value="2" selected>2 passes — zero-lag</option>
+            <option value="3">3 passes — forward-heavy (has lag)</option>
+            <option value="4">4 passes — zero-lag</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="jointCutoff">Low-pass cutoff (Hz)</label>
+          <input type="number" id="jointCutoff" value="6" min="0.001" step="any">
+        </div>
+      </div>
+      <p class="hint">Kinematic data usually needs a much lower cutoff than force data — differentiating twice to get acceleration amplifies high-frequency noise enormously. If you're unsure, check <a href="filter_compare.html">Filter Compare</a> first.</p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="actions" style="margin-top:0">
+      <button class="primary" id="computeBtn" type="button">Compute inverse dynamics</button>
+    </div>
+    <div class="status" id="computeStatus"></div>
+  </section>
+
+  <section id="resultsSection">
+    <div class="stats" id="statsRow"></div>
+
+    <section class="panel">
+      <h2>Joint kinetics vs. time</h2>
+      <div class="row" style="margin-top:0">
+        <div class="field">
+          <label for="jointSelect">Joint</label>
+          <select id="jointSelect"></select>
+        </div>
+      </div>
+      <p class="hint">Reaction force / moment are what the <strong>proximal</strong> segment applies onto the <strong>distal</strong> segment at this joint (Newton's third law gives you the reverse). Click either chart to jump the schematic below to that instant.</p>
+      <div class="legend-note" id="forceLegend"></div>
+      <div class="chart-holder"><canvas id="forceChart"></canvas></div>
+      <div class="chart-holder" style="margin-top:1rem"><canvas id="momentChart"></canvas></div>
+    </section>
+
+    <section class="panel">
+      <h2>Free-body-diagram schematic</h2>
+      <p class="hint">Stick figure drawn from your actual joint-marker positions at the selected instant. Grey = weight (at each segment's COM), navy = the ground reaction force at COP, teal = solved joint reaction forces, amber arcs = solved net muscle moments (arrow direction = sign, counterclockwise-positive).</p>
+      <div class="legend-note" id="schematicLegend"></div>
+      <div class="scrub-row">
+        <button class="ghost small" id="playBtn" type="button">Play</button>
+        <input type="range" id="frameSlider" min="0" max="0" value="0" step="1">
+        <span class="scrub-readout" id="scrubReadout"></span>
+      </div>
+      <div class="diagram-wrap"><svg id="schematic" width="620" height="440" viewBox="0 0 620 440" xmlns="http://www.w3.org/2000/svg"></svg></div>
+      <div id="eqPanel" style="margin-top:1rem"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Peak values by joint</h2>
+      <table class="datatab" id="peakTable"></table>
+    </section>
+  </section>
+
+  <footer>
+    Solved bottom-up per segment using Newton's second law (&Sigma;F = m&middot;a<sub>com</sub>) and the rotational equivalent about each segment's own center of mass (&Sigma;M<sub>com</sub> = I<sub>com</sub>&middot;&alpha;), starting from the ground-contact segment (known force = the filtered GRF at COP; known moment = zero, since COP is defined as the point where the ground's in-plane moment is zero) and carrying each solved joint reaction force/moment, negated per Newton's third law, up as the "known" distal input for the next segment. Segment center of mass and radius of gyration use de Leva's (1996) percentages for whichever type you assign each link; segment length comes from the actual distance between your two pasted joint markers (median over the trial) rather than a separately-entered length. One simplification worth flagging: de Leva's tables define each segment's own proximal anthropometric landmark precisely (e.g. the <em>heel</em>, not the ankle, for the foot) — this tool instead uses whichever joint marker connects to the next segment up the chain as that reference point, which is exact for the shank/thigh/upper-arm/forearm (ankle, knee, shoulder, elbow all coincide with the real landmark) but an approximation for the ground-contact segment if your first chain point isn't already the true proximal landmark for its type. Linear and angular accelerations are computed by second-order central finite difference on the filtered position/angle time series.
+    <p style="margin-top:1rem;color:var(--muted)">Created by Abbie Ferris, PhD — University of Northern Colorado</p>
+    <p style="margin-top:0.25rem;color:var(--muted);font-size:0.78rem">Last updated: 2026-09-22</p>
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  const el = (id) => document.getElementById(id);
+  const G = 9.81;
+
+  const DELEVA = {
+    male: {
+      head:     { massPct:6.94,  cmPct:50.02, gyrPct:31.5 },
+      trunk:    { massPct:43.46, cmPct:51.38, gyrPct:30.6 },
+      upperarm: { massPct:2.71,  cmPct:57.72, gyrPct:26.9 },
+      forearm:  { massPct:1.62,  cmPct:45.74, gyrPct:26.5 },
+      hand:     { massPct:0.61,  cmPct:79.00, gyrPct:51.3 },
+      thigh:    { massPct:14.16, cmPct:40.95, gyrPct:32.9 },
+      shank:    { massPct:4.33,  cmPct:43.95, gyrPct:24.6 },
+      foot:     { massPct:1.37,  cmPct:44.15, gyrPct:24.5 }
+    },
+    female: {
+      head:     { massPct:6.68,  cmPct:48.41, gyrPct:29.5 },
+      trunk:    { massPct:42.57, cmPct:49.64, gyrPct:29.2 },
+      upperarm: { massPct:2.55,  cmPct:57.54, gyrPct:26.0 },
+      forearm:  { massPct:1.38,  cmPct:45.59, gyrPct:25.7 },
+      hand:     { massPct:0.56,  cmPct:74.74, gyrPct:45.4 },
+      thigh:    { massPct:14.78, cmPct:36.12, gyrPct:36.4 },
+      shank:    { massPct:4.81,  cmPct:43.52, gyrPct:26.3 },
+      foot:     { massPct:1.29,  cmPct:40.14, gyrPct:27.9 }
+    }
+  };
+  const TYPE_LABEL = { foot:'Foot', shank:'Shank', thigh:'Thigh', trunk:'Trunk', upperarm:'Upper arm', forearm:'Forearm', hand:'Hand', head:'Head', custom:'Custom' };
+  const TYPE_GUESS = [
+    { type:'foot',     distal:/toe|heel|metatars/i, proximal:/ankle/i },
+    { type:'shank',    distal:/ankle/i,              proximal:/knee/i },
+    { type:'thigh',    distal:/knee/i,               proximal:/hip/i },
+    { type:'trunk',    distal:/hip/i,                proximal:/shoulder/i },
+    { type:'upperarm', distal:/shoulder/i,           proximal:/elbow/i },
+    { type:'forearm',  distal:/elbow/i,              proximal:/wrist/i },
+    { type:'hand',     distal:/wrist/i,              proximal:/hand|finger|knuckle/i },
+    { type:'head',     distal:/neck|c7/i,            proximal:/head|vertex|crown/i }
+  ];
+
+  // ================= chain points =================
+  let nextPointId = 1;
+  let chainPoints = []; // {id, name}
+  let segState = [];    // parallel to gaps between chainPoints: {type, custom:{massPct,comPct,gyrPct}}
+
+  function addPoint(name){
+    chainPoints.push({ id: 'p'+(nextPointId++), name: name || '' });
+    renderChain();
+  }
+  function removePoint(id){
+    chainPoints = chainPoints.filter(p => p.id !== id);
+    renderChain();
+  }
+
+  function guessType(distalName, proximalName){
+    for (const g of TYPE_GUESS){
+      if (g.distal.test(distalName) && g.proximal.test(proximalName)) return g.type;
+    }
+    return 'custom';
+  }
+
+  function renderChain(){
+    const wrap = el('chainPoints');
+    wrap.innerHTML = '';
+    chainPoints.forEach((p, i) => {
+      const row = document.createElement('div');
+      row.className = 'chain-row';
+      row.innerHTML = '<span class="idx">'+(i+1)+'.</span>'
+        + '<input type="text" data-id="'+p.id+'" placeholder="e.g. Ankle" value="'+p.name.replace(/"/g,'&quot;')+'">'
+        + '<button class="ghost small" type="button" data-remove="'+p.id+'">Remove</button>';
+      wrap.appendChild(row);
+    });
+    wrap.querySelectorAll('input[data-id]').forEach(inp => {
+      inp.addEventListener('input', function(){
+        const pt = chainPoints.find(p => p.id === this.dataset.id);
+        if (pt) pt.name = this.value;
+        rebuildSegState();
+        renderSegCards();
+      });
+    });
+    wrap.querySelectorAll('button[data-remove]').forEach(btn => {
+      btn.addEventListener('click', function(){ removePoint(this.dataset.remove); });
+    });
+    rebuildSegState();
+    renderSegCards();
+  }
+
+  // keep segState length in sync with (chainPoints.length - 1), preserving existing entries by gap index
+  function rebuildSegState(){
+    const nSeg = Math.max(0, chainPoints.length - 1);
+    while (segState.length < nSeg) segState.push({ type:'custom', custom:{massPct:'',comPct:'',gyrPct:''} });
+    segState.length = nSeg;
+  }
+
+  function renderSegCards(){
+    const nSeg = chainPoints.length - 1;
+    el('segSection').style.display = nSeg >= 1 ? 'block' : 'none';
+    if (nSeg < 1) return;
+    const sex = el('sex').value;
+    const cardsEl = el('segCards');
+    cardsEl.innerHTML = '';
+    for (let i=0;i<nSeg;i++){
+      const distal = chainPoints[i], proximal = chainPoints[i+1];
+      const st = segState[i];
+      if (st.type === 'custom' && st._autoGuessed !== true && st._userSet !== true){
+        const guess = guessType(distal.name, proximal.name);
+        if (guess !== 'custom'){ st.type = guess; st._autoGuessed = true; }
+      }
+      const card = document.createElement('div');
+      card.className = 'seg-card';
+      const typeOpts = Object.keys(TYPE_LABEL).map(k => '<option value="'+k+'"'+(st.type===k?' selected':'')+'>'+TYPE_LABEL[k]+'</option>').join('');
+      let paramsHtml;
+      if (st.type === 'custom'){
+        paramsHtml = '<div class="row" style="margin-top:0.6rem">'
+          + '<div class="field"><label>Mass % of body mass</label><input type="number" step="any" min="0" data-seg="'+i+'" data-p="massPct" value="'+st.custom.massPct+'"></div>'
+          + '<div class="field"><label>COM % of length (from proximal)</label><input type="number" step="any" min="0" max="100" data-seg="'+i+'" data-p="comPct" value="'+st.custom.comPct+'"></div>'
+          + '<div class="field"><label>Radius of gyration % of length</label><input type="number" step="any" min="0" data-seg="'+i+'" data-p="gyrPct" value="'+st.custom.gyrPct+'"></div>'
+          + '</div>';
+      } else {
+        const d = DELEVA[sex][st.type];
+        paramsHtml = '<p class="seg-derived">de Leva ('+(sex==='male'?'male':'female')+'): mass '+d.massPct+'% &middot; COM '+d.cmPct+'% from proximal &middot; radius of gyration '+d.gyrPct+'%</p>';
+      }
+      card.innerHTML = '<div class="seg-title">Segment '+(i+1)+': '+(distal.name||'?')+' \u2192 '+(proximal.name||'?')+'</div>'
+        + '<div class="row" style="margin-top:0">'
+        + '<div class="field"><label>Segment type</label><select data-segtype="'+i+'">'+typeOpts+'</select></div>'
+        + '</div>' + paramsHtml;
+      cardsEl.appendChild(card);
+    }
+    cardsEl.querySelectorAll('select[data-segtype]').forEach(sel => {
+      sel.addEventListener('change', function(){
+        const i = parseInt(this.dataset.segtype,10);
+        segState[i].type = this.value;
+        segState[i]._userSet = true;
+        renderSegCards();
+      });
+    });
+    cardsEl.querySelectorAll('input[data-seg]').forEach(inp => {
+      inp.addEventListener('input', function(){
+        const i = parseInt(this.dataset.seg,10);
+        segState[i].custom[this.dataset.p] = this.value;
+      });
+    });
+  }
+  el('sex').addEventListener('change', renderSegCards);
+  el('addPoint').addEventListener('click', function(){ addPoint(''); });
+
+  el('loadExample').addEventListener('click', function(){
+    chainPoints = [];
+    ['Toe','Ankle','Knee','Hip'].forEach(n => addPoint(n));
+    el('bodyMass').value = 72;
+    el('sex').value = 'male';
+    el('posUnits').value = '0.001';
+    el('floorY').value = 0;
+    renderSegCards();
+
+    // synthetic squat-descent data: mild knee/hip flexion, plausible vertical GRF
+    const fs = 200, dur = 2.0, n = Math.round(fs*dur);
+    const bodyMass = 72;
+    const lenShankM = 0.44, lenThighM = 0.44, footLenM = 0.24;
+    const grfLines = ['Time,Fx,Fy,COPx'];
+    const jointLines = ['Time,ToeX,ToeY,AnkleX,AnkleY,KneeX,KneeY,HipX,HipY'];
+    const ankleX = 0.05, toeX = ankleX + footLenM, floorY = 0;
+    for (let i=0;i<n;i++){
+      const t = i/fs;
+      const knee = 0.25*Math.sin(Math.PI*t/dur); // 0 -> ~0.25 rad flexion -> back to 0, smooth half-cycle-ish
+      const kneeFlex = 0.35*(1-Math.cos(2*Math.PI*t/(dur*1.05)))/2;
+      const ankleY = floorY + Math.sin(Math.acos(1))*0 + lenShankM*Math.cos(0); // ankle sits at floor + small offset (malleolus height)
+      const ankleHt = 0.07;
+      const kneeX = ankleX + lenShankM*Math.sin(kneeFlex*0.3);
+      const kneeY = ankleHt + lenShankM*Math.cos(kneeFlex*0.3);
+      const hipX = kneeX - lenThighM*Math.sin(kneeFlex*0.6);
+      const hipY = kneeY + lenThighM*Math.cos(kneeFlex*0.6);
+      const bw = bodyMass*G;
+      const fy = bw*(1 - 0.18*Math.sin(2*Math.PI*t/(dur*1.05)));
+      const fx = 12*Math.sin(2*Math.PI*t/dur + 0.4);
+      const copx = ankleX + 0.03*Math.sin(2*Math.PI*t/dur);
+      grfLines.push(t.toFixed(4)+','+fx.toFixed(2)+','+fy.toFixed(2)+','+copx.toFixed(4));
+      jointLines.push([t.toFixed(4), toeX.toFixed(4), floorY.toFixed(4), ankleX.toFixed(4), ankleHt.toFixed(4), kneeX.toFixed(4), kneeY.toFixed(4), hipX.toFixed(4), hipY.toFixed(4)].join(','));
+    }
+    el('posUnits').value = '1'; // example is generated directly in meters
+    el('grfData').value = grfLines.join('\n');
+    el('jointData').value = jointLines.join('\n');
+    el('grfParseStatus').textContent = 'Synthetic squat-descent example loaded (not real capture data) — click Parse force data, then Parse joint data.';
+    el('grfParseStatus').className = 'status ok';
+    el('jointParseStatus').textContent = '';
+    el('grfSetup').style.display = 'none';
+    el('jointSetup').style.display = 'none';
+    el('resultsSection').style.display = 'none';
+  });
+
+  // ================= generic wide-table parsing (shared by GRF + joint data) =================
+  function looksNumeric(cell){ return cell !== '' && /^[+-]?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/i.test(cell); }
+  function parseWide(text){
+    const rawLines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+    if (rawLines.length < 2) return { error: 'Paste at least two rows of data.' };
+    const rows = rawLines.map(l => l.split(/[,\t]+/).map(s => s.trim()));
+    const firstRow = rows[0];
+    if (firstRow.length < 2) return { error: 'Need at least two columns.' };
+    const noHeader = firstRow.every(looksNumeric);
+    const header = noHeader ? firstRow.map((_,i) => 'Column '+(i+1)) : firstRow;
+    const dataRows = noHeader ? rows : rows.slice(1);
+    const nCols = header.length;
+    for (const r of dataRows){
+      if (r.length !== nCols) return { error: 'A data row has '+r.length+' values but the header has '+nCols+' columns.' };
+    }
+    const colArrs = [];
+    for (let c = 0; c < nCols; c++){
+      const arr = dataRows.map(r => parseFloat(r[c]));
+      if (arr.some(Number.isNaN)) return { error: 'Column "'+header[c]+'" has a non-numeric value.' };
+      colArrs.push(arr);
+    }
+    return { names: header, cols: colArrs, noHeader };
+  }
+  function guessColumn(pattern, names){
+    for (let i=0;i<names.length;i++) if (pattern.test(names[i])) return i;
+    return -1;
+  }
+  function nameOptions(names){
+    return ['<option value="-1">None</option>'].concat(names.map((n,i) => '<option value="'+i+'">'+n+'</option>')).join('');
+  }
+  function timeOptions(names){
+    return ['<option value="-1">None — generate time from a sampling rate</option>'].concat(names.map((n,i) => '<option value="'+i+'">'+n+'</option>')).join('');
+  }
+
+  // ================= Butterworth filter (same design as Filter Lab / GRF Lab) =================
+  function cadd(a,b){ return {re:a.re+b.re, im:a.im+b.im}; }
+  function cmul(a,b){ return {re:a.re*b.re - a.im*b.im, im:a.re*b.im + a.im*b.re}; }
+  function cdiv(a,b){ const d=b.re*b.re+b.im*b.im; return {re:(a.re*b.re+a.im*b.im)/d, im:(a.im*b.re-a.re*b.im)/d}; }
+  function csub(a,b){ return {re:a.re-b.re, im:a.im-b.im}; }
+  function polyFromRoots(roots){
+    let coeffs = [{re:1,im:0}];
+    for (const r of roots){
+      const next = new Array(coeffs.length+1).fill(null).map(() => ({re:0,im:0}));
+      for (let i=0;i<coeffs.length;i++){
+        next[i] = cadd(next[i], coeffs[i]);
+        next[i+1] = cadd(next[i+1], cmul({re:-r.re, im:-r.im}, coeffs[i]));
+      }
+      coeffs = next;
+    }
+    return coeffs;
+  }
+  function evalPoly(coeffs, z){
+    let result = {re:0,im:0};
+    for (const c of coeffs) result = cadd(cmul(result, z), c);
+    return result;
+  }
+  function designButterworth1(cutoffHz, fs){
+    const K = 2*fs;
+    const wc = K * Math.tan(Math.PI * cutoffHz / fs);
+    const proto = [{re:Math.cos(Math.PI), im:Math.sin(Math.PI)}];
+    const sPoles = proto.map(p => ({re:p.re*wc, im:p.im*wc}));
+    const zZeros = [{re:-1,im:0}];
+    const zPoles = sPoles.map(s => cdiv(cadd({re:K,im:0}, s), csub({re:K,im:0}, s)));
+    const Apoly = polyFromRoots(zPoles), Bpoly = polyFromRoots(zZeros);
+    const Href = cdiv(evalPoly(Bpoly, {re:1,im:0}), evalPoly(Apoly, {re:1,im:0}));
+    const gain = 1/Href.re;
+    return { b: Bpoly.map(c => c.re*gain), a: Apoly.map(c => c.re) };
+  }
+  function applyFilterDF(b, a, x){
+    const N = x.length, nb = b.length, na = a.length;
+    const y = new Array(N).fill(0);
+    for (let n=0;n<N;n++){
+      let acc = 0;
+      for (let k=0;k<nb;k++) if (n-k>=0) acc += b[k]*x[n-k];
+      for (let k=1;k<na;k++) if (n-k>=0) acc -= a[k]*y[n-k];
+      y[n] = acc;
+    }
+    return y;
+  }
+  function applyPassCascade(cutoffHz, fs, nPasses, x){
+    const {b, a} = designButterworth1(cutoffHz, fs);
+    const padLen = Math.max(0, Math.min(3, x.length-1));
+    let y;
+    if (padLen === 0){ y = x; }
+    else {
+      const left = x.slice(1, padLen+1).slice().reverse().map(v => 2*x[0]-v);
+      const right = x.slice(x.length-padLen-1, x.length-1).slice().reverse().map(v => 2*x[x.length-1]-v);
+      y = left.concat(x, right);
+    }
+    for (let p = 1; p <= nPasses; p++){
+      y = (p % 2 === 1) ? applyFilterDF(b, a, y) : applyFilterDF(b, a, y.slice().reverse()).slice().reverse();
+    }
+    return padLen === 0 ? y : y.slice(padLen, padLen + x.length);
+  }
+
+  function fmt(v, d=2){
+    if (v===null || v===undefined || !isFinite(v)) return '—';
+    return v.toLocaleString(undefined, {maximumFractionDigits:d, minimumFractionDigits:0});
+  }
+  function statBlock(value, label){
+    const div = document.createElement('div');
+    div.className = 'stat';
+    div.innerHTML = '<div class="v">'+value+'</div><div class="l">'+label+'</div>';
+    return div;
+  }
+
+  // ================= GRF parsing =================
+  let grfNames = [], grfCols = [];
+  function syncGrfTimeFields(){
+    const hasTimeCol = parseInt(el('grfColTime').value, 10) >= 0;
+    el('grfFrameModeLine').style.display = hasTimeCol ? '' : 'none';
+    const frameMode = hasTimeCol && el('grfFrameIndexMode').checked;
+    el('grfFsField').style.display = (!hasTimeCol || frameMode) ? '' : 'none';
+  }
+  el('grfColTime').addEventListener('change', syncGrfTimeFields);
+  el('grfFrameIndexMode').addEventListener('change', syncGrfTimeFields);
+
+  el('parseGrfBtn').addEventListener('click', function(){
+    const statusEl = el('grfParseStatus');
+    statusEl.className = 'status';
+    const parsed = parseWide(el('grfData').value);
+    if (parsed.error){ statusEl.textContent = parsed.error; el('grfSetup').style.display='none'; return; }
+    grfNames = parsed.names.map((n,i) => (n && n.trim()) ? n : 'Column '+(i+1)+' (unnamed)');
+    grfCols = parsed.cols;
+
+    el('grfColTime').innerHTML = timeOptions(grfNames);
+    el('grfColTime').value = guessColumn(/(^|[^a-z])(time|frame|item|sample)s?($|[^a-z])|^t$/i, grfNames);
+    syncGrfTimeFields();
+    el('grfColFx').innerHTML = nameOptions(grfNames);
+    el('grfColFy').innerHTML = nameOptions(grfNames);
+    el('grfColCop').innerHTML = nameOptions(grfNames);
+    el('grfColFx').value = guessColumn(/(^|[^a-z])f?x1?($|[^a-z])/i, grfNames);
+    el('grfColFy').value = guessColumn(/(^|[^a-z])f?y1?($|[^a-z])|vert/i, grfNames);
+    el('grfColCop').value = guessColumn(/cop.?x|cx1?($|[^a-z])/i, grfNames);
+
+    el('grfSetup').style.display = 'block';
+    el('resultsSection').style.display = 'none';
+    const headerNote = parsed.noHeader ? ' No header row was detected, so every pasted row was kept as data with generic column names.' : '';
+    statusEl.textContent = 'Loaded '+grfCols[0].length+' rows with '+grfNames.length+' column(s). Assign Time, Fx, Fy, and COPx below.'+headerNote;
+    statusEl.classList.add('ok');
+  });
+
+  // ================= joint data parsing =================
+  let jointNames = [], jointCols = [];
+  function syncJointTimeFields(){
+    const hasTimeCol = parseInt(el('jointColTime').value, 10) >= 0;
+    el('jointFrameModeLine').style.display = hasTimeCol ? '' : 'none';
+    const frameMode = hasTimeCol && el('jointFrameIndexMode').checked;
+    el('jointFsField').style.display = (!hasTimeCol || frameMode) ? '' : 'none';
+  }
+  el('jointColTime').addEventListener('change', syncJointTimeFields);
+  el('jointFrameIndexMode').addEventListener('change', syncJointTimeFields);
+
+  function renderJointColMap(){
+    const wrap = el('jointColMap');
+    if (!jointNames.length || !chainPoints.length){ wrap.innerHTML = ''; return; }
+    let html = '<p class="hint" style="margin-bottom:0.5rem">Assign the X and Y column for each chain point:</p>';
+    chainPoints.forEach(p => {
+      const xGuess = guessColumn(new RegExp(p.name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'.*x|x.*'+p.name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'i'), jointNames);
+      const yGuess = guessColumn(new RegExp(p.name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'.*y|y.*'+p.name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'i'), jointNames);
+      html += '<div class="row" style="margin-top:0.5rem">'
+        + '<div class="field" style="min-width:110px;flex:none"><label>'+ (p.name||'(unnamed point)') +'</label></div>'
+        + '<div class="field"><label for="jx_'+p.id+'">X column</label><select id="jx_'+p.id+'" data-jx="'+p.id+'">'+nameOptions(jointNames)+'</select></div>'
+        + '<div class="field"><label for="jy_'+p.id+'">Y column</label><select id="jy_'+p.id+'" data-jy="'+p.id+'">'+nameOptions(jointNames)+'</select></div>'
+        + '</div>';
+      setTimeout(() => { if (el('jx_'+p.id)) el('jx_'+p.id).value = xGuess; if (el('jy_'+p.id)) el('jy_'+p.id).value = yGuess; }, 0);
+    });
+    wrap.innerHTML = html;
+  }
+
+  el('parseJointBtn').addEventListener('click', function(){
+    const statusEl = el('jointParseStatus');
+    statusEl.className = 'status';
+    if (chainPoints.length < 2){ statusEl.textContent = 'Define at least 2 chain points in step 2 first.'; return; }
+    const parsed = parseWide(el('jointData').value);
+    if (parsed.error){ statusEl.textContent = parsed.error; el('jointSetup').style.display='none'; return; }
+    jointNames = parsed.names.map((n,i) => (n && n.trim()) ? n : 'Column '+(i+1)+' (unnamed)');
+    jointCols = parsed.cols;
+
+    el('jointColTime').innerHTML = timeOptions(jointNames);
+    el('jointColTime').value = guessColumn(/(^|[^a-z])(time|frame|item|sample)s?($|[^a-z])|^t$/i, jointNames);
+    syncJointTimeFields();
+    renderJointColMap();
+
+    el('jointSetup').style.display = 'block';
+    el('resultsSection').style.display = 'none';
+    const headerNote = parsed.noHeader ? ' No header row was detected, so every pasted row was kept as data with generic column names.' : '';
+    statusEl.textContent = 'Loaded '+jointCols[0].length+' rows with '+jointNames.length+' column(s). Assign Time and each point\'s X/Y below.'+headerNote;
+    statusEl.classList.add('ok');
+  });
+
+  // ================= math helpers =================
+  function resolveTime(cols, names, colTimeId, frameModeId, fsOverrideId){
+    const timeColIdx = parseInt(el(colTimeId).value, 10);
+    const frameIndexMode = timeColIdx >= 0 && el(frameModeId).checked;
+    const fsOverride = parseFloat(el(fsOverrideId).value);
+    if (timeColIdx < 0){
+      if (!(fsOverride > 0)) return { error: 'Enter a sampling rate (Hz) — required when there\'s no Time column selected.' };
+      const n = cols[0].length;
+      return { times: Array.from({length:n}, (_,i) => i/fsOverride), fs: fsOverride };
+    }
+    const tcol = cols[timeColIdx];
+    if (frameIndexMode){
+      if (!(fsOverride > 0)) return { error: 'Enter a sampling rate (Hz) — required when the Time column is a frame number.' };
+      return { times: tcol.map(f => (f - tcol[0]) / fsOverride), fs: fsOverride };
+    }
+    const diffs = [];
+    for (let i=1;i<tcol.length;i++) diffs.push(tcol[i]-tcol[i-1]);
+    diffs.sort((a,b)=>a-b);
+    const dtv = diffs[Math.floor(diffs.length/2)];
+    if (!(dtv > 0)) return { error: 'The column assigned as Time ("'+names[timeColIdx]+'") does not increase steadily, so it can\'t be read as seconds.' };
+    return { times: tcol.slice(), fs: 1/dtv };
+  }
+  function interp1(tSrc, ySrc, tQuery){
+    const out = new Array(tQuery.length);
+    let j = 0;
+    for (let i=0;i<tQuery.length;i++){
+      const tq = tQuery[i];
+      while (j < tSrc.length-2 && tSrc[j+1] < tq) j++;
+      const t0=tSrc[j], t1=tSrc[j+1], y0=ySrc[j], y1=ySrc[j+1];
+      const frac = (t1===t0) ? 0 : (tq-t0)/(t1-t0);
+      out[i] = y0 + frac*(y1-y0);
+    }
+    return out;
+  }
+  function unwrap(theta){
+    const out = theta.slice();
+    for (let i=1;i<out.length;i++){
+      let d = out[i]-out[i-1];
+      while (d > Math.PI){ out[i]-=2*Math.PI; d=out[i]-out[i-1]; }
+      while (d < -Math.PI){ out[i]+=2*Math.PI; d=out[i]-out[i-1]; }
+    }
+    return out;
+  }
+  function centralDeriv2(y, dt){
+    const n=y.length, out=new Array(n);
+    for (let i=0;i<n;i++){
+      if (n < 3){ out[i]=0; continue; }
+      if (i===0) out[i] = (y[2]-2*y[1]+y[0])/(dt*dt);
+      else if (i===n-1) out[i] = (y[n-1]-2*y[n-2]+y[n-3])/(dt*dt);
+      else out[i] = (y[i+1]-2*y[i]+y[i-1])/(dt*dt);
+    }
+    return out;
+  }
+  function median(arr){
+    const s = arr.slice().sort((a,b)=>a-b);
+    const n = s.length;
+    return n % 2 ? s[(n-1)/2] : (s[n/2-1]+s[n/2])/2;
+  }
+
+  // ================= compute pipeline =================
+  let results = null; // { T, joints:[{id,name,Rx[],Ry[],M[]}], segments:[...], grf:{Fx,Fy,COPx}, points:{id:{x,y}} }
+
+  el('computeBtn').addEventListener('click', function(){
+    const statusEl = el('computeStatus');
+    statusEl.className = 'status';
+
+    if (chainPoints.length < 2){ statusEl.textContent = 'Define at least 2 chain points (step 2).'; return; }
+    if (chainPoints.some(p => !p.name.trim())){ statusEl.textContent = 'Every chain point needs a name (step 2).'; return; }
+    const bodyMass = parseFloat(el('bodyMass').value);
+    if (!(bodyMass > 0)){ statusEl.textContent = 'Enter body mass (step 1).'; return; }
+    if (!grfCols.length){ statusEl.textContent = 'Parse your force data first (step 3).'; return; }
+    if (!jointCols.length){ statusEl.textContent = 'Parse your joint data first (step 4).'; return; }
+
+    const fxIdx = parseInt(el('grfColFx').value,10), fyIdx = parseInt(el('grfColFy').value,10), copIdx = parseInt(el('grfColCop').value,10);
+    if (fxIdx<0 || fyIdx<0 || copIdx<0){ statusEl.textContent = 'Assign Fx, Fy, and COPx columns (step 3).'; return; }
+    const grfTimeRes = resolveTime(grfCols, grfNames, 'grfColTime','grfFrameIndexMode','grfFsOverride');
+    if (grfTimeRes.error){ statusEl.textContent = grfTimeRes.error; return; }
+    const grfFs = grfTimeRes.fs, grfTimes = grfTimeRes.times;
+
+    const jointTimeRes = resolveTime(jointCols, jointNames, 'jointColTime','jointFrameIndexMode','jointFsOverride');
+    if (jointTimeRes.error){ statusEl.textContent = jointTimeRes.error; return; }
+    const jointFs = jointTimeRes.fs, jointTimes = jointTimeRes.times;
+
+    const posUnitFactor = parseFloat(el('posUnits').value);
+    const copUnitFactor = parseFloat(el('copUnits').value);
+    const floorY = parseFloat(el('floorY').value) * posUnitFactor;
+
+    // resolve X/Y column per chain point
+    const pointCols = {};
+    for (const p of chainPoints){
+      const xSel = el('jx_'+p.id), ySel = el('jy_'+p.id);
+      if (!xSel || !ySel){ statusEl.textContent = 'Assign X/Y columns for every chain point (step 4).'; return; }
+      const xi = parseInt(xSel.value,10), yi = parseInt(ySel.value,10);
+      if (xi<0 || yi<0){ statusEl.textContent = 'Assign X/Y columns for "'+p.name+'" (step 4).'; return; }
+      pointCols[p.id] = { x: jointCols[xi], y: jointCols[yi] };
+    }
+
+    // segment params
+    const sex = el('sex').value;
+    const segParams = [];
+    for (let i=0;i<segState.length;i++){
+      const st = segState[i];
+      let massPct, comPct, gyrPct;
+      if (st.type === 'custom'){
+        massPct = parseFloat(st.custom.massPct); comPct = parseFloat(st.custom.comPct); gyrPct = parseFloat(st.custom.gyrPct);
+        if (!(massPct>0) || !(comPct>=0) || !(gyrPct>0)){ statusEl.textContent = 'Fill in mass %, COM %, and radius of gyration % for segment '+(i+1)+' (Custom type).'; return; }
+      } else {
+        const d = DELEVA[sex][st.type];
+        massPct = d.massPct; comPct = d.cmPct; gyrPct = d.gyrPct;
+      }
+      segParams.push({ type: st.type, massPct, comPct, gyrPct });
+    }
+
+    // GRF filter
+    const grfOrder = parseInt(el('grfOrder').value,10), grfCutoff = parseFloat(el('grfCutoff').value);
+    if (!(grfCutoff>0) || grfCutoff >= grfFs/2){ statusEl.textContent = 'GRF cutoff must be > 0 and below Nyquist ('+fmt(grfFs/2,2)+' Hz).'; return; }
+    const FxF = applyPassCascade(grfCutoff, grfFs, grfOrder, grfCols[fxIdx]);
+    const FyF = applyPassCascade(grfCutoff, grfFs, grfOrder, grfCols[fyIdx]);
+    const COPxF = applyPassCascade(grfCutoff, grfFs, grfOrder, grfCols[copIdx]).map(v => v*copUnitFactor);
+
+    // joint filter (native rate)
+    const jointOrder = parseInt(el('jointOrder').value,10), jointCutoff = parseFloat(el('jointCutoff').value);
+    if (!(jointCutoff>0) || jointCutoff >= jointFs/2){ statusEl.textContent = 'Kinematic cutoff must be > 0 and below Nyquist ('+fmt(jointFs/2,2)+' Hz).'; return; }
+    const pointFiltered = {};
+    for (const p of chainPoints){
+      pointFiltered[p.id] = {
+        x: applyPassCascade(jointCutoff, jointFs, jointOrder, pointCols[p.id].x),
+        y: applyPassCascade(jointCutoff, jointFs, jointOrder, pointCols[p.id].y)
+      };
+    }
+
+    // overlap window on the GRF time base
+    const jt0 = jointTimes[0], jt1 = jointTimes[jointTimes.length-1];
+    let i0 = 0; while (i0 < grfTimes.length && grfTimes[i0] < jt0) i0++;
+    let i1 = grfTimes.length-1; while (i1 >= 0 && grfTimes[i1] > jt1) i1--;
+    if (i1 - i0 < 4){ statusEl.textContent = 'Your force data and joint data don\'t overlap enough in time to analyze (check units/columns).'; return; }
+    const T = grfTimes.slice(i0, i1+1);
+    const dt = T[1]-T[0];
+    const Fx = FxF.slice(i0,i1+1), Fy = FyF.slice(i0,i1+1), COPx = COPxF.slice(i0,i1+1);
+
+    const pointPos = {};
+    for (const p of chainPoints){
+      pointPos[p.id] = {
+        x: interp1(jointTimes, pointFiltered[p.id].x, T).map(v => v*posUnitFactor),
+        y: interp1(jointTimes, pointFiltered[p.id].y, T).map(v => v*posUnitFactor)
+      };
+    }
+
+    // per-segment kinematics
+    const segments = [];
+    for (let i=0;i<segParams.length;i++){
+      const distalPt = chainPoints[i], proximalPt = chainPoints[i+1];
+      const dPos = pointPos[distalPt.id], pPos = pointPos[proximalPt.id];
+      const lengths = T.map((_,t) => Math.hypot(pPos.x[t]-dPos.x[t], pPos.y[t]-dPos.y[t]));
+      const L = median(lengths);
+      const massKg = bodyMass * segParams[i].massPct/100;
+      const comX = T.map((_,t) => dPos.x[t] + (segParams[i].comPct/100)*(pPos.x[t]-dPos.x[t]));
+      const comY = T.map((_,t) => dPos.y[t] + (segParams[i].comPct/100)*(pPos.y[t]-dPos.y[t]));
+      let theta = T.map((_,t) => Math.atan2(pPos.y[t]-dPos.y[t], pPos.x[t]-dPos.x[t]));
+      theta = unwrap(theta);
+      const ax = centralDeriv2(comX, dt), ay = centralDeriv2(comY, dt);
+      const alpha = centralDeriv2(theta, dt);
+      const Icom = massKg * Math.pow((segParams[i].gyrPct/100)*L, 2);
+      segments.push({
+        name: TYPE_LABEL[segParams[i].type] + ' ('+distalPt.name+' \u2192 '+proximalPt.name+')',
+        distalId: distalPt.id, proximalId: proximalPt.id, distalName: distalPt.name, proximalName: proximalPt.name,
+        massKg, L, Icom, comX, comY, ax, ay, alpha
+      });
+    }
+
+    // bottom-up solve
+    const joints = [];
+    let RdX = Fx, RdY = Fy, Md = T.map(()=>0);
+    for (let i=0;i<segments.length;i++){
+      const seg = segments[i];
+      const dPos = pointPos[seg.distalId], pPos = pointPos[seg.proximalId];
+      const RpX = new Array(T.length), RpY = new Array(T.length), Mp = new Array(T.length);
+      const rdX = new Array(T.length), rdY = new Array(T.length), rpX = new Array(T.length), rpY = new Array(T.length);
+      for (let t=0;t<T.length;t++){
+        let rdx, rdy;
+        if (i===0){ rdx = COPx[t]-seg.comX[t]; rdy = floorY-seg.comY[t]; }
+        else { rdx = dPos.x[t]-seg.comX[t]; rdy = dPos.y[t]-seg.comY[t]; }
+        rdX[t]=rdx; rdY[t]=rdy;
+
+        const px = seg.massKg*seg.ax[t] - RdX[t];
+        const py = seg.massKg*seg.ay[t] - RdY[t] + seg.massKg*G;
+        RpX[t]=px; RpY[t]=py;
+
+        const rpx = pPos.x[t]-seg.comX[t], rpy = pPos.y[t]-seg.comY[t];
+        rpX[t]=rpx; rpY[t]=rpy;
+
+        const crossD = rdx*RdY[t] - rdy*RdX[t];
+        const crossP = rpx*py - rpy*px;
+        Mp[t] = seg.Icom*seg.alpha[t] - Md[t] - crossD - crossP;
+      }
+      joints.push({ id: seg.proximalId, name: seg.proximalName, segName: seg.name, Rx: RpX, Ry: RpY, M: Mp,
+                    distalR:{x:RdX,y:RdY,M:Md,rx:rdX,ry:rdY}, proxArm:{rx:rpX,ry:rpY}, seg });
+      RdX = RpX.map(v=>-v); RdY = RpY.map(v=>-v); Md = Mp.map(v=>-v);
+    }
+
+    results = { T, dt, Fx, Fy, COPx, floorY, chainPoints, pointPos, segments, joints, bodyMass };
+
+    statusEl.textContent = 'Solved '+segments.length+' segment(s), '+joints.length+' joint(s), '+T.length+' frames ('+fmt(T[0],3)+'–'+fmt(T[T.length-1],3)+' s).';
+    statusEl.classList.add('ok');
+
+    renderResults();
+  });
+
+  // ================= results rendering =================
+  let chartForce = null, chartMoment = null, frameIdx = 0, playTimer = null;
+
+  function renderResults(){
+    el('resultsSection').style.display = 'block';
+
+    const statsRowEl = el('statsRow');
+    statsRowEl.innerHTML = '';
+    statsRowEl.appendChild(statBlock(fmt(results.T.length,0), 'frames analyzed'));
+    statsRowEl.appendChild(statBlock(fmt(1/results.dt,1)+' Hz', 'analysis rate'));
+    statsRowEl.appendChild(statBlock(fmt(results.T[results.T.length-1]-results.T[0],3)+' s', 'duration'));
+    statsRowEl.appendChild(statBlock(results.segments.length, 'segments'));
+
+    const jointSelect = el('jointSelect');
+    jointSelect.innerHTML = results.joints.map((j,i) => '<option value="'+i+'">'+j.name+' ('+j.segName+')</option>').join('');
+    jointSelect.onchange = renderKinetics;
+
+    el('frameSlider').min = 0;
+    el('frameSlider').max = results.T.length-1;
+    frameIdx = 0;
+    el('frameSlider').value = 0;
+    el('frameSlider').oninput = function(){ frameIdx = parseInt(this.value,10); renderSchematic(); };
+
+    el('forceLegend').innerHTML =
+      '<span><span class="swatch" style="background:#0B3D91"></span>Rx (horizontal)</span>'
+      + '<span><span class="swatch" style="background:#1C7293"></span>Ry (vertical)</span>';
+    el('schematicLegend').innerHTML =
+      '<span><span class="dot" style="background:#3A4750"></span>segment / body</span>'
+      + '<span><span class="dot" style="background:#5C7080"></span>weight (mg)</span>'
+      + '<span><span class="dot" style="background:#0B3D91"></span>ground reaction force</span>'
+      + '<span><span class="dot" style="background:#1C7293"></span>joint reaction force</span>'
+      + '<span><span class="dot" style="background:#E8871E"></span>net muscle moment</span>';
+
+    renderKinetics();
+    renderSchematic();
+    renderPeakTable();
+  }
+
+  function nearestIndexT(tVal){
+    const T = results.T;
+    let lo=0, hi=T.length-1;
+    while (lo<hi){ const mid=(lo+hi)>>1; if (T[mid]<tVal) lo=mid+1; else hi=mid; }
+    if (lo>0 && Math.abs(T[lo-1]-tVal) < Math.abs(T[lo]-tVal)) return lo-1;
+    return lo;
+  }
+
+  function zoomOpts(){
+    return { pan:{enabled:true,mode:'xy',modifierKey:null}, zoom:{wheel:{enabled:true},pinch:{enabled:true},drag:{enabled:false},mode:'xy'} };
+  }
+  el('forceChart').addEventListener('click', function(evt){
+    if (!chartForce) return;
+    const tVal = chartForce.scales.x.getValueForPixel(evt.offsetX);
+    if (!isFinite(tVal)) return;
+    frameIdx = nearestIndexT(tVal);
+    el('frameSlider').value = frameIdx;
+    renderSchematic();
+  });
+  el('momentChart').addEventListener('click', function(evt){
+    if (!chartMoment) return;
+    const tVal = chartMoment.scales.x.getValueForPixel(evt.offsetX);
+    if (!isFinite(tVal)) return;
+    frameIdx = nearestIndexT(tVal);
+    el('frameSlider').value = frameIdx;
+    renderSchematic();
+  });
+
+  function renderKinetics(){
+    const ji = parseInt(el('jointSelect').value,10) || 0;
+    const j = results.joints[ji];
+    if (chartForce) chartForce.destroy();
+    chartForce = new Chart(el('forceChart'), {
+      type:'line',
+      data:{ datasets:[
+        { label:'Rx', data: results.T.map((t,i)=>({x:t,y:j.Rx[i]})), borderColor:'#0B3D91', backgroundColor:'transparent', borderWidth:1.6, pointRadius:0, tension:0 },
+        { label:'Ry', data: results.T.map((t,i)=>({x:t,y:j.Ry[i]})), borderColor:'#1C7293', backgroundColor:'transparent', borderWidth:1.6, pointRadius:0, tension:0 }
+      ]},
+      options:{ animation:false, responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{display:false}, zoom:zoomOpts(), title:{display:true,text:'Joint reaction force (N)'} },
+        scales:{ x:{type:'linear',title:{display:true,text:'Time (s)'}}, y:{title:{display:true,text:'Force (N)'}} } }
+    });
+    if (chartMoment) chartMoment.destroy();
+    chartMoment = new Chart(el('momentChart'), {
+      type:'line',
+      data:{ datasets:[
+        { label:'M', data: results.T.map((t,i)=>({x:t,y:j.M[i]})), borderColor:'#E8871E', backgroundColor:'transparent', borderWidth:1.8, pointRadius:0, tension:0 }
+      ]},
+      options:{ animation:false, responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{display:false}, zoom:zoomOpts(), title:{display:true,text:'Net muscle moment (N·m)'} },
+        scales:{ x:{type:'linear',title:{display:true,text:'Time (s)'}}, y:{title:{display:true,text:'Moment (N·m)'}} } }
+    });
+  }
+
+  function renderPeakTable(){
+    const rows = results.joints.map(j => {
+      const R = j.Rx.map((v,i)=>Math.hypot(v,j.Ry[i]));
+      let iR=0; for (let i=1;i<R.length;i++) if (R[i]>R[iR]) iR=i;
+      let iM=0; for (let i=1;i<j.M.length;i++) if (Math.abs(j.M[i])>Math.abs(j.M[iM])) iM=i;
+      return '<tr><td>'+j.name+'</td><td class="num">'+fmt(R[iR],1)+' N</td><td class="num">'+fmt(results.T[iR],3)+' s</td>'
+        + '<td class="num">'+fmt(j.M[iM],2)+' N·m</td><td class="num">'+fmt(results.T[iM],3)+' s</td></tr>';
+    }).join('');
+    el('peakTable').innerHTML = '<thead><tr><th>Joint</th><th>Peak |reaction force|</th><th>at time</th><th>Peak net moment</th><th>at time</th></tr></thead><tbody>'+rows+'</tbody>';
+  }
+
+  // ---- schematic FBD ----
+  function arrowSvg(x1,y1,dxPx,dyPx,color,label){
+    const x2=x1+dxPx, y2=y1+dyPx;
+    const len = Math.hypot(dxPx,dyPx);
+    if (len < 2) return '';
+    const ux=dxPx/len, uy=dyPx/len;
+    const headLen=7, headW=3.6;
+    const hx=x2-ux*headLen, hy=y2-uy*headLen;
+    const px=-uy, py=ux;
+    const h1x=hx+px*headW, h1y=hy+py*headW, h2x=hx-px*headW, h2y=hy-py*headW;
+    let s = '<line x1="'+x1.toFixed(1)+'" y1="'+y1.toFixed(1)+'" x2="'+x2.toFixed(1)+'" y2="'+y2.toFixed(1)+'" stroke="'+color+'" stroke-width="2.2"/>';
+    s += '<polygon points="'+x2.toFixed(1)+','+y2.toFixed(1)+' '+h1x.toFixed(1)+','+h1y.toFixed(1)+' '+h2x.toFixed(1)+','+h2y.toFixed(1)+'" fill="'+color+'"/>';
+    if (label) s += '<text x="'+(x2+5).toFixed(1)+'" y="'+(y2+3).toFixed(1)+'" font-size="9.5" fill="'+color+'">'+label+'</text>';
+    return s;
+  }
+  function momentGlyph(cx,cy,M,color){
+    if (!isFinite(M) || Math.abs(M) < 1e-6) return '';
+    const r = 13;
+    const ccw = M >= 0;
+    const a0 = -0.35, a1 = a0 + (ccw ? 1.6*Math.PI : -1.6*Math.PI);
+    const steps = 14;
+    const pts = [];
+    for (let i=0;i<=steps;i++){
+      const t = a0 + (a1-a0)*(i/steps);
+      pts.push([cx+r*Math.cos(t), cy-r*Math.sin(t)]);
+    }
+    let d = pts.map((p,i)=> (i===0?'M':'L')+p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
+    let s = '<path d="'+d+'" fill="none" stroke="'+color+'" stroke-width="2"/>';
+    const [ex,ey] = pts[pts.length-1], [px,py] = pts[pts.length-2];
+    const dx=ex-px, dy=ey-py, len=Math.hypot(dx,dy)||1;
+    const ux=dx/len, uy=dy/len, perp=[-uy,ux];
+    const h1=[ex-ux*6+perp[0]*3.4, ey-uy*6+perp[1]*3.4], h2=[ex-ux*6-perp[0]*3.4, ey-uy*6-perp[1]*3.4];
+    s += '<polygon points="'+ex.toFixed(1)+','+ey.toFixed(1)+' '+h1[0].toFixed(1)+','+h1[1].toFixed(1)+' '+h2[0].toFixed(1)+','+h2[1].toFixed(1)+'" fill="'+color+'"/>';
+    s += '<text x="'+(cx+r+4).toFixed(1)+'" y="'+(cy+3).toFixed(1)+'" font-size="9.5" fill="'+color+'">'+fmt(M,1)+' N·m</text>';
+    return s;
+  }
+
+  function renderSchematic(){
+    if (!results) return;
+    const T = results.T, i = frameIdx;
+    el('scrubReadout').textContent = 't = '+fmt(T[i],3)+' s (frame '+(i+1)+' of '+T.length+')';
+
+    // bounding box across the whole trial for a stable scale
+    let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
+    results.chainPoints.forEach(p => {
+      const pos = results.pointPos[p.id];
+      for (let t=0;t<T.length;t++){
+        if (pos.x[t]<minX) minX=pos.x[t]; if (pos.x[t]>maxX) maxX=pos.x[t];
+        if (pos.y[t]<minY) minY=pos.y[t]; if (pos.y[t]>maxY) maxY=pos.y[t];
+      }
+    });
+    minY = Math.min(minY, results.floorY);
+    const padX=(maxX-minX)*0.25+0.15, padY=(maxY-minY)*0.2+0.15;
+    minX-=padX; maxX+=padX; minY-=padY*0.3; maxY+=padY;
+    const W=620,H=440;
+    const scale = Math.min(W/(maxX-minX), H/(maxY-minY));
+    const originX = (W - (maxX-minX)*scale)/2 - minX*scale;
+    const originY = H - 20 - (results.floorY-minY)*scale;
+    const px = (x) => originX + x*scale;
+    const py = (y) => originY - y*scale;
+
+    // force scale: fit the largest force arrow (GRF or any joint reaction) to ~70px
+    let maxF = 1e-6;
+    for (let t=0;t<T.length;t++){
+      maxF = Math.max(maxF, Math.hypot(results.Fx[t], results.Fy[t]));
+      results.joints.forEach(j => { maxF = Math.max(maxF, Math.hypot(j.Rx[t], j.Ry[t])); });
+    }
+    const fScale = 70/maxF;
+
+    let svg = '';
+    // floor line
+    svg += '<line x1="0" y1="'+py(results.floorY).toFixed(1)+'" x2="'+W+'" y2="'+py(results.floorY).toFixed(1)+'" stroke="#334155" stroke-width="1.5"/>';
+    svg += '<text x="6" y="'+(py(results.floorY)+13).toFixed(1)+'" font-size="9" fill="#334155">ground</text>';
+
+    // stick figure
+    for (let s=0;s<results.chainPoints.length-1;s++){
+      const a = results.pointPos[results.chainPoints[s].id], b = results.pointPos[results.chainPoints[s+1].id];
+      svg += '<line x1="'+px(a.x[i]).toFixed(1)+'" y1="'+py(a.y[i]).toFixed(1)+'" x2="'+px(b.x[i]).toFixed(1)+'" y2="'+py(b.y[i]).toFixed(1)+'" stroke="#3A4750" stroke-width="6" stroke-linecap="round"/>';
+    }
+    results.chainPoints.forEach(p => {
+      const pos = results.pointPos[p.id];
+      svg += '<circle cx="'+px(pos.x[i]).toFixed(1)+'" cy="'+py(pos.y[i]).toFixed(1)+'" r="3.5" fill="#16232C"/>';
+      svg += '<text x="'+(px(pos.x[i])+6).toFixed(1)+'" y="'+(py(pos.y[i])-6).toFixed(1)+'" font-size="9" fill="#16232C">'+p.name+'</text>';
+    });
+
+    // COM + weight vectors
+    results.segments.forEach(seg => {
+      const cx=px(seg.comX[i]), cy=py(seg.comY[i]);
+      svg += '<circle cx="'+cx.toFixed(1)+'" cy="'+cy.toFixed(1)+'" r="3" fill="#5C7080" stroke="#fff" stroke-width="1"/>';
+      const w = seg.massKg*G;
+      svg += arrowSvg(cx,cy, 0, w*fScale, '#5C7080', null);
+    });
+
+    // ground reaction force at COP
+    const copPx = px(results.COPx[i]), copPy = py(results.floorY);
+    svg += '<circle cx="'+copPx.toFixed(1)+'" cy="'+copPy.toFixed(1)+'" r="3" fill="#0B3D91"/>';
+    svg += arrowSvg(copPx, copPy, results.Fx[i]*fScale, -results.Fy[i]*fScale, '#0B3D91', 'GRF');
+
+    // joint reaction forces + moments
+    results.joints.forEach(j => {
+      const pos = results.pointPos[j.id];
+      const jx = px(pos.x[i]), jy = py(pos.y[i]);
+      svg += arrowSvg(jx, jy, j.Rx[i]*fScale, -j.Ry[i]*fScale, '#1C7293', null);
+      svg += momentGlyph(jx, jy, j.M[i], '#E8871E');
+    });
+
+    el('schematic').innerHTML = svg;
+    renderEquations();
+  }
+
+  function renderEquations(){
+    const i = frameIdx;
+    let out = '';
+    results.joints.forEach(j => {
+      const seg = j.seg;
+      const dR = j.distalR, pA = j.proxArm;
+      const crossD = dR.rx[i]*dR.y[i] - dR.ry[i]*dR.x[i];
+      const crossP = pA.rx[i]*j.Ry[i] - pA.ry[i]*j.Rx[i];
+      out += '<div class="eq-block"><span class="hdr">'+j.name+'</span>  ('+seg.name+', m='+fmt(seg.massKg,2)+' kg, I_com='+fmt(seg.Icom,4)+' kg·m²)\n'
+        + 'ΣFx:  Rx_prox = m·ax − Rx_dist\n'
+        + '      '+fmt(j.Rx[i],1)+' N = '+fmt(seg.massKg,2)+'×'+fmt(seg.ax[i],2)+' − ('+fmt(dR.x[i],1)+')\n'
+        + 'ΣFy:  Ry_prox = m·ay − Ry_dist + m·g\n'
+        + '      '+fmt(j.Ry[i],1)+' N = '+fmt(seg.massKg,2)+'×'+fmt(seg.ay[i],2)+' − ('+fmt(dR.y[i],1)+') + '+fmt(seg.massKg,2)+'×9.81\n'
+        + 'ΣM_com:  M_prox = I·α − M_dist − (r_dist×R_dist) − (r_prox×R_prox)\n'
+        + '      '+fmt(j.M[i],2)+' N·m = '+fmt(seg.Icom,4)+'×'+fmt(seg.alpha[i],2)+' − ('+fmt(dR.M[i],2)+') − ('+fmt(crossD,2)+') − ('+fmt(crossP,2)+')'
+        + '</div>';
+    });
+    el('eqPanel').innerHTML = out;
+  }
+
+  el('playBtn').addEventListener('click', function(){
+    if (playTimer){ clearInterval(playTimer); playTimer=null; el('playBtn').textContent='Play'; return; }
+    el('playBtn').textContent='Pause';
+    playTimer = setInterval(function(){
+      if (!results) return;
+      frameIdx = (frameIdx+1) % results.T.length;
+      el('frameSlider').value = frameIdx;
+      renderSchematic();
+    }, 40);
+  });
+
+  // start with two blank chain points so the UI isn't empty
+  addPoint(''); addPoint('');
+})();
+</script>
+</body>
+</html>
