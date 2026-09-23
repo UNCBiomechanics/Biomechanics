@@ -186,7 +186,7 @@
 
   #chainSection, #segSection, #grfSetup, #jointSetup, #resultsSection{display:none;}
 
-  .diagram-wrap{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:1rem;display:flex;justify-content:center;}
+  .diagram-wrap{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:1rem;display:flex;justify-content:center;overflow-x:auto;}
 
   .scrub-row{display:flex;gap:1rem;align-items:center;flex-wrap:wrap;margin:0.75rem 0;}
   .scrub-row input[type="range"]{flex:1;min-width:200px;}
@@ -344,6 +344,10 @@
           <label for="grfCutoff">Low-pass cutoff (Hz)</label>
           <input type="number" id="grfCutoff" value="50" min="0.001" step="any">
         </div>
+        <div class="checkline">
+          <input type="checkbox" id="grfNoFilter">
+          <label for="grfNoFilter">Don't filter — already filtered</label>
+        </div>
       </div>
       <p class="hint">No free-moment (Mz) input is needed here: by definition, the center of pressure is the point where the in-plane (sagittal-bending) moment of the ground's force distribution is zero — that's what makes it the COP. Any Mz your plate reports is about the <em>vertical</em> axis (friction/torsional), a different axis than this 2D sagittal model.</p>
     </div>
@@ -389,6 +393,10 @@
           <label for="jointCutoff">Low-pass cutoff (Hz)</label>
           <input type="number" id="jointCutoff" value="6" min="0.001" step="any">
         </div>
+        <div class="checkline">
+          <input type="checkbox" id="jointNoFilter">
+          <label for="jointNoFilter">Don't filter — already filtered</label>
+        </div>
       </div>
       <p class="hint">Kinematic data usually needs a much lower cutoff than force data — differentiating twice to get acceleration amplifies high-frequency noise enormously. If you're unsure, check <a href="filter_compare.html">Filter Compare</a> first.</p>
     </div>
@@ -420,7 +428,7 @@
 
     <section class="panel">
       <h2>Free-body-diagram schematic</h2>
-      <p class="hint">Stick figure drawn from your actual joint-marker positions at the selected instant. Grey = weight (at each segment's COM), navy = the ground reaction force at COP, teal = solved joint reaction forces, amber arcs = solved net muscle moments (arrow direction = sign, counterclockwise-positive).</p>
+      <p class="hint">Each segment is drawn <strong>isolated</strong> from its neighbors — the classic free-body-diagram convention — animated from your actual joint-marker positions at the selected instant, one panel per segment, distal end on the left/bottom of its panel and proximal end on the right/top. Grey = weight (mg) at the COM, navy = the known force at the segment's distal end (the ground reaction force at COP for the ground-contact segment, or the reaction handed down from the segment below for every other segment), teal = the solved joint reaction force at the proximal end, amber arcs = real net muscle moments at each end, dashed purple arc = the segment's own I&middot;&alpha; (its rotational equation of motion, plotted at the COM — not an applied force, but what the moment equation is actually balancing against).</p>
       <div class="legend-note" id="schematicLegend"></div>
       <div class="scrub-row">
         <button class="ghost small" id="playBtn" type="button">Play</button>
@@ -440,7 +448,7 @@
   <footer>
     Solved bottom-up per segment using Newton's second law (&Sigma;F = m&middot;a<sub>com</sub>) and the rotational equivalent about each segment's own center of mass (&Sigma;M<sub>com</sub> = I<sub>com</sub>&middot;&alpha;), starting from the ground-contact segment (known force = the filtered GRF at COP; known moment = zero, since COP is defined as the point where the ground's in-plane moment is zero) and carrying each solved joint reaction force/moment, negated per Newton's third law, up as the "known" distal input for the next segment. Segment center of mass and radius of gyration use de Leva's (1996) percentages for whichever type you assign each link; segment length comes from the actual distance between your two pasted joint markers (median over the trial) rather than a separately-entered length. One simplification worth flagging: de Leva's tables define each segment's own proximal anthropometric landmark precisely (e.g. the <em>heel</em>, not the ankle, for the foot) — this tool instead uses whichever joint marker connects to the next segment up the chain as that reference point, which is exact for the shank/thigh/upper-arm/forearm (ankle, knee, shoulder, elbow all coincide with the real landmark) but an approximation for the ground-contact segment if your first chain point isn't already the true proximal landmark for its type. Linear and angular accelerations are computed by second-order central finite difference on the filtered position/angle time series.
     <p style="margin-top:1rem;color:var(--muted)">Created by Abbie Ferris, PhD — University of Northern Colorado</p>
-    <p style="margin-top:0.25rem;color:var(--muted);font-size:0.78rem">Last updated: 2026-09-22</p>
+    <p style="margin-top:0.25rem;color:var(--muted);font-size:0.78rem">Last updated: 2026-09-23</p>
   </footer>
 
 </div>
@@ -750,6 +758,10 @@
   }
   el('grfColTime').addEventListener('change', syncGrfTimeFields);
   el('grfFrameIndexMode').addEventListener('change', syncGrfTimeFields);
+  el('grfNoFilter').addEventListener('change', function(){
+    const off = this.checked;
+    el('grfOrder').disabled = off; el('grfCutoff').disabled = off;
+  });
 
   el('parseGrfBtn').addEventListener('click', function(){
     const statusEl = el('grfParseStatus');
@@ -786,6 +798,10 @@
   }
   el('jointColTime').addEventListener('change', syncJointTimeFields);
   el('jointFrameIndexMode').addEventListener('change', syncJointTimeFields);
+  el('jointNoFilter').addEventListener('change', function(){
+    const off = this.checked;
+    el('jointOrder').disabled = off; el('jointCutoff').disabled = off;
+  });
 
   function renderJointColMap(){
     const wrap = el('jointColMap');
@@ -939,21 +955,36 @@
     }
 
     // GRF filter
-    const grfOrder = parseInt(el('grfOrder').value,10), grfCutoff = parseFloat(el('grfCutoff').value);
-    if (!(grfCutoff>0) || grfCutoff >= grfFs/2){ statusEl.textContent = 'GRF cutoff must be > 0 and below Nyquist ('+fmt(grfFs/2,2)+' Hz).'; return; }
-    const FxF = applyPassCascade(grfCutoff, grfFs, grfOrder, grfCols[fxIdx]);
-    const FyF = applyPassCascade(grfCutoff, grfFs, grfOrder, grfCols[fyIdx]);
-    const COPxF = applyPassCascade(grfCutoff, grfFs, grfOrder, grfCols[copIdx]).map(v => v*copUnitFactor);
+    const grfNoFilter = el('grfNoFilter').checked;
+    let FxF, FyF, COPxF;
+    if (grfNoFilter){
+      FxF = grfCols[fxIdx].slice();
+      FyF = grfCols[fyIdx].slice();
+      COPxF = grfCols[copIdx].map(v => v*copUnitFactor);
+    } else {
+      const grfOrder = parseInt(el('grfOrder').value,10), grfCutoff = parseFloat(el('grfCutoff').value);
+      if (!(grfCutoff>0) || grfCutoff >= grfFs/2){ statusEl.textContent = 'GRF cutoff must be > 0 and below Nyquist ('+fmt(grfFs/2,2)+' Hz).'; return; }
+      FxF = applyPassCascade(grfCutoff, grfFs, grfOrder, grfCols[fxIdx]);
+      FyF = applyPassCascade(grfCutoff, grfFs, grfOrder, grfCols[fyIdx]);
+      COPxF = applyPassCascade(grfCutoff, grfFs, grfOrder, grfCols[copIdx]).map(v => v*copUnitFactor);
+    }
 
     // joint filter (native rate)
-    const jointOrder = parseInt(el('jointOrder').value,10), jointCutoff = parseFloat(el('jointCutoff').value);
-    if (!(jointCutoff>0) || jointCutoff >= jointFs/2){ statusEl.textContent = 'Kinematic cutoff must be > 0 and below Nyquist ('+fmt(jointFs/2,2)+' Hz).'; return; }
+    const jointNoFilter = el('jointNoFilter').checked;
     const pointFiltered = {};
-    for (const p of chainPoints){
-      pointFiltered[p.id] = {
-        x: applyPassCascade(jointCutoff, jointFs, jointOrder, pointCols[p.id].x),
-        y: applyPassCascade(jointCutoff, jointFs, jointOrder, pointCols[p.id].y)
-      };
+    if (jointNoFilter){
+      for (const p of chainPoints){
+        pointFiltered[p.id] = { x: pointCols[p.id].x.slice(), y: pointCols[p.id].y.slice() };
+      }
+    } else {
+      const jointOrder = parseInt(el('jointOrder').value,10), jointCutoff = parseFloat(el('jointCutoff').value);
+      if (!(jointCutoff>0) || jointCutoff >= jointFs/2){ statusEl.textContent = 'Kinematic cutoff must be > 0 and below Nyquist ('+fmt(jointFs/2,2)+' Hz).'; return; }
+      for (const p of chainPoints){
+        pointFiltered[p.id] = {
+          x: applyPassCascade(jointCutoff, jointFs, jointOrder, pointCols[p.id].x),
+          y: applyPassCascade(jointCutoff, jointFs, jointOrder, pointCols[p.id].y)
+        };
+      }
     }
 
     // overlap window on the GRF time base
@@ -1026,6 +1057,7 @@
     }
 
     results = { T, dt, Fx, Fy, COPx, floorY, chainPoints, pointPos, segments, joints, bodyMass };
+    computeLocalScales();
 
     statusEl.textContent = 'Solved '+segments.length+' segment(s), '+joints.length+' joint(s), '+T.length+' frames ('+fmt(T[0],3)+'–'+fmt(T[T.length-1],3)+' s).';
     statusEl.classList.add('ok');
@@ -1060,11 +1092,12 @@
       '<span><span class="swatch" style="background:#0B3D91"></span>Rx (horizontal)</span>'
       + '<span><span class="swatch" style="background:#1C7293"></span>Ry (vertical)</span>';
     el('schematicLegend').innerHTML =
-      '<span><span class="dot" style="background:#3A4750"></span>segment / body</span>'
-      + '<span><span class="dot" style="background:#5C7080"></span>weight (mg)</span>'
-      + '<span><span class="dot" style="background:#0B3D91"></span>ground reaction force</span>'
-      + '<span><span class="dot" style="background:#1C7293"></span>joint reaction force</span>'
-      + '<span><span class="dot" style="background:#E8871E"></span>net muscle moment</span>';
+      '<span><span class="dot" style="background:#3A4750"></span>segment (isolated)</span>'
+      + '<span><span class="dot" style="background:#5C7080"></span>weight (mg) at COM</span>'
+      + '<span><span class="dot" style="background:#0B3D91"></span>known force at distal end (GRF, or handed down from below)</span>'
+      + '<span><span class="dot" style="background:#1C7293"></span>solved joint reaction force (proximal end)</span>'
+      + '<span><span class="dot" style="background:#E8871E"></span>real net muscle moment (both ends)</span>'
+      + '<span><span class="dot" style="background:#7B2D8E"></span>I&middot;&alpha; at COM (dashed — not an applied force)</span>';
 
     renderKinetics();
     renderSchematic();
@@ -1151,7 +1184,7 @@
     if (label) s += '<text x="'+(x2+5).toFixed(1)+'" y="'+(y2+3).toFixed(1)+'" font-size="9.5" fill="'+color+'">'+label+'</text>';
     return s;
   }
-  function momentGlyph(cx,cy,M,color){
+  function momentGlyph(cx,cy,M,color,dashed,labelPrefix){
     if (!isFinite(M) || Math.abs(M) < 1e-6) return '';
     const r = 13;
     const ccw = M >= 0;
@@ -1163,14 +1196,31 @@
       pts.push([cx+r*Math.cos(t), cy-r*Math.sin(t)]);
     }
     let d = pts.map((p,i)=> (i===0?'M':'L')+p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
-    let s = '<path d="'+d+'" fill="none" stroke="'+color+'" stroke-width="2"/>';
+    const dashAttr = dashed ? ' stroke-dasharray="3,2"' : '';
+    let s = '<path d="'+d+'" fill="none" stroke="'+color+'" stroke-width="2"'+dashAttr+'/>';
     const [ex,ey] = pts[pts.length-1], [px,py] = pts[pts.length-2];
     const dx=ex-px, dy=ey-py, len=Math.hypot(dx,dy)||1;
     const ux=dx/len, uy=dy/len, perp=[-uy,ux];
     const h1=[ex-ux*6+perp[0]*3.4, ey-uy*6+perp[1]*3.4], h2=[ex-ux*6-perp[0]*3.4, ey-uy*6-perp[1]*3.4];
     s += '<polygon points="'+ex.toFixed(1)+','+ey.toFixed(1)+' '+h1[0].toFixed(1)+','+h1[1].toFixed(1)+' '+h2[0].toFixed(1)+','+h2[1].toFixed(1)+'" fill="'+color+'"/>';
-    s += '<text x="'+(cx+r+4).toFixed(1)+'" y="'+(cy+3).toFixed(1)+'" font-size="9.5" fill="'+color+'">'+fmt(M,1)+' N·m</text>';
+    s += '<text x="'+(cx+r+4).toFixed(1)+'" y="'+(cy+3).toFixed(1)+'" font-size="8.5" fill="'+color+'">'+(labelPrefix||'')+fmt(M,1)+' N·m</text>';
     return s;
+  }
+
+  // per-segment bounding box (over the whole trial) used to give each isolated free-body panel
+  // its own stable local scale/center, independent of every other segment.
+  function computeLocalScales(){
+    results.segments.forEach(seg => {
+      let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
+      const dPos = results.pointPos[seg.distalId], pPos = results.pointPos[seg.proximalId];
+      for (let t=0;t<results.T.length;t++){
+        [[dPos.x[t],dPos.y[t]], [pPos.x[t],pPos.y[t]]].forEach(([x,y]) => {
+          if (x<minX) minX=x; if (x>maxX) maxX=x;
+          if (y<minY) minY=y; if (y>maxY) maxY=y;
+        });
+      }
+      seg.scaleBox = { minX, maxX, minY, maxY };
+    });
   }
 
   function renderSchematic(){
@@ -1178,68 +1228,69 @@
     const T = results.T, i = frameIdx;
     el('scrubReadout').textContent = 't = '+fmt(T[i],3)+' s (frame '+(i+1)+' of '+T.length+')';
 
-    // bounding box across the whole trial for a stable scale
-    let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
-    results.chainPoints.forEach(p => {
-      const pos = results.pointPos[p.id];
-      for (let t=0;t<T.length;t++){
-        if (pos.x[t]<minX) minX=pos.x[t]; if (pos.x[t]>maxX) maxX=pos.x[t];
-        if (pos.y[t]<minY) minY=pos.y[t]; if (pos.y[t]>maxY) maxY=pos.y[t];
-      }
-    });
-    minY = Math.min(minY, results.floorY);
-    const padX=(maxX-minX)*0.25+0.15, padY=(maxY-minY)*0.2+0.15;
-    minX-=padX; maxX+=padX; minY-=padY*0.3; maxY+=padY;
-    const W=620,H=440;
-    const scale = Math.min(W/(maxX-minX), H/(maxY-minY));
-    const originX = (W - (maxX-minX)*scale)/2 - minX*scale;
-    const originY = H - 20 - (results.floorY-minY)*scale;
-    const px = (x) => originX + x*scale;
-    const py = (y) => originY - y*scale;
+    const nSeg = results.segments.length;
+    const laneW = 210, H = 480, topPad = 44, botPad = 34, sidePad = 48;
+    const W = laneW*nSeg;
+    const svgEl = el('schematic');
+    svgEl.setAttribute('width', W);
+    svgEl.setAttribute('height', H);
+    svgEl.setAttribute('viewBox', '0 0 '+W+' '+H);
 
-    // force scale: fit the largest force arrow (GRF or any joint reaction) to ~70px
+    // force-to-pixel scale, shared across every panel at this instant — scaled to THIS frame's
+    // largest force (not the whole trial's) so arrows stay a legible size throughout the animation
+    // rather than shrinking to a few pixels whenever the current frame is far from the trial's peak.
     let maxF = 1e-6;
-    for (let t=0;t<T.length;t++){
-      maxF = Math.max(maxF, Math.hypot(results.Fx[t], results.Fy[t]));
-      results.joints.forEach(j => { maxF = Math.max(maxF, Math.hypot(j.Rx[t], j.Ry[t])); });
-    }
-    const fScale = 70/maxF;
+    maxF = Math.max(maxF, Math.hypot(results.Fx[i], results.Fy[i]));
+    results.joints.forEach(j => { maxF = Math.max(maxF, Math.hypot(j.Rx[i], j.Ry[i])); });
+    const fScale = 55/maxF;
 
     let svg = '';
-    // floor line
-    svg += '<line x1="0" y1="'+py(results.floorY).toFixed(1)+'" x2="'+W+'" y2="'+py(results.floorY).toFixed(1)+'" stroke="#334155" stroke-width="1.5"/>';
-    svg += '<text x="6" y="'+(py(results.floorY)+13).toFixed(1)+'" font-size="9" fill="#334155">ground</text>';
+    results.segments.forEach((seg, k) => {
+      const x0 = k*laneW;
+      const box = seg.scaleBox;
+      const rangeX = Math.max(0.04, box.maxX-box.minX), rangeY = Math.max(0.04, box.maxY-box.minY);
+      const contentW = laneW - sidePad*2, contentH = H - topPad - botPad;
+      const scale = Math.min(contentW/rangeX, contentH/rangeY);
+      const cx0 = (box.minX+box.maxX)/2, cy0 = (box.minY+box.maxY)/2;
+      const laneCx = laneW/2, laneCy = topPad + contentH/2;
+      const lx = (x) => x0 + laneCx + (x-cx0)*scale;
+      const ly = (y) => laneCy - (y-cy0)*scale;
 
-    // stick figure
-    for (let s=0;s<results.chainPoints.length-1;s++){
-      const a = results.pointPos[results.chainPoints[s].id], b = results.pointPos[results.chainPoints[s+1].id];
-      svg += '<line x1="'+px(a.x[i]).toFixed(1)+'" y1="'+py(a.y[i]).toFixed(1)+'" x2="'+px(b.x[i]).toFixed(1)+'" y2="'+py(b.y[i]).toFixed(1)+'" stroke="#3A4750" stroke-width="6" stroke-linecap="round"/>';
-    }
-    results.chainPoints.forEach(p => {
-      const pos = results.pointPos[p.id];
-      svg += '<circle cx="'+px(pos.x[i]).toFixed(1)+'" cy="'+py(pos.y[i]).toFixed(1)+'" r="3.5" fill="#16232C"/>';
-      svg += '<text x="'+(px(pos.x[i])+6).toFixed(1)+'" y="'+(py(pos.y[i])-6).toFixed(1)+'" font-size="9" fill="#16232C">'+p.name+'</text>';
-    });
+      const dPos = results.pointPos[seg.distalId], pPos = results.pointPos[seg.proximalId];
+      const dx = lx(dPos.x[i]), dy = ly(dPos.y[i]);
+      const px2 = lx(pPos.x[i]), py2 = ly(pPos.y[i]);
+      const comx = lx(seg.comX[i]), comy = ly(seg.comY[i]);
 
-    // COM + weight vectors
-    results.segments.forEach(seg => {
-      const cx=px(seg.comX[i]), cy=py(seg.comY[i]);
-      svg += '<circle cx="'+cx.toFixed(1)+'" cy="'+cy.toFixed(1)+'" r="3" fill="#5C7080" stroke="#fff" stroke-width="1"/>';
+      svg += '<rect x="'+(x0+3)+'" y="3" width="'+(laneW-6)+'" height="'+(H-6)+'" rx="8" fill="#FBFCFD" stroke="#D8E2E7"/>';
+      svg += '<text x="'+(x0+laneW/2)+'" y="19" font-size="10.5" font-weight="700" text-anchor="middle" fill="#16232C">'+seg.name+'</text>';
+
+      // isolated segment link
+      svg += '<line x1="'+dx.toFixed(1)+'" y1="'+dy.toFixed(1)+'" x2="'+px2.toFixed(1)+'" y2="'+py2.toFixed(1)+'" stroke="#3A4750" stroke-width="6" stroke-linecap="round"/>';
+      svg += '<circle cx="'+dx.toFixed(1)+'" cy="'+dy.toFixed(1)+'" r="3.2" fill="#16232C"/>';
+      svg += '<circle cx="'+px2.toFixed(1)+'" cy="'+py2.toFixed(1)+'" r="3.2" fill="#16232C"/>';
+      const dLabelY = dy + (dy > py2 ? 15 : -9);
+      const pLabelY = py2 + (py2 > dy ? 15 : -9);
+      svg += '<text x="'+dx.toFixed(1)+'" y="'+dLabelY.toFixed(1)+'" font-size="8.5" text-anchor="middle" fill="#16232C">'+seg.distalName+'</text>';
+      svg += '<text x="'+px2.toFixed(1)+'" y="'+pLabelY.toFixed(1)+'" font-size="8.5" text-anchor="middle" fill="#16232C">'+seg.proximalName+'</text>';
+
+      // COM, weight, and the segment's own rotational equation of motion (I·alpha) at COM
+      svg += '<circle cx="'+comx.toFixed(1)+'" cy="'+comy.toFixed(1)+'" r="3.4" fill="#5C7080" stroke="#fff" stroke-width="1"/>';
       const w = seg.massKg*G;
-      svg += arrowSvg(cx,cy, 0, w*fScale, '#5C7080', null);
-    });
+      svg += arrowSvg(comx, comy, 0, w*fScale, '#5C7080', 'mg');
+      const Ia = seg.Icom*seg.alpha[i];
+      svg += momentGlyph(comx-18, comy, Ia, '#7B2D8E', true, 'Iα=');
 
-    // ground reaction force at COP
-    const copPx = px(results.COPx[i]), copPy = py(results.floorY);
-    svg += '<circle cx="'+copPx.toFixed(1)+'" cy="'+copPy.toFixed(1)+'" r="3" fill="#0B3D91"/>';
-    svg += arrowSvg(copPx, copPy, results.Fx[i]*fScale, -results.Fy[i]*fScale, '#0B3D91', 'GRF');
+      // the joint solved for this segment sits at its proximal end
+      const j = results.joints.find(jj => jj.seg === seg);
+      const distalR = j.distalR;
 
-    // joint reaction forces + moments
-    results.joints.forEach(j => {
-      const pos = results.pointPos[j.id];
-      const jx = px(pos.x[i]), jy = py(pos.y[i]);
-      svg += arrowSvg(jx, jy, j.Rx[i]*fScale, -j.Ry[i]*fScale, '#1C7293', null);
-      svg += momentGlyph(jx, jy, j.M[i], '#E8871E');
+      // distal end: the known force/moment handed in from below (GRF for the ground segment)
+      svg += arrowSvg(dx, dy, distalR.x[i]*fScale, -distalR.y[i]*fScale, '#0B3D91', k===0 ? 'GRF' : null);
+      svg += momentGlyph(dx-18, dy, distalR.M[i], '#E8871E', false, '');
+
+      // proximal end: the solved joint reaction force/moment
+      svg += arrowSvg(px2, py2, j.Rx[i]*fScale, -j.Ry[i]*fScale, '#1C7293', null);
+      svg += momentGlyph(px2+18, py2, j.M[i], '#E8871E', false, '');
     });
 
     el('schematic').innerHTML = svg;
