@@ -1057,7 +1057,6 @@
     }
 
     results = { T, dt, Fx, Fy, COPx, floorY, chainPoints, pointPos, segments, joints, bodyMass };
-    computeLocalScales();
 
     statusEl.textContent = 'Solved '+segments.length+' segment(s), '+joints.length+' joint(s), '+T.length+' frames ('+fmt(T[0],3)+'–'+fmt(T[T.length-1],3)+' s).';
     statusEl.classList.add('ok');
@@ -1094,7 +1093,7 @@
     el('schematicLegend').innerHTML =
       '<span><span class="dot" style="background:#3A4750"></span>segment (isolated)</span>'
       + '<span><span class="dot" style="background:#5C7080"></span>weight (mg) at COM</span>'
-      + '<span><span class="dot" style="background:#0B3D91"></span>known force at distal end (GRF, or handed down from below)</span>'
+      + '<span><span class="dot" style="background:#0B3D91"></span>known force (GRF at COP for the ground segment; handed down from below for every other segment)</span>'
       + '<span><span class="dot" style="background:#1C7293"></span>solved joint reaction force (proximal end)</span>'
       + '<span><span class="dot" style="background:#E8871E"></span>real net muscle moment (both ends)</span>'
       + '<span><span class="dot" style="background:#7B2D8E"></span>I&middot;&alpha; at COM (dashed — not an applied force)</span>';
@@ -1207,29 +1206,13 @@
     return s;
   }
 
-  // per-segment bounding box (over the whole trial) used to give each isolated free-body panel
-  // its own stable local scale/center, independent of every other segment.
-  function computeLocalScales(){
-    results.segments.forEach(seg => {
-      let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
-      const dPos = results.pointPos[seg.distalId], pPos = results.pointPos[seg.proximalId];
-      for (let t=0;t<results.T.length;t++){
-        [[dPos.x[t],dPos.y[t]], [pPos.x[t],pPos.y[t]]].forEach(([x,y]) => {
-          if (x<minX) minX=x; if (x>maxX) maxX=x;
-          if (y<minY) minY=y; if (y>maxY) maxY=y;
-        });
-      }
-      seg.scaleBox = { minX, maxX, minY, maxY };
-    });
-  }
-
   function renderSchematic(){
     if (!results) return;
     const T = results.T, i = frameIdx;
     el('scrubReadout').textContent = 't = '+fmt(T[i],3)+' s (frame '+(i+1)+' of '+T.length+')';
 
     const nSeg = results.segments.length;
-    const laneW = 210, H = 480, topPad = 44, botPad = 34, sidePad = 48;
+    const laneW = 220, H = 480, topPad = 44, botPad = 34, sidePad = 50;
     const W = laneW*nSeg;
     const svgEl = el('schematic');
     svgEl.setAttribute('width', W);
@@ -1247,24 +1230,40 @@
     let svg = '';
     results.segments.forEach((seg, k) => {
       const x0 = k*laneW;
-      const box = seg.scaleBox;
-      const rangeX = Math.max(0.04, box.maxX-box.minX), rangeY = Math.max(0.04, box.maxY-box.minY);
+      const dPos = results.pointPos[seg.distalId], pPos = results.pointPos[seg.proximalId];
+      const dxw = dPos.x[i], dyw = dPos.y[i];
+      const pxw = pPos.x[i], pyw = pPos.y[i];
+      const comxw = seg.comX[i], comyw = seg.comY[i];
+      const isGround = (k === 0);
+      const copxw = isGround ? results.COPx[i] : null;
+
+      // local view is recentered on THIS FRAME's own two endpoints (plus COM, plus COP for the
+      // ground segment) — not the whole trial's range of motion. A segment's own length barely
+      // changes frame to frame, but the whole limb can travel much farther than that over a full
+      // trial; scaling to the trial's total range made every individual segment look like a tiny
+      // dot most of the time. Recentering every frame keeps the segment a legible, full-length
+      // line throughout the animation.
+      let xs = [dxw, pxw, comxw], ys = [dyw, pyw, comyw];
+      if (isGround){ xs.push(copxw); ys.push(results.floorY); }
+      const segLen = Math.hypot(pxw-dxw, pyw-dyw);
+      const pad = Math.max(0.05, segLen*0.45);
+      let minX=Math.min(...xs)-pad, maxX=Math.max(...xs)+pad, minY=Math.min(...ys)-pad, maxY=Math.max(...ys)+pad;
+      const rangeX = Math.max(0.05, maxX-minX), rangeY = Math.max(0.05, maxY-minY);
       const contentW = laneW - sidePad*2, contentH = H - topPad - botPad;
       const scale = Math.min(contentW/rangeX, contentH/rangeY);
-      const cx0 = (box.minX+box.maxX)/2, cy0 = (box.minY+box.maxY)/2;
+      const cx0 = (minX+maxX)/2, cy0 = (minY+maxY)/2;
       const laneCx = laneW/2, laneCy = topPad + contentH/2;
       const lx = (x) => x0 + laneCx + (x-cx0)*scale;
       const ly = (y) => laneCy - (y-cy0)*scale;
 
-      const dPos = results.pointPos[seg.distalId], pPos = results.pointPos[seg.proximalId];
-      const dx = lx(dPos.x[i]), dy = ly(dPos.y[i]);
-      const px2 = lx(pPos.x[i]), py2 = ly(pPos.y[i]);
-      const comx = lx(seg.comX[i]), comy = ly(seg.comY[i]);
+      const dx = lx(dxw), dy = ly(dyw);
+      const px2 = lx(pxw), py2 = ly(pyw);
+      const comx = lx(comxw), comy = ly(comyw);
 
       svg += '<rect x="'+(x0+3)+'" y="3" width="'+(laneW-6)+'" height="'+(H-6)+'" rx="8" fill="#FBFCFD" stroke="#D8E2E7"/>';
       svg += '<text x="'+(x0+laneW/2)+'" y="19" font-size="10.5" font-weight="700" text-anchor="middle" fill="#16232C">'+seg.name+'</text>';
 
-      // isolated segment link
+      // the isolated segment itself — drawn as one continuous link between its two real endpoints
       svg += '<line x1="'+dx.toFixed(1)+'" y1="'+dy.toFixed(1)+'" x2="'+px2.toFixed(1)+'" y2="'+py2.toFixed(1)+'" stroke="#3A4750" stroke-width="6" stroke-linecap="round"/>';
       svg += '<circle cx="'+dx.toFixed(1)+'" cy="'+dy.toFixed(1)+'" r="3.2" fill="#16232C"/>';
       svg += '<circle cx="'+px2.toFixed(1)+'" cy="'+py2.toFixed(1)+'" r="3.2" fill="#16232C"/>';
@@ -1284,9 +1283,22 @@
       const j = results.joints.find(jj => jj.seg === seg);
       const distalR = j.distalR;
 
-      // distal end: the known force/moment handed in from below (GRF for the ground segment)
-      svg += arrowSvg(dx, dy, distalR.x[i]*fScale, -distalR.y[i]*fScale, '#0B3D91', k===0 ? 'GRF' : null);
-      svg += momentGlyph(dx-18, dy, distalR.M[i], '#E8871E', false, '');
+      if (isGround){
+        // the GRF acts at the true COP location, not at the distal marker — draw it there, with
+        // a dashed line back to the COM showing the moment arm that actually produces the torque
+        // (this is the same r_dist vector the ΣM equation below uses).
+        const copx = lx(copxw), copy = ly(results.floorY);
+        svg += '<line x1="'+copx.toFixed(1)+'" y1="'+copy.toFixed(1)+'" x2="'+comx.toFixed(1)+'" y2="'+comy.toFixed(1)+'" stroke="#0B3D91" stroke-width="1" stroke-dasharray="2,2" opacity="0.55"/>';
+        svg += '<circle cx="'+copx.toFixed(1)+'" cy="'+copy.toFixed(1)+'" r="3" fill="#0B3D91"/>';
+        svg += '<text x="'+copx.toFixed(1)+'" y="'+(copy+13).toFixed(1)+'" font-size="8" text-anchor="middle" fill="#0B3D91">COP</text>';
+        svg += arrowSvg(copx, copy, distalR.x[i]*fScale, -distalR.y[i]*fScale, '#0B3D91', 'GRF');
+        svg += momentGlyph(copx-18, copy-18, distalR.M[i], '#E8871E', false, '');
+      } else {
+        // every other segment's "known" force is the joint reaction handed up from the segment
+        // below, which genuinely acts at the joint marker itself
+        svg += arrowSvg(dx, dy, distalR.x[i]*fScale, -distalR.y[i]*fScale, '#0B3D91', null);
+        svg += momentGlyph(dx-18, dy, distalR.M[i], '#E8871E', false, '');
+      }
 
       // proximal end: the solved joint reaction force/moment
       svg += arrowSvg(px2, py2, j.Rx[i]*fScale, -j.Ry[i]*fScale, '#1C7293', null);
