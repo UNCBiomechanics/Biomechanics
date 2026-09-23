@@ -253,11 +253,12 @@
       <div>
         <label for="posUnits">Joint marker position units</label>
         <select id="posUnits">
+          <option value="" selected disabled>Choose units…</option>
           <option value="1">Meters</option>
           <option value="0.01">Centimeters</option>
-          <option value="0.001" selected>Millimeters</option>
+          <option value="0.001">Millimeters</option>
         </select>
-        <p class="field-hint">Everything is converted to meters internally.</p>
+        <p class="field-hint">Everything is converted to meters internally. Getting this wrong is the single easiest way to end up with wrong-looking forces and moments — there's no safe default, so pick deliberately. As a gut check: your Ankle→Knee distance should compute to somewhere around 0.4 m (see the "Segment lengths" sanity-check table after you compute).</p>
       </div>
       <div>
         <label for="floorY">Floor / force-plate surface height</label>
@@ -413,6 +414,12 @@
     <div class="stats" id="statsRow"></div>
 
     <section class="panel">
+      <h2>Segment lengths &amp; masses (sanity check)</h2>
+      <p class="hint">Check these against reality before trusting the results below — this is exactly where a units mistake (millimeters vs. meters) or a wrong column assignment shows up as a number, even when the schematic still looks fine (it auto-scales to fit whatever it's given, so a units error won't look visually broken).</p>
+      <table class="datatab" id="segLenTable"></table>
+    </section>
+
+    <section class="panel">
       <h2>Joint kinetics vs. time</h2>
       <div class="row" style="margin-top:0">
         <div class="field">
@@ -428,7 +435,7 @@
 
     <section class="panel">
       <h2>Free-body-diagram schematic</h2>
-      <p class="hint">Each segment is drawn <strong>isolated</strong> from its neighbors — the classic free-body-diagram convention — animated from your actual joint-marker positions at the selected instant, one panel per segment, distal end on the left/bottom of its panel and proximal end on the right/top. Grey = weight (mg) at the COM, navy = the known force at the segment's distal end (the ground reaction force at COP for the ground-contact segment, or the reaction handed down from the segment below for every other segment), teal = the solved joint reaction force at the proximal end, amber arcs = real net muscle moments at each end, dashed purple arc = the segment's own I&middot;&alpha; (its rotational equation of motion, plotted at the COM — not an applied force, but what the moment equation is actually balancing against).</p>
+      <p class="hint">Each segment is drawn <strong>isolated</strong> from its neighbors — the classic free-body-diagram convention — animated from your actual joint-marker positions at the selected instant, one panel per segment, distal end on the left/bottom of its panel and proximal end on the right/top. Grey = weight (mg) at the COM, navy = the known force at the segment's distal end (the ground reaction force at COP for the ground-contact segment, or the reaction handed down from the segment below for every other segment), teal = the solved joint reaction force at the proximal end, amber arcs = real net muscle moments at each end, dashed purple arc = the segment's own I&middot;&alpha; (its rotational equation of motion, plotted at the COM — not an applied force, but what the moment equation is actually balancing against). <strong>The GRF only enters the model once, at the ground-contact segment</strong> (first equation block below) — every joint above it inherits the GRF's effect indirectly, since each segment's own solved reaction force/moment becomes the next segment's known input, by Newton's third law. The equation panel below now names that first block's terms <code>GRF_x</code>/<code>GRF_y</code>/<code>M_GRF</code> explicitly instead of the generic <code>R_dist</code>/<code>M_dist</code> used everywhere else, so it's unambiguous where the ground force actually shows up in the numbers.</p>
       <div class="legend-note" id="schematicLegend"></div>
       <div class="scrub-row">
         <button class="ghost small" id="playBtn" type="button">Play</button>
@@ -925,6 +932,7 @@
     const jointFs = jointTimeRes.fs, jointTimes = jointTimeRes.times;
 
     const posUnitFactor = parseFloat(el('posUnits').value);
+    if (!(posUnitFactor > 0)){ statusEl.textContent = 'Choose your joint marker position units (step 1) — there\'s no default, since guessing wrong silently produces wrong forces and moments without looking visually broken.'; return; }
     const copUnitFactor = parseFloat(el('copUnits').value);
     const floorY = parseFloat(el('floorY').value) * posUnitFactor;
 
@@ -1058,7 +1066,23 @@
 
     results = { T, dt, Fx, Fy, COPx, floorY, chainPoints, pointPos, segments, joints, bodyMass };
 
-    statusEl.textContent = 'Solved '+segments.length+' segment(s), '+joints.length+' joint(s), '+T.length+' frames ('+fmt(T[0],3)+'–'+fmt(T[T.length-1],3)+' s).';
+    // sanity check: no real human body segment is under ~3cm or over ~1m long. If one comes out
+    // that way, it's almost always a units mismatch (e.g. data pasted in meters but "Joint marker
+    // position units" above still set to millimeters, or vice versa) rather than a real segment —
+    // and that mismatch silently makes every downstream force arm and moment wrong without ever
+    // looking visually "broken," since the schematic auto-scales to fit whatever it's given.
+    const badLen = segments.filter(s => s.L < 0.03 || s.L > 1.2);
+    let msg = 'Solved '+segments.length+' segment(s), '+joints.length+' joint(s), '+T.length+' frames ('+fmt(T[0],3)+'–'+fmt(T[T.length-1],3)+' s).';
+    if (badLen.length){
+      msg += ' Warning: '+badLen.map(s => s.name+' worked out to '+fmt(s.L,4)+' m').join(', ')
+        + ' — that\'s not a plausible body-segment length. Double-check "Joint marker position units" above (millimeters vs. meters is the usual culprit) and that the right columns are assigned to each point.';
+      statusEl.className = 'status warn';
+      statusEl.textContent = msg;
+      renderResults();
+      return;
+    }
+
+    statusEl.textContent = msg;
     statusEl.classList.add('ok');
 
     renderResults();
@@ -1076,6 +1100,11 @@
     statsRowEl.appendChild(statBlock(fmt(1/results.dt,1)+' Hz', 'analysis rate'));
     statsRowEl.appendChild(statBlock(fmt(results.T[results.T.length-1]-results.T[0],3)+' s', 'duration'));
     statsRowEl.appendChild(statBlock(results.segments.length, 'segments'));
+
+    const segLenRows = results.segments.map(s =>
+      '<tr><td>'+s.name+'</td><td class="num">'+fmt(s.L,4)+' m</td><td class="num">'+fmt(s.massKg,2)+' kg</td><td class="num">'+fmt(s.Icom,4)+' kg·m²</td></tr>'
+    ).join('');
+    el('segLenTable').innerHTML = '<thead><tr><th>Segment</th><th>Length (median over trial)</th><th>Mass</th><th>I about COM</th></tr></thead><tbody>'+segLenRows+'</tbody>';
 
     const jointSelect = el('jointSelect');
     jointSelect.innerHTML = results.joints.map((j,i) => '<option value="'+i+'">'+j.name+' ('+j.segName+')</option>').join('');
@@ -1312,19 +1341,36 @@
   function renderEquations(){
     const i = frameIdx;
     let out = '';
-    results.joints.forEach(j => {
+    results.joints.forEach((j, idx) => {
       const seg = j.seg;
       const dR = j.distalR, pA = j.proxArm;
       const crossD = dR.rx[i]*dR.y[i] - dR.ry[i]*dR.x[i];
       const crossP = pA.rx[i]*j.Ry[i] - pA.ry[i]*j.Rx[i];
-      out += '<div class="eq-block"><span class="hdr">'+j.name+'</span>  ('+seg.name+', m='+fmt(seg.massKg,2)+' kg, I_com='+fmt(seg.Icom,4)+' kg·m²)\n'
-        + 'ΣFx:  Rx_prox = m·ax − Rx_dist\n'
+      const isGround = (idx === 0);
+
+      // the ground segment's "distal" force/moment IS the GRF, applied at COP — name it that
+      // explicitly instead of the generic R_dist/M_dist used for every other segment (whose
+      // distal input is really last segment's solved reaction, handed up by Newton's third law —
+      // which is how the GRF's effect propagates up the whole chain, one joint at a time).
+      const fxName = isGround ? 'GRF_x' : 'Rx_dist (from '+seg.distalName+')';
+      const fyName = isGround ? 'GRF_y' : 'Ry_dist (from '+seg.distalName+')';
+      const mName  = isGround ? 'M_GRF' : 'M_dist (from '+seg.distalName+')';
+      const armName = isGround ? 'r_COP' : 'r_dist';
+      const armForceName = isGround ? 'GRF' : 'R_dist';
+
+      let block = '<div class="eq-block"><span class="hdr">'+j.name+'</span>  ('+seg.name+', m='+fmt(seg.massKg,2)+' kg, I_com='+fmt(seg.Icom,4)+' kg·m²)\n';
+      if (isGround){
+        block += 'Ground reaction force this instant:  GRF = ('+fmt(dR.x[i],1)+', '+fmt(dR.y[i],1)+') N at COP\n'
+          + 'r_COP (COP − COM of '+seg.name.split(' (')[0]+') = ('+fmt(dR.rx[i],3)+', '+fmt(dR.ry[i],3)+') m  —  this is where the GRF enters the model; every joint above inherits its effect via Newton\'s third law.\n';
+      }
+      block += 'ΣFx:  Rx_'+j.name+' = m·ax − '+fxName+'\n'
         + '      '+fmt(j.Rx[i],1)+' N = '+fmt(seg.massKg,2)+'×'+fmt(seg.ax[i],2)+' − ('+fmt(dR.x[i],1)+')\n'
-        + 'ΣFy:  Ry_prox = m·ay − Ry_dist + m·g\n'
+        + 'ΣFy:  Ry_'+j.name+' = m·ay − '+fyName+' + m·g\n'
         + '      '+fmt(j.Ry[i],1)+' N = '+fmt(seg.massKg,2)+'×'+fmt(seg.ay[i],2)+' − ('+fmt(dR.y[i],1)+') + '+fmt(seg.massKg,2)+'×9.81\n'
-        + 'ΣM_com:  M_prox = I·α − M_dist − (r_dist×R_dist) − (r_prox×R_prox)\n'
+        + 'ΣM_com:  M_'+j.name+' = I·α − '+mName+' − ('+armName+'×'+armForceName+') − (r_prox×R_prox)\n'
         + '      '+fmt(j.M[i],2)+' N·m = '+fmt(seg.Icom,4)+'×'+fmt(seg.alpha[i],2)+' − ('+fmt(dR.M[i],2)+') − ('+fmt(crossD,2)+') − ('+fmt(crossP,2)+')'
         + '</div>';
+      out += block;
     });
     el('eqPanel').innerHTML = out;
   }
