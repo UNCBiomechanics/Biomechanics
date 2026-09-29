@@ -286,13 +286,41 @@
   </section>
 
   <section class="panel">
-    <h2>3. Ground reaction force data</h2>
-    <label for="grfData">Force-plate data</label>
-    <textarea id="grfData" placeholder="Paste a header row, then one row per frame — comma or tab separated. Needs a Time column, horizontal (Fx) and vertical (Fy) force, and the horizontal center-of-pressure position (COPx). Nothing is assumed from column order — you'll assign each column's role below."></textarea>
-    <div class="actions">
-      <button class="primary" id="parseGrfBtn" type="button">Parse force data</button>
+    <h2>3. Your data</h2>
+    <p class="hint">Paste force/COP data and marker data together in one table, or keep them separate — whichever matches how your data already sits in your spreadsheet. Either way, nothing is assumed from column order or position; you assign every column's role explicitly below.</p>
+    <div class="row" style="margin-top:0">
+      <div class="checkline">
+        <input type="radio" name="dataMode" id="modeCombined" value="combined" checked>
+        <label for="modeCombined">Paste once — assign force/COP and marker columns from the same table</label>
+      </div>
     </div>
-    <div class="status" id="grfParseStatus"></div>
+    <div class="row" style="margin-top:0.2rem">
+      <div class="checkline">
+        <input type="radio" name="dataMode" id="modeSeparate" value="separate">
+        <label for="modeSeparate">Paste separately — force/COP data, then marker data, as two pastes</label>
+      </div>
+    </div>
+
+    <div id="combinedPasteBox" style="margin-top:1rem">
+      <label for="combinedData">Combined data</label>
+      <textarea id="combinedData" placeholder="Paste a header row, then one row per frame — every column together (time, Fx, Fy, COPx, and every marker's X/Y). Comma or tab separated. You'll split these into force/COP roles and marker roles below."></textarea>
+      <div class="actions">
+        <button class="primary" id="parseCombinedBtn" type="button">Parse combined data</button>
+      </div>
+      <div class="status" id="combinedParseStatus"></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Ground reaction force data</h2>
+    <div id="grfPasteBox">
+      <label for="grfData">Force-plate data</label>
+      <textarea id="grfData" placeholder="Paste a header row, then one row per frame — comma or tab separated. Needs a Time column, horizontal (Fx) and vertical (Fy) force, and the horizontal center-of-pressure position (COPx). Nothing is assumed from column order — you'll assign each column's role below."></textarea>
+      <div class="actions">
+        <button class="primary" id="parseGrfBtn" type="button">Parse force data</button>
+      </div>
+      <div class="status" id="grfParseStatus"></div>
+    </div>
 
     <div id="grfSetup">
       <div class="row">
@@ -355,13 +383,15 @@
   </section>
 
   <section class="panel">
-    <h2>4. Joint-center coordinate data</h2>
-    <label for="jointData">Marker / joint-center data</label>
-    <textarea id="jointData" placeholder="Paste a header row, then one row per frame. Needs a Time column plus an X and a Y column for every chain point you listed above."></textarea>
-    <div class="actions">
-      <button class="primary" id="parseJointBtn" type="button">Parse joint data</button>
+    <h2>Joint-center coordinate data</h2>
+    <div id="jointPasteBox">
+      <label for="jointData">Marker / joint-center data</label>
+      <textarea id="jointData" placeholder="Paste a header row, then one row per frame. Needs a Time column plus an X and a Y column for every chain point you listed above."></textarea>
+      <div class="actions">
+        <button class="primary" id="parseJointBtn" type="button">Parse joint data</button>
+      </div>
+      <div class="status" id="jointParseStatus"></div>
     </div>
-    <div class="status" id="jointParseStatus"></div>
 
     <div id="jointSetup">
       <div class="row">
@@ -455,7 +485,7 @@
   <footer>
     Solved bottom-up per segment using Newton's second law (&Sigma;F = m&middot;a<sub>com</sub>) and the rotational equivalent about each segment's own center of mass (&Sigma;M<sub>com</sub> = I<sub>com</sub>&middot;&alpha;), starting from the ground-contact segment (known force = the filtered GRF at COP; known moment = zero, since COP is defined as the point where the ground's in-plane moment is zero) and carrying each solved joint reaction force/moment, negated per Newton's third law, up as the "known" distal input for the next segment. Segment center of mass and radius of gyration use de Leva's (1996) percentages for whichever type you assign each link; segment length comes from the actual distance between your two pasted joint markers (median over the trial) rather than a separately-entered length. One simplification worth flagging: de Leva's tables define each segment's own proximal anthropometric landmark precisely (e.g. the <em>heel</em>, not the ankle, for the foot) — this tool instead uses whichever joint marker connects to the next segment up the chain as that reference point, which is exact for the shank/thigh/upper-arm/forearm (ankle, knee, shoulder, elbow all coincide with the real landmark) but an approximation for the ground-contact segment if your first chain point isn't already the true proximal landmark for its type. Linear and angular accelerations are computed by second-order central finite difference on the filtered position/angle time series.
     <p style="margin-top:1rem;color:var(--muted)">Created by Abbie Ferris, PhD — University of Northern Colorado</p>
-    <p style="margin-top:0.25rem;color:var(--muted);font-size:0.78rem">Last updated: 2026-09-23</p>
+    <p style="margin-top:0.25rem;color:var(--muted);font-size:0.78rem">Last updated: 2026-09-29</p>
   </footer>
 
 </div>
@@ -606,6 +636,11 @@
   el('addPoint').addEventListener('click', function(){ addPoint(''); });
 
   el('loadExample').addEventListener('click', function(){
+    // this example fills the two separate boxes, so switch out of the (now
+    // default) combined-paste mode to reveal them
+    el('modeSeparate').checked = true;
+    syncDataMode();
+
     chainPoints = [];
     ['Toe','Ankle','Knee','Hip'].forEach(n => addPoint(n));
     el('bodyMass').value = 72;
@@ -770,11 +805,9 @@
     el('grfOrder').disabled = off; el('grfCutoff').disabled = off;
   });
 
-  el('parseGrfBtn').addEventListener('click', function(){
-    const statusEl = el('grfParseStatus');
-    statusEl.className = 'status';
-    const parsed = parseWide(el('grfData').value);
-    if (parsed.error){ statusEl.textContent = parsed.error; el('grfSetup').style.display='none'; return; }
+  // shared by the "Parse force data" button and the combined-paste flow
+  function applyGrfParsed(parsed, statusEl){
+    if (parsed.error){ statusEl.textContent = parsed.error; el('grfSetup').style.display='none'; return false; }
     grfNames = parsed.names.map((n,i) => (n && n.trim()) ? n : 'Column '+(i+1)+' (unnamed)');
     grfCols = parsed.cols;
 
@@ -793,6 +826,13 @@
     const headerNote = parsed.noHeader ? ' No header row was detected, so every pasted row was kept as data with generic column names.' : '';
     statusEl.textContent = 'Loaded '+grfCols[0].length+' rows with '+grfNames.length+' column(s). Assign Time, Fx, Fy, and COPx below.'+headerNote;
     statusEl.classList.add('ok');
+    return true;
+  }
+
+  el('parseGrfBtn').addEventListener('click', function(){
+    const statusEl = el('grfParseStatus');
+    statusEl.className = 'status';
+    applyGrfParsed(parseWide(el('grfData').value), statusEl);
   });
 
   // ================= joint data parsing =================
@@ -827,12 +867,10 @@
     wrap.innerHTML = html;
   }
 
-  el('parseJointBtn').addEventListener('click', function(){
-    const statusEl = el('jointParseStatus');
-    statusEl.className = 'status';
-    if (chainPoints.length < 2){ statusEl.textContent = 'Define at least 2 chain points in step 2 first.'; return; }
-    const parsed = parseWide(el('jointData').value);
-    if (parsed.error){ statusEl.textContent = parsed.error; el('jointSetup').style.display='none'; return; }
+  // shared by the "Parse joint data" button and the combined-paste flow
+  function applyJointParsed(parsed, statusEl){
+    if (chainPoints.length < 2){ statusEl.textContent = 'Define at least 2 chain points in step 2 first.'; return false; }
+    if (parsed.error){ statusEl.textContent = parsed.error; el('jointSetup').style.display='none'; return false; }
     jointNames = parsed.names.map((n,i) => (n && n.trim()) ? n : 'Column '+(i+1)+' (unnamed)');
     jointCols = parsed.cols;
 
@@ -846,6 +884,49 @@
     const headerNote = parsed.noHeader ? ' No header row was detected, so every pasted row was kept as data with generic column names.' : '';
     statusEl.textContent = 'Loaded '+jointCols[0].length+' rows with '+jointNames.length+' column(s). Assign Time and each point\'s X/Y below.'+headerNote;
     statusEl.classList.add('ok');
+    return true;
+  }
+
+  el('parseJointBtn').addEventListener('click', function(){
+    const statusEl = el('jointParseStatus');
+    statusEl.className = 'status';
+    if (chainPoints.length < 2){ statusEl.textContent = 'Define at least 2 chain points in step 2 first.'; return; }
+    applyJointParsed(parseWide(el('jointData').value), statusEl);
+  });
+
+  // ================= data-entry mode toggle + combined paste =================
+  function syncDataMode(){
+    const combined = document.querySelector('input[name="dataMode"]:checked').value === 'combined';
+    el('combinedPasteBox').style.display = combined ? '' : 'none';
+    el('grfPasteBox').style.display = combined ? 'none' : '';
+    el('jointPasteBox').style.display = combined ? 'none' : '';
+  }
+  document.querySelectorAll('input[name="dataMode"]').forEach(r => r.addEventListener('change', syncDataMode));
+  syncDataMode();
+
+  el('parseCombinedBtn').addEventListener('click', function(){
+    const statusEl = el('combinedParseStatus');
+    statusEl.className = 'status';
+    if (chainPoints.length < 2){ statusEl.textContent = 'Define at least 2 chain points in step 2 first — the combined parse needs to know which marker columns to look for.'; return; }
+
+    const parsed = parseWide(el('combinedData').value);
+    if (parsed.error){ statusEl.textContent = parsed.error; return; }
+
+    // feed the exact same parsed table into both the force/COP and the marker
+    // role-assignment UIs below — they're just two views onto one pasted table
+    const grfStatusEl = el('grfParseStatus'), jointStatusEl = el('jointParseStatus');
+    grfStatusEl.className = 'status'; jointStatusEl.className = 'status';
+    const grfOk = applyGrfParsed(parsed, grfStatusEl);
+    const jointOk = applyJointParsed(parsed, jointStatusEl);
+
+    const headerNote = parsed.noHeader ? ' No header row was detected, so every pasted row was kept as data with generic column names.' : '';
+    if (grfOk && jointOk){
+      statusEl.textContent = 'Loaded '+parsed.cols[0].length+' rows with '+parsed.names.length+' column(s). Scroll down to assign force/COP roles and marker X/Y roles — both sections below are reading from this same paste.'+headerNote;
+      statusEl.classList.add('ok');
+    } else {
+      statusEl.textContent = 'Loaded, but something needs attention below: '+(!grfOk?grfStatusEl.textContent:'')+' '+(!jointOk?jointStatusEl.textContent:'');
+      statusEl.classList.add('warn');
+    }
   });
 
   // ================= math helpers =================
