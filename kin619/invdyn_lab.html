@@ -266,7 +266,19 @@
         <p class="field-hint">In the same units and vertical coordinate system as your joint markers (usually 0).</p>
       </div>
     </div>
-    <p class="field-hint" style="margin-top:0.9rem"><strong>Coordinate convention:</strong> this tool only needs two roles — <strong>horizontal (anteroposterior)</strong> and <strong>vertical (positive = up)</strong> — it never assumes those are literally called "X" and "Y" in your data. You pick which pasted column is which explicitly in the column-assignment steps below, whatever your lab calls them (e.g. this lab's own convention is <strong>Y = horizontal/AP, Z = vertical</strong> for both markers and force plate — just map Y &rarr; the horizontal role and Z &rarr; the vertical role there). If your data also has a mediolateral column (this lab's "X"), it isn't used here — this tool is sagittal-plane (2D) only, so anything from a third axis has no home in the current calculation. Force and marker data must share the same horizontal origin — if your force plate and motion-capture system don't already share one, translate one dataset before pasting. Force data must be in newtons (N). g = 9.81 m/s².</p>
+    <p class="field-hint" style="margin-top:0.9rem"><strong>Coordinate convention:</strong> this tool only needs two roles — <strong>horizontal (anteroposterior)</strong> and <strong>vertical (positive = up)</strong> — it never assumes those are literally called "X" and "Y" in your data. Whatever your columns are actually called, you always assign each one's role explicitly in the dropdowns below, and that's final regardless of anything on this page — nothing here can silently overrule your own choice. If your data also has a mediolateral column, it isn't used here — this tool is sagittal-plane (2D) only, so a third axis has no home in the current calculation. Force and marker data must share the same horizontal origin — if your force plate and motion-capture system don't already share one, translate one dataset before pasting. Force data must be in newtons (N). g = 9.81 m/s².</p>
+
+    <div class="grid" style="margin-top:0.9rem">
+      <div>
+        <label for="axisHoriz">Your column-name letter for horizontal (AP)</label>
+        <input type="text" id="axisHoriz" maxlength="4" placeholder="e.g. Y">
+      </div>
+      <div>
+        <label for="axisVert">Your column-name letter for vertical</label>
+        <input type="text" id="axisVert" maxlength="4" placeholder="e.g. Z">
+      </div>
+    </div>
+    <p class="field-hint">This page is shared and anyone can use it — different labs letter their axes differently, so there's no built-in default. These two fields only drive the <strong>auto-suggested</strong> column in each dropdown below (e.g. type Y and Z here and a column named "RANK_Y" gets suggested for the horizontal role, "RANK_Z" for vertical) — leave them blank and every dropdown just starts on "None," nothing gets auto-picked. Either way, every suggestion is only a starting point: check it, and change it if it's wrong.</p>
   </section>
 
   <section class="panel">
@@ -651,13 +663,19 @@
       if (i === 0){
         heelHtml = '<div class="checkline" style="margin-top:0.6rem">'
           + '<input type="checkbox" id="useHeelLandmark"' + (footHeel.enabled ? ' checked' : '') + '>'
-          + '<label for="useHeelLandmark">This segment\'s true proximal landmark (for mass/COM/inertia) is different from '+(proximal.name||'the next point')+' \u2014 e.g. de Leva\'s foot is heel-to-toe, but '+(proximal.name||'the ankle')+' is just the joint to the next segment</label>'
+          + '<label for="useHeelLandmark">Use a separate landmark for this segment\'s own mass/COM/inertia (e.g. a heel), distinct from '+(proximal.name||'the next point')+'</label>'
           + '</div>';
         if (footHeel.enabled){
           heelHtml += '<div class="row" style="margin-top:0.4rem">'
-            + '<div class="field"><label for="heelPointName">Landmark name</label><input type="text" id="heelPointName" value="'+footHeel.name.replace(/"/g,'&quot;')+'"></div>'
+            + '<div class="field"><label for="heelPointName">What do you call this landmark?</label><input type="text" id="heelPointName" value="'+footHeel.name.replace(/"/g,'&quot;')+'" placeholder="e.g. Heel"></div>'
             + '</div>'
-            + '<p class="field-hint">This point gets its own X/Y column assignment in step 4, alongside '+chainPoints.map(p=>p.name||'?').join(', ')+'. Segment length, COM %, and radius of gyration below all measure from '+(footHeel.name||'this landmark')+' to '+(distal.name||'the distal point')+' \u2014 the joint reaction force/moment at '+(proximal.name||'the next point')+' is still solved and reported separately, unaffected by this.</p>';
+            + '<div class="field-hint">'
+            + '<strong>What to do, step by step:</strong>'
+            + '<ol style="margin:0.3rem 0 0.3rem 1.1rem;padding:0">'
+            + '<li>Don\'t add this as a chain point in step 2 &mdash; your chain stays exactly as it is ('+chainPoints.map(p=>p.name||'?').join(' \u2192 ')+'). This landmark is not a joint, so it doesn\'t belong in that list.</li>'
+            + '<li>Just type its name above (e.g. "Heel") and give it its own column pair down in step 4, alongside '+chainPoints.map(p=>p.name||'?').join(', ')+' &mdash; it\'ll show up there automatically as its own row.</li>'
+            + '<li>That\'s it. You now have <strong>3 markers total for this one segment</strong> ('+(distal.name||'Toe')+', '+(footHeel.name||'Heel')+', and '+(proximal.name||'Ankle')+') but still only <strong>1 segment</strong> &mdash; the segment itself is defined as '+(footHeel.name||'Heel')+' \u2192 '+(distal.name||'Toe')+' (that\'s what its length, mass, and COM all measure), while '+(proximal.name||'Ankle')+' stays exactly what it already was: the joint this segment hands its solved force/moment off to, up at the shank. Nothing about how '+(proximal.name||'Ankle')+' itself is solved changes.</li>'
+            + '</ol></div>';
         }
       }
       card.innerHTML = '<div class="seg-title">Segment '+(i+1)+': '+(distal.name||'?')+' \u2192 '+(i===0 && footHeel.enabled ? (footHeel.name||'?') : (proximal.name||'?'))+'</div>'
@@ -711,6 +729,10 @@
     el('sex').value = 'male';
     el('posUnits').value = '0.001';
     el('floorY').value = 0;
+    // this example's own columns use a plain X/Y suffix convention (ToeX, AnkleY, Fx, COPx, ...)
+    // — declare it so the auto-guess below actually has something to go on
+    el('axisHoriz').value = 'X';
+    el('axisVert').value = 'Y';
     renderSegCards();
 
     // synthetic squat-descent data: mild knee/hip flexion, plausible vertical GRF
@@ -772,8 +794,62 @@
     return { names: header, cols: colArrs, noHeader };
   }
   function guessColumn(pattern, names){
+    if (!pattern) return -1;
     for (let i=0;i<names.length;i++) if (pattern.test(names[i])) return i;
     return -1;
+  }
+  // builds a regex from the user's own stated axis letter (step 1) — returns null (meaning "don't
+  // guess, default to None") when they haven't said what their convention is. Deliberately does NOT
+  // fall back to assuming X=horizontal/Y=vertical: that silent assumption is exactly what caused
+  // wrong auto-picks for labs using a different convention, and this page is shared publicly, so
+  // there's no single "default" convention that's safe to assume for everyone who opens it.
+  // an axis letter counts as a match either as its own separator-bounded token (e.g. "RANK_Y",
+  // "R_Y") or as a bare suffix at the very end of a column name (e.g. "AnkleY", "Fx", "COPx") —
+  // labs name columns both ways, and the plain letter must not match inside an unrelated word.
+  // Uses zero-width lookaround (not consuming characters) so this can sit right after a literal
+  // prefix match (like "Toe" or "cop") without the two fighting over the same boundary letter —
+  // e.g. "ToeX": the "e" both ends the "Toe" match and needs to satisfy the suffix check on "X".
+  function axisTokenPattern(axisEsc){
+    return '((?<![a-z0-9])'+axisEsc+'(?![a-z0-9])|(?<=[a-z])'+axisEsc+'$)';
+  }
+  function axisRegex(letter){
+    const v = (letter||'').trim();
+    if (!v) return null;
+    const esc = v.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+    return new RegExp(axisTokenPattern(esc), 'i');
+  }
+  function copGuessRegex(hLetter){
+    const v = (hLetter||'').trim();
+    if (!v) return /cop/i;
+    const esc = v.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+    const axisPart = axisTokenPattern(esc);
+    return new RegExp('cop.*'+axisPart+'|'+axisPart+'.*cop', 'i');
+  }
+  // GRF force-component guess: prefers a column that also carries a force-ish keyword (grf,
+  // force, a force-plate label) or the classic "F"+letter shorthand (Fx, Fy) over a bare axis
+  // letter, so it doesn't grab an unrelated position column (e.g. a toe marker) that happens to
+  // share the same axis letter. Falls back to the bare letter (via axisRegex) if nothing matches.
+  function forceComponentRegex(letter){
+    const v = (letter||'').trim();
+    if (!v) return null;
+    const esc = v.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+    const axisPart = axisTokenPattern(esc);
+    const fTerm = '(grf|force|fplate|plate)';
+    return new RegExp('(^|[^a-z0-9])f'+esc+'($|[^a-z0-9])|'+fTerm+'.*'+axisPart+'|'+axisPart+'.*'+fTerm, 'i');
+  }
+  // per-marker guess: prefers an explicit search hint (handles abbreviations like "RANK" that
+  // don't contain the point's display name "Ankle" at all) over the point's own name, and can
+  // additionally require a side marker (L/R or Left/Right) when the point has one set.
+  function pointAxisRegex(searchTerm, letter, side){
+    const v = (letter||'').trim();
+    if (!v || !searchTerm) return null;
+    const term = searchTerm.trim().replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+    const axisEsc = v.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+    const sideWord = side === 'left' ? '(l|left)' : side === 'right' ? '(r|right)' : '';
+    const axisPart = axisTokenPattern(axisEsc);
+    let core = '('+term+'.*'+axisPart+'|'+axisPart+'.*'+term+')';
+    if (sideWord) core = '('+sideWord+'[_\\s]?'+term+'|'+term+'[_\\s]?'+sideWord+').*'+axisPart+'|'+axisPart+'.*('+sideWord+'[_\\s]?'+term+'|'+term+'[_\\s]?'+sideWord+')|'+core;
+    return new RegExp(core, 'i');
   }
   function nameOptions(names){
     return ['<option value="-1">None</option>'].concat(names.map((n,i) => '<option value="'+i+'">'+n+'</option>')).join('');
@@ -884,9 +960,13 @@
     el('grfColFx').innerHTML = nameOptions(grfNames);
     el('grfColFy').innerHTML = nameOptions(grfNames);
     el('grfColCop').innerHTML = nameOptions(grfNames);
-    el('grfColFx').value = guessColumn(/(^|[^a-z])f?x1?($|[^a-z])/i, grfNames);
-    el('grfColFy').value = guessColumn(/(^|[^a-z])f?y1?($|[^a-z])|vert/i, grfNames);
-    el('grfColCop').value = guessColumn(/cop.?x|cx1?($|[^a-z])/i, grfNames);
+    let fxGuess = guessColumn(forceComponentRegex(el('axisHoriz').value), grfNames);
+    if (fxGuess < 0) fxGuess = guessColumn(axisRegex(el('axisHoriz').value), grfNames);
+    el('grfColFx').value = fxGuess;
+    let fyGuess = guessColumn(forceComponentRegex(el('axisVert').value), grfNames);
+    if (fyGuess < 0) fyGuess = guessColumn(axisRegex(el('axisVert').value), grfNames);
+    el('grfColFy').value = fyGuess;
+    el('grfColCop').value = guessColumn(copGuessRegex(el('axisHoriz').value), grfNames);
 
     el('grfSetup').style.display = 'block';
     el('resultsSection').style.display = 'none';
@@ -917,23 +997,53 @@
     el('jointOrder').disabled = off; el('jointCutoff').disabled = off;
   });
 
+  let pointMeta = {}; // id -> {side:'', hint:''} — side/search-hint only steer auto-suggestion
+  function getMeta(id){ if (!pointMeta[id]) pointMeta[id] = {side:'', hint:''}; return pointMeta[id]; }
+
   function renderJointColMap(){
     const wrap = el('jointColMap');
     if (!jointNames.length || !chainPoints.length){ wrap.innerHTML = ''; return; }
     const pointsToMap = chainPoints.slice();
     if (footHeel.enabled) pointsToMap.push({ id: footHeel.id, name: footHeel.name || 'Heel' });
-    let html = '<p class="hint" style="margin-bottom:0.5rem">Assign the X and Y column for each chain point:</p>';
+    let html = '<p class="hint" style="margin-bottom:0.5rem">Assign the horizontal and vertical column for each point. "Side" and "search hint" only steer the auto-suggestion (e.g. for abbreviated names like "RANK" that don\'t contain the point\'s display name at all) — they never restrict what you can pick manually, and leaving both blank just means no suggestion is made.</p>';
     pointsToMap.forEach(p => {
-      const xGuess = guessColumn(new RegExp(p.name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'.*x|x.*'+p.name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'i'), jointNames);
-      const yGuess = guessColumn(new RegExp(p.name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'.*y|y.*'+p.name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'i'), jointNames);
-      html += '<div class="row" style="margin-top:0.5rem">'
-        + '<div class="field" style="min-width:110px;flex:none"><label>'+ (p.name||'(unnamed point)') +'</label></div>'
+      const meta = getMeta(p.id);
+      const searchTerm = meta.hint.trim() || p.name;
+      const xGuess = guessColumn(pointAxisRegex(searchTerm, el('axisHoriz').value, meta.side), jointNames);
+      const yGuess = guessColumn(pointAxisRegex(searchTerm, el('axisVert').value, meta.side), jointNames);
+      html += '<div class="row" style="margin-top:0.6rem;align-items:flex-end">'
+        + '<div class="field" style="min-width:100px;flex:none"><label>'+ (p.name||'(unnamed point)') +'</label></div>'
+        + '<div class="field"><label for="side_'+p.id+'">Side (optional)</label><select id="side_'+p.id+'" data-side="'+p.id+'"><option value="">&mdash;</option><option value="left"'+(meta.side==='left'?' selected':'')+'>Left</option><option value="right"'+(meta.side==='right'?' selected':'')+'>Right</option></select></div>'
+        + '<div class="field"><label for="hint_'+p.id+'">Search hint (optional)</label><input type="text" id="hint_'+p.id+'" data-hint="'+p.id+'" placeholder="e.g. RANK" value="'+meta.hint.replace(/"/g,'&quot;')+'"></div>'
         + '<div class="field"><label for="jx_'+p.id+'">Horizontal column</label><select id="jx_'+p.id+'" data-jx="'+p.id+'">'+nameOptions(jointNames)+'</select></div>'
         + '<div class="field"><label for="jy_'+p.id+'">Vertical column</label><select id="jy_'+p.id+'" data-jy="'+p.id+'">'+nameOptions(jointNames)+'</select></div>'
         + '</div>';
       setTimeout(() => { if (el('jx_'+p.id)) el('jx_'+p.id).value = xGuess; if (el('jy_'+p.id)) el('jy_'+p.id).value = yGuess; }, 0);
     });
     wrap.innerHTML = html;
+
+    wrap.querySelectorAll('select[data-side]').forEach(sel => {
+      sel.addEventListener('change', function(){
+        getMeta(this.dataset.side).side = this.value;
+        reguessOnePoint(this.dataset.side);
+      });
+    });
+    wrap.querySelectorAll('input[data-hint]').forEach(inp => {
+      inp.addEventListener('input', function(){
+        getMeta(this.dataset.hint).hint = this.value;
+        reguessOnePoint(this.dataset.hint);
+      });
+    });
+  }
+  function reguessOnePoint(pid){
+    const meta = getMeta(pid);
+    const pt = chainPoints.find(p=>p.id===pid) || (footHeel.enabled && footHeel.id===pid ? { id:footHeel.id, name:footHeel.name } : null);
+    if (!pt) return;
+    const searchTerm = meta.hint.trim() || pt.name;
+    const xGuess = guessColumn(pointAxisRegex(searchTerm, el('axisHoriz').value, meta.side), jointNames);
+    const yGuess = guessColumn(pointAxisRegex(searchTerm, el('axisVert').value, meta.side), jointNames);
+    if (el('jx_'+pid)) el('jx_'+pid).value = xGuess;
+    if (el('jy_'+pid)) el('jy_'+pid).value = yGuess;
   }
 
   // shared by the "Parse joint data" button and the combined-paste flow
@@ -1410,23 +1520,44 @@
   }
 
   // ---- schematic FBD ----
+  // small opaque backing plate behind a label so it stays legible even when it lands on top of
+  // the segment line or another element — geometric collision-avoidance for an arbitrary segment
+  // angle is a much bigger problem than this page needs to solve; a backing plate sidesteps it.
+  function labelWithBg(x, y, lines, color, fontSize, anchor){
+    anchor = anchor || 'start';
+    const arr = Array.isArray(lines) ? lines : [lines];
+    const lineH = fontSize*1.3;
+    const maxLen = Math.max(...arr.map(l => l.length));
+    const boxW = maxLen*fontSize*0.64 + 8;
+    const boxH = arr.length*lineH + 6;
+    let bx = x - 4;
+    if (anchor==='middle') bx = x - boxW/2;
+    else if (anchor==='end') bx = x - boxW + 4;
+    const by = y - fontSize*0.95 - 3;
+    let s = '<rect x="'+bx.toFixed(1)+'" y="'+by.toFixed(1)+'" width="'+boxW.toFixed(1)+'" height="'+boxH.toFixed(1)+'" rx="3" fill="#fff" opacity="0.88"/>';
+    arr.forEach((line,idx) => {
+      s += '<text x="'+x.toFixed(1)+'" y="'+(y+idx*lineH).toFixed(1)+'" font-size="'+fontSize+'" font-weight="600" text-anchor="'+anchor+'" fill="'+color+'">'+line+'</text>';
+    });
+    return s;
+  }
   function arrowSvg(x1,y1,dxPx,dyPx,color,label){
     const x2=x1+dxPx, y2=y1+dyPx;
     const len = Math.hypot(dxPx,dyPx);
     if (len < 2) return '';
     const ux=dxPx/len, uy=dyPx/len;
-    const headLen=10, headW=5;
+    const headLen=12, headW=6;
     const hx=x2-ux*headLen, hy=y2-uy*headLen;
     const px=-uy, py=ux;
     const h1x=hx+px*headW, h1y=hy+py*headW, h2x=hx-px*headW, h2y=hy-py*headW;
-    let s = '<line x1="'+x1.toFixed(1)+'" y1="'+y1.toFixed(1)+'" x2="'+x2.toFixed(1)+'" y2="'+y2.toFixed(1)+'" stroke="'+color+'" stroke-width="3.2"/>';
+    let s = '<line x1="'+x1.toFixed(1)+'" y1="'+y1.toFixed(1)+'" x2="'+x2.toFixed(1)+'" y2="'+y2.toFixed(1)+'" stroke="'+color+'" stroke-width="4"/>';
     s += '<polygon points="'+x2.toFixed(1)+','+y2.toFixed(1)+' '+h1x.toFixed(1)+','+h1y.toFixed(1)+' '+h2x.toFixed(1)+','+h2y.toFixed(1)+'" fill="'+color+'"/>';
-    if (label) s += '<text x="'+(x2+6).toFixed(1)+'" y="'+(y2+4).toFixed(1)+'" font-size="11.5" font-weight="600" fill="'+color+'">'+label+'</text>';
+    if (label) s += labelWithBg(x2+8, y2+5, label, color, 13, 'start');
     return s;
   }
-  function momentGlyph(cx,cy,M,color,dashed,labelPrefix){
+  function momentGlyph(cx,cy,M,color,dashed,labelPrefix,showText){
     if (!isFinite(M) || Math.abs(M) < 1e-6) return '';
-    const r = 16;
+    if (showText === undefined) showText = true;
+    const r = 19;
     const ccw = M >= 0;
     const a0 = -0.35, a1 = a0 + (ccw ? 1.6*Math.PI : -1.6*Math.PI);
     const steps = 14;
@@ -1443,8 +1574,10 @@
     const ux=dx/len, uy=dy/len, perp=[-uy,ux];
     const h1=[ex-ux*8+perp[0]*4.4, ey-uy*8+perp[1]*4.4], h2=[ex-ux*8-perp[0]*4.4, ey-uy*8-perp[1]*4.4];
     s += '<polygon points="'+ex.toFixed(1)+','+ey.toFixed(1)+' '+h1[0].toFixed(1)+','+h1[1].toFixed(1)+' '+h2[0].toFixed(1)+','+h2[1].toFixed(1)+'" fill="'+color+'"/>';
-    const mLbl = (typeof momentUnitLabel === 'function') ? momentUnitLabel() : 'N·m';
-    s += '<text x="'+(cx+r+5).toFixed(1)+'" y="'+(cy+4).toFixed(1)+'" font-size="10.5" font-weight="600" fill="'+color+'">'+(labelPrefix||'')+fmt(M,(mLbl==='N·m'?1:3))+' '+mLbl+'</text>';
+    if (showText){
+      const mLbl = (typeof momentUnitLabel === 'function') ? momentUnitLabel() : 'N·m';
+      s += labelWithBg(cx+r+6, cy+5, (labelPrefix||'')+fmt(M,(mLbl==='N·m'?1:3))+' '+mLbl, color, 13, 'start');
+    }
     return s;
   }
 
@@ -1454,7 +1587,13 @@
     el('scrubReadout').textContent = 't = '+fmt(T[i],3)+' s (frame '+(i+1)+' of '+T.length+')';
 
     const nSeg = results.segments.length;
-    const laneW = 260, H = 520, topPad = 48, botPad = 38, sidePad = 54;
+    const laneW = 340, H = 640, topPad = 52, sidePad = 66;
+    // bottom of each lane is a fixed, non-moving numeric readout — the animated diagram above it
+    // used to carry these same numbers as floating labels next to whatever arrow/point they
+    // belonged to, but which point an arrow was pointing at varies every frame, so the labels
+    // collided unpredictably. A fixed panel is always in the same place and never overlaps anything.
+    const readoutH = 132, botPad = 30;
+    const diagramH = H - readoutH;
     const W = laneW*nSeg;
     const svgEl = el('schematic');
     svgEl.setAttribute('width', W);
@@ -1495,7 +1634,7 @@
       const pad = Math.max(0.05, segLen*0.45);
       let minX=Math.min(...xs)-pad, maxX=Math.max(...xs)+pad, minY=Math.min(...ys)-pad, maxY=Math.max(...ys)+pad;
       const rangeX = Math.max(0.05, maxX-minX), rangeY = Math.max(0.05, maxY-minY);
-      const contentW = laneW - sidePad*2, contentH = H - topPad - botPad;
+      const contentW = laneW - sidePad*2, contentH = diagramH - topPad - botPad;
       const scale = Math.min(contentW/rangeX, contentH/rangeY);
       const cx0 = (minX+maxX)/2, cy0 = (minY+maxY)/2;
       const laneCx = laneW/2, laneCy = topPad + contentH/2;
@@ -1508,63 +1647,81 @@
       const comx = lx(comxw), comy = ly(comyw);
 
       svg += '<rect x="'+(x0+3)+'" y="3" width="'+(laneW-6)+'" height="'+(H-6)+'" rx="8" fill="#FBFCFD" stroke="#D8E2E7"/>';
-      svg += '<text x="'+(x0+laneW/2)+'" y="22" font-size="13" font-weight="700" text-anchor="middle" fill="#16232C">'+seg.name+'</text>';
+      svg += '<line x1="'+(x0+3)+'" y1="'+diagramH.toFixed(1)+'" x2="'+(x0+laneW-3)+'" y2="'+diagramH.toFixed(1)+'" stroke="#D8E2E7"/>';
+      svg += '<text x="'+(x0+laneW/2)+'" y="24" font-size="15" font-weight="700" text-anchor="middle" fill="#16232C">'+seg.name+'</text>';
 
       // the isolated segment itself — its TRUE anthropometric body (distal end to its own real
       // proximal landmark, e.g. toe to heel), which may differ from the joint used to hand off
-      // force/moment to the next segment up
-      svg += '<line x1="'+dx.toFixed(1)+'" y1="'+dy.toFixed(1)+'" x2="'+gx.toFixed(1)+'" y2="'+gy.toFixed(1)+'" stroke="#3A4750" stroke-width="7.5" stroke-linecap="round"/>';
-      svg += '<circle cx="'+dx.toFixed(1)+'" cy="'+dy.toFixed(1)+'" r="4" fill="#16232C"/>';
-      svg += '<circle cx="'+gx.toFixed(1)+'" cy="'+gy.toFixed(1)+'" r="4" fill="#16232C"/>';
-      const dLabelY = dy + (dy > gy ? 18 : -11);
-      const gLabelY = gy + (gy > dy ? 18 : -11);
-      svg += '<text x="'+dx.toFixed(1)+'" y="'+dLabelY.toFixed(1)+'" font-size="10.5" text-anchor="middle" fill="#16232C">'+seg.distalName+'</text>';
-      svg += '<text x="'+gx.toFixed(1)+'" y="'+gLabelY.toFixed(1)+'" font-size="10.5" text-anchor="middle" fill="#16232C">'+seg.geomProximalName+'</text>';
+      // force/moment to the next segment up. Point names stay small and right at the dot — the
+      // actual numbers live in the fixed readout panel below, not as floating labels here, since
+      // where an arrow points (and so where its label would land) changes every frame and kept
+      // colliding with whatever else was nearby.
+      svg += '<line x1="'+dx.toFixed(1)+'" y1="'+dy.toFixed(1)+'" x2="'+gx.toFixed(1)+'" y2="'+gy.toFixed(1)+'" stroke="#3A4750" stroke-width="8" stroke-linecap="round"/>';
+      svg += '<circle cx="'+dx.toFixed(1)+'" cy="'+dy.toFixed(1)+'" r="4.5" fill="#16232C"/>';
+      svg += '<circle cx="'+gx.toFixed(1)+'" cy="'+gy.toFixed(1)+'" r="4.5" fill="#16232C"/>';
+      const dLabelY = dy + (dy > gy ? 20 : -12);
+      const gLabelY = gy + (gy > dy ? 20 : -12);
+      svg += labelWithBg(dx, dLabelY, seg.distalName, '#16232C', 11.5, 'middle');
+      svg += labelWithBg(gx, gLabelY, seg.geomProximalName, '#16232C', 11.5, 'middle');
 
       if (hasGeomOverride){
         // the real joint (e.g. ankle) is a separate point rigidly attached to this same body —
         // shown with a thin static line (not a second moving segment) back to the body, since
         // that's where the solved joint force/moment below actually act
         svg += '<line x1="'+gx.toFixed(1)+'" y1="'+gy.toFixed(1)+'" x2="'+px2.toFixed(1)+'" y2="'+py2.toFixed(1)+'" stroke="#3A4750" stroke-width="1.8" stroke-dasharray="3,2" opacity="0.6"/>';
-        svg += '<circle cx="'+px2.toFixed(1)+'" cy="'+py2.toFixed(1)+'" r="4" fill="#16232C"/>';
-        const jLabelY = py2 + (py2 > gy ? 18 : -11);
-        svg += '<text x="'+px2.toFixed(1)+'" y="'+jLabelY.toFixed(1)+'" font-size="10.5" text-anchor="middle" fill="#16232C">'+seg.proximalName+'</text>';
+        svg += '<circle cx="'+px2.toFixed(1)+'" cy="'+py2.toFixed(1)+'" r="4.5" fill="#16232C"/>';
+        const jLabelY = py2 + (py2 > gy ? 20 : -12);
+        svg += labelWithBg(px2, jLabelY, seg.proximalName, '#16232C', 11.5, 'middle');
       }
 
       // COM, weight, and the segment's own rotational equation of motion (I·alpha) at COM.
       // Weight is usually much smaller than the joint/GRF forces that set fScale, so at true
       // scale its arrow often rounds to sub-pixel and simply doesn't render — floor it to a
       // guaranteed-visible length instead (direction is always exactly straight down regardless).
-      svg += '<circle cx="'+comx.toFixed(1)+'" cy="'+comy.toFixed(1)+'" r="4.5" fill="#1B8A5A" stroke="#fff" stroke-width="1.3"/>';
+      svg += '<circle cx="'+comx.toFixed(1)+'" cy="'+comy.toFixed(1)+'" r="5" fill="#1B8A5A" stroke="#fff" stroke-width="1.5"/>';
       const w = seg.massKg*G;
-      svg += arrowSvg(comx, comy, 0, Math.max(w*fScale, 20), '#1B8A5A', 'mg');
+      svg += arrowSvg(comx, comy, 0, Math.max(w*fScale, 22), '#1B8A5A', null);
       const Ia = seg.Icom*seg.alpha[i];
-      svg += momentGlyph(comx-22, comy, dispM(Ia), '#7B2D8E', true, 'Iα=');
+      svg += momentGlyph(comx-24, comy, dispM(Ia), '#7B2D8E', true, '', false);
 
       // the joint solved for this segment sits at its proximal end
       const j = results.joints.find(jj => jj.seg === seg);
       const distalR = j.distalR;
+      const fLbl = forceUnitLabel(), mLbl = momentUnitLabel();
+      const mDp = (mLbl==='N·m') ? 1 : 3;
 
+      let copx, copy;
       if (isGround){
         // the GRF acts at the true COP location, not at the distal marker — draw it there, with
         // a dashed line back to the COM showing the moment arm that actually produces the torque
         // (this is the same r_dist vector the ΣM equation below uses).
-        const copx = lx(copxw), copy = ly(results.floorY);
+        copx = lx(copxw); copy = ly(results.floorY);
         svg += '<line x1="'+copx.toFixed(1)+'" y1="'+copy.toFixed(1)+'" x2="'+comx.toFixed(1)+'" y2="'+comy.toFixed(1)+'" stroke="#0B3D91" stroke-width="1.3" stroke-dasharray="2,2" opacity="0.55"/>';
-        svg += '<circle cx="'+copx.toFixed(1)+'" cy="'+copy.toFixed(1)+'" r="3.6" fill="#0B3D91"/>';
-        svg += '<text x="'+copx.toFixed(1)+'" y="'+(copy+15).toFixed(1)+'" font-size="9.5" text-anchor="middle" fill="#0B3D91">COP</text>';
-        svg += arrowSvg(copx, copy, distalR.x[i]*fScale, -distalR.y[i]*fScale, '#0B3D91', 'GRF');
-        svg += momentGlyph(copx-22, copy-22, dispM(distalR.M[i]), '#D64545', false, '');
+        svg += '<circle cx="'+copx.toFixed(1)+'" cy="'+copy.toFixed(1)+'" r="4" fill="#0B3D91"/>';
+        svg += labelWithBg(copx, copy+17, 'COP', '#0B3D91', 10.5, 'middle');
+        svg += arrowSvg(copx, copy, distalR.x[i]*fScale, -distalR.y[i]*fScale, '#0B3D91', null);
+        svg += momentGlyph(copx-24, copy-24, dispM(distalR.M[i]), '#D64545', false, '', false);
       } else {
         // every other segment's "known" force is the joint reaction handed up from the segment
         // below, which genuinely acts at the joint marker itself
         svg += arrowSvg(dx, dy, distalR.x[i]*fScale, -distalR.y[i]*fScale, '#0B3D91', null);
-        svg += momentGlyph(dx-22, dy, dispM(distalR.M[i]), '#D64545', false, '');
+        svg += momentGlyph(dx-24, dy, dispM(distalR.M[i]), '#D64545', false, '', false);
       }
 
-      // proximal end: the solved joint reaction force/moment
+      // proximal end: the solved joint reaction force — shown as Rx/Ry components, not a resultant
       svg += arrowSvg(px2, py2, j.Rx[i]*fScale, -j.Ry[i]*fScale, '#1C7293', null);
-      svg += momentGlyph(px2+22, py2, dispM(j.M[i]), '#D64545', false, '');
+      svg += momentGlyph(px2+24, py2, dispM(j.M[i]), '#D64545', false, '', false);
+
+      // ---- fixed numeric readout panel (never moves, never collides with the diagram above) ----
+      const ry0 = diagramH + 20;
+      const distLabel = isGround ? 'GRF at COP' : seg.distalName+' (from below)';
+      svg += '<text x="'+(x0+14)+'" y="'+ry0+'" font-size="11.5" font-weight="700" fill="#0B3D91">'+distLabel+'</text>';
+      svg += '<text x="'+(x0+14)+'" y="'+(ry0+18)+'" font-size="11.5" fill="#0B3D91">Fx='+fmt(dispF(distalR.x[i]),2)+' '+fLbl+'   Fy='+fmt(dispF(distalR.y[i]),2)+' '+fLbl+'</text>';
+      svg += '<text x="'+(x0+14)+'" y="'+(ry0+35)+'" font-size="11.5" fill="#D64545">M='+fmt(dispM(distalR.M[i]),mDp)+' '+mLbl+'</text>';
+
+      svg += '<text x="'+(x0+14)+'" y="'+(ry0+58)+'" font-size="11.5" font-weight="700" fill="#1C7293">'+seg.proximalName+' (solved)</text>';
+      svg += '<text x="'+(x0+14)+'" y="'+(ry0+76)+'" font-size="11.5" fill="#1C7293">Rx='+fmt(dispF(j.Rx[i]),2)+' '+fLbl+'   Ry='+fmt(dispF(j.Ry[i]),2)+' '+fLbl+'</text>';
+      svg += '<text x="'+(x0+14)+'" y="'+(ry0+93)+'" font-size="11.5" fill="#D64545">M='+fmt(dispM(j.M[i]),mDp)+' '+mLbl+'</text>';
     });
 
     el('schematic').innerHTML = svg;
