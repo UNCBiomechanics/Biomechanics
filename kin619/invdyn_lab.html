@@ -266,7 +266,7 @@
         <p class="field-hint">In the same units and vertical coordinate system as your joint markers (usually 0).</p>
       </div>
     </div>
-    <p class="field-hint" style="margin-top:0.9rem"><strong>Coordinate convention:</strong> this tool only needs two roles — <strong>horizontal (anteroposterior)</strong> and <strong>vertical (positive = up)</strong> — it never assumes those are literally called "X" and "Y" in your data. You pick which pasted column is which explicitly in the column-assignment steps below, whatever your lab calls them (e.g. this lab's own convention is <strong>Y = horizontal/AP, Z = vertical</strong> for both markers and force plate — just map Y &rarr; the horizontal role and Z &rarr; the vertical role there). Force and marker data must share the same horizontal origin — if your force plate and motion-capture system don't already share one, translate one dataset before pasting. Force data must be in newtons (N). g = 9.81 m/s².</p>
+    <p class="field-hint" style="margin-top:0.9rem"><strong>Coordinate convention:</strong> this tool only needs two roles — <strong>horizontal (anteroposterior)</strong> and <strong>vertical (positive = up)</strong> — it never assumes those are literally called "X" and "Y" in your data. You pick which pasted column is which explicitly in the column-assignment steps below, whatever your lab calls them (e.g. this lab's own convention is <strong>Y = horizontal/AP, Z = vertical</strong> for both markers and force plate — just map Y &rarr; the horizontal role and Z &rarr; the vertical role there). If your data also has a mediolateral column (this lab's "X"), it isn't used here — this tool is sagittal-plane (2D) only, so anything from a third axis has no home in the current calculation. Force and marker data must share the same horizontal origin — if your force plate and motion-capture system don't already share one, translate one dataset before pasting. Force data must be in newtons (N). g = 9.81 m/s².</p>
   </section>
 
   <section class="panel">
@@ -339,19 +339,19 @@
       </div>
       <div class="row">
         <div class="field">
-          <label for="grfColFx">Fx (horizontal force)</label>
+          <label for="grfColFx">Horizontal force column</label>
           <select id="grfColFx"></select>
         </div>
         <div class="field">
-          <label for="grfColFy">Fy (vertical force)</label>
+          <label for="grfColFy">Vertical force column</label>
           <select id="grfColFy"></select>
         </div>
         <div class="field">
-          <label for="grfColCop">COPx (center of pressure)</label>
+          <label for="grfColCop">COP position column (horizontal)</label>
           <select id="grfColCop"></select>
         </div>
         <div class="field">
-          <label for="copUnits">COPx units</label>
+          <label for="copUnits">COP position units</label>
           <select id="copUnits">
             <option value="1" selected>Meters</option>
             <option value="0.01">Centimeters</option>
@@ -359,7 +359,7 @@
           </select>
         </div>
         <div class="field">
-          <label for="grfUnits">Fx/Fy units</label>
+          <label for="grfUnits">Force column units</label>
           <select id="grfUnits">
             <option value="raw" selected>Newtons</option>
             <option value="bw">Normalized by body weight (×BW)</option>
@@ -449,12 +449,35 @@
   </section>
 
   <section id="resultsSection">
+    <section class="panel">
+      <h2>Display options</h2>
+      <p class="hint" style="margin-top:0">These apply instantly to everything below — no need to recompute.</p>
+      <div class="row" style="margin-top:0">
+        <div class="checkline">
+          <input type="checkbox" id="flipMomentSign" checked>
+          <label for="flipMomentSign">Flip moment sign (Winter's convention — reports the moment the distal segment exerts on the proximal segment, the reverse of this tool's own solve direction)</label>
+        </div>
+      </div>
+      <div class="row">
+        <div class="checkline">
+          <input type="checkbox" id="normalizeBW" checked>
+          <label for="normalizeBW">Normalize: forces to body weight (×BW), moments to body mass (N&middot;m/kg)</label>
+        </div>
+      </div>
+    </section>
+
     <div class="stats" id="statsRow"></div>
 
     <section class="panel">
       <h2>Segment lengths &amp; masses (sanity check)</h2>
       <p class="hint">Check these against reality before trusting the results below — this is exactly where a units mistake (millimeters vs. meters) or a wrong column assignment shows up as a number, even when the schematic still looks fine (it auto-scales to fit whatever it's given, so a units error won't look visually broken).</p>
       <table class="datatab" id="segLenTable"></table>
+    </section>
+
+    <section class="panel">
+      <h2>Ground reaction force vs. time</h2>
+      <div class="legend-note" id="grfLegend"></div>
+      <div class="chart-holder"><canvas id="grfChart"></canvas></div>
     </section>
 
     <section class="panel">
@@ -465,15 +488,14 @@
           <select id="jointSelect"></select>
         </div>
       </div>
-      <p class="hint">Reaction force / moment are what the <strong>proximal</strong> segment applies onto the <strong>distal</strong> segment at this joint (Newton's third law gives you the reverse). Click either chart to jump the schematic below to that instant.</p>
       <div class="legend-note" id="forceLegend"></div>
       <div class="chart-holder"><canvas id="forceChart"></canvas></div>
       <div class="chart-holder" style="margin-top:1rem"><canvas id="momentChart"></canvas></div>
+      <p class="hint">Reaction force / moment are what the <strong>proximal</strong> segment applies onto the <strong>distal</strong> segment at this joint by this tool's own solve direction (Newton's third law gives you the reverse — flip the "Flip moment sign" option above for moments in Winter's convention instead). Click any chart on this page to jump the schematic below to that instant.</p>
     </section>
 
     <section class="panel">
       <h2>Free-body-diagram schematic</h2>
-      <p class="hint">Each segment is drawn <strong>isolated</strong> from its neighbors — the classic free-body-diagram convention — animated from your actual joint-marker positions at the selected instant, one panel per segment, distal end on the left/bottom of its panel and proximal end on the right/top. Grey = weight (mg) at the COM, navy = the known force at the segment's distal end (the ground reaction force at COP for the ground-contact segment, or the reaction handed down from the segment below for every other segment), teal = the solved joint reaction force at the proximal end, amber arcs = real net muscle moments at each end, dashed purple arc = the segment's own I&middot;&alpha; (its rotational equation of motion, plotted at the COM — not an applied force, but what the moment equation is actually balancing against). <strong>The GRF only enters the model once, at the ground-contact segment</strong> (first equation block below) — every joint above it inherits the GRF's effect indirectly, since each segment's own solved reaction force/moment becomes the next segment's known input, by Newton's third law. The equation panel below now names that first block's terms <code>GRF_x</code>/<code>GRF_y</code>/<code>M_GRF</code> explicitly instead of the generic <code>R_dist</code>/<code>M_dist</code> used everywhere else, so it's unambiguous where the ground force actually shows up in the numbers.</p>
       <div class="legend-note" id="schematicLegend"></div>
       <div class="scrub-row">
         <button class="ghost small" id="playBtn" type="button">Play</button>
@@ -482,6 +504,7 @@
       </div>
       <div class="diagram-wrap"><svg id="schematic" width="620" height="440" viewBox="0 0 620 440" xmlns="http://www.w3.org/2000/svg"></svg></div>
       <div id="eqPanel" style="margin-top:1rem"></div>
+      <p class="hint">Each segment is drawn <strong>isolated</strong> from its neighbors — the classic free-body-diagram convention — animated from your actual joint-marker positions at the selected instant, one panel per segment, distal end on the left/bottom of its panel and proximal end on the right/top. Green = weight (mg) at the COM, navy = the known force at the segment's distal end (the ground reaction force at COP for the ground-contact segment, or the reaction handed down from the segment below for every other segment), teal = the solved joint reaction force at the proximal end, red arcs = real net muscle moments at each end, dashed purple arc = the segment's own I&middot;&alpha; (its rotational equation of motion, plotted at the COM — not an applied force, but what the moment equation is actually balancing against). <strong>The GRF only enters the model once, at the ground-contact segment</strong> (first equation block above) — every joint above it inherits the GRF's effect indirectly, since each segment's own solved reaction force/moment becomes the next segment's known input, by Newton's third law. The equation panel names that first block's terms <code>GRF_x</code>/<code>GRF_y</code>/<code>M_GRF</code> explicitly instead of the generic <code>R_dist</code>/<code>M_dist</code> used everywhere else, so it's unambiguous where the ground force actually shows up in the numbers. Equation-panel values always show this tool's own raw solve direction, unaffected by the sign-flip/normalize display options above.</p>
     </section>
 
     <section class="panel">
@@ -905,8 +928,8 @@
       const yGuess = guessColumn(new RegExp(p.name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'.*y|y.*'+p.name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'i'), jointNames);
       html += '<div class="row" style="margin-top:0.5rem">'
         + '<div class="field" style="min-width:110px;flex:none"><label>'+ (p.name||'(unnamed point)') +'</label></div>'
-        + '<div class="field"><label for="jx_'+p.id+'">X column</label><select id="jx_'+p.id+'" data-jx="'+p.id+'">'+nameOptions(jointNames)+'</select></div>'
-        + '<div class="field"><label for="jy_'+p.id+'">Y column</label><select id="jy_'+p.id+'" data-jy="'+p.id+'">'+nameOptions(jointNames)+'</select></div>'
+        + '<div class="field"><label for="jx_'+p.id+'">Horizontal column</label><select id="jx_'+p.id+'" data-jx="'+p.id+'">'+nameOptions(jointNames)+'</select></div>'
+        + '<div class="field"><label for="jy_'+p.id+'">Vertical column</label><select id="jy_'+p.id+'" data-jy="'+p.id+'">'+nameOptions(jointNames)+'</select></div>'
         + '</div>';
       setTimeout(() => { if (el('jx_'+p.id)) el('jx_'+p.id).value = xGuess; if (el('jy_'+p.id)) el('jy_'+p.id).value = yGuess; }, 0);
     });
@@ -1235,7 +1258,19 @@
   });
 
   // ================= results rendering =================
-  let chartForce = null, chartMoment = null, frameIdx = 0, playTimer = null;
+  let chartGrf = null, chartForce = null, chartMoment = null, frameIdx = 0, playTimer = null;
+
+  // ---- display-layer transforms (sign flip / normalization) — applied only when rendering
+  // charts/tables/schematic labels, never touching the underlying solved arrays (results.joints[].
+  // Rx/Ry/M), which stay in this tool's own raw solve direction and real units so the physics chain
+  // (and the equation panel, deliberately) stay internally consistent and independently checkable.
+  function momentSign(){ return el('flipMomentSign').checked ? -1 : 1; }
+  function fScaleDisp(){ return el('normalizeBW').checked ? 1/(results.bodyMass*G) : 1; }
+  function mScaleDisp(){ return el('normalizeBW').checked ? 1/results.bodyMass : 1; }
+  function dispF(raw){ return raw*fScaleDisp(); }
+  function dispM(raw){ return raw*momentSign()*mScaleDisp(); }
+  function forceUnitLabel(){ return el('normalizeBW').checked ? '×BW' : 'N'; }
+  function momentUnitLabel(){ return el('normalizeBW').checked ? 'N·m/kg' : 'N·m'; }
 
   function renderResults(){
     el('resultsSection').style.display = 'block';
@@ -1262,21 +1297,27 @@
     el('frameSlider').value = 0;
     el('frameSlider').oninput = function(){ frameIdx = parseInt(this.value,10); renderSchematic(); };
 
+    el('grfLegend').innerHTML =
+      '<span><span class="swatch" style="background:#0B3D91"></span>Fx (horizontal)</span>'
+      + '<span><span class="swatch" style="background:#1C7293"></span>Fy (vertical)</span>';
     el('forceLegend').innerHTML =
       '<span><span class="swatch" style="background:#0B3D91"></span>Rx (horizontal)</span>'
       + '<span><span class="swatch" style="background:#1C7293"></span>Ry (vertical)</span>';
     el('schematicLegend').innerHTML =
       '<span><span class="dot" style="background:#3A4750"></span>segment (isolated)</span>'
-      + '<span><span class="dot" style="background:#5C7080"></span>weight (mg) at COM</span>'
+      + '<span><span class="dot" style="background:#1B8A5A"></span>weight (mg) at COM</span>'
       + '<span><span class="dot" style="background:#0B3D91"></span>known force (GRF at COP for the ground segment; handed down from below for every other segment)</span>'
       + '<span><span class="dot" style="background:#1C7293"></span>solved joint reaction force (proximal end)</span>'
-      + '<span><span class="dot" style="background:#E8871E"></span>real net muscle moment (both ends)</span>'
+      + '<span><span class="dot" style="background:#D64545"></span>real net muscle moment (both ends)</span>'
       + '<span><span class="dot" style="background:#7B2D8E"></span>I&middot;&alpha; at COM (dashed — not an applied force)</span>';
 
+    renderGrfChart();
     renderKinetics();
     renderSchematic();
     renderPeakTable();
   }
+  el('flipMomentSign').addEventListener('change', function(){ if (results){ renderKinetics(); renderPeakTable(); renderSchematic(); } });
+  el('normalizeBW').addEventListener('change', function(){ if (results){ renderGrfChart(); renderKinetics(); renderPeakTable(); renderSchematic(); } });
 
   function nearestIndexT(tVal){
     const T = results.T;
@@ -1289,6 +1330,14 @@
   function zoomOpts(){
     return { pan:{enabled:true,mode:'xy',modifierKey:null}, zoom:{wheel:{enabled:true},pinch:{enabled:true},drag:{enabled:false},mode:'xy'} };
   }
+  el('grfChart').addEventListener('click', function(evt){
+    if (!chartGrf) return;
+    const tVal = chartGrf.scales.x.getValueForPixel(evt.offsetX);
+    if (!isFinite(tVal)) return;
+    frameIdx = nearestIndexT(tVal);
+    el('frameSlider').value = frameIdx;
+    renderSchematic();
+  });
   el('forceChart').addEventListener('click', function(evt){
     if (!chartForce) return;
     const tVal = chartForce.scales.x.getValueForPixel(evt.offsetX);
@@ -1306,6 +1355,20 @@
     renderSchematic();
   });
 
+  function renderGrfChart(){
+    if (chartGrf) chartGrf.destroy();
+    chartGrf = new Chart(el('grfChart'), {
+      type:'line',
+      data:{ datasets:[
+        { label:'Fx', data: results.T.map((t,i)=>({x:t,y:dispF(results.Fx[i])})), borderColor:'#0B3D91', backgroundColor:'transparent', borderWidth:1.6, pointRadius:0, tension:0 },
+        { label:'Fy', data: results.T.map((t,i)=>({x:t,y:dispF(results.Fy[i])})), borderColor:'#1C7293', backgroundColor:'transparent', borderWidth:1.6, pointRadius:0, tension:0 }
+      ]},
+      options:{ animation:false, responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{display:false}, zoom:zoomOpts(), title:{display:true,text:'Ground reaction force ('+forceUnitLabel()+')'} },
+        scales:{ x:{type:'linear',title:{display:true,text:'Time (s)'}}, y:{title:{display:true,text:'Force ('+forceUnitLabel()+')'}} } }
+    });
+  }
+
   function renderKinetics(){
     const ji = parseInt(el('jointSelect').value,10) || 0;
     const j = results.joints[ji];
@@ -1313,34 +1376,37 @@
     chartForce = new Chart(el('forceChart'), {
       type:'line',
       data:{ datasets:[
-        { label:'Rx', data: results.T.map((t,i)=>({x:t,y:j.Rx[i]})), borderColor:'#0B3D91', backgroundColor:'transparent', borderWidth:1.6, pointRadius:0, tension:0 },
-        { label:'Ry', data: results.T.map((t,i)=>({x:t,y:j.Ry[i]})), borderColor:'#1C7293', backgroundColor:'transparent', borderWidth:1.6, pointRadius:0, tension:0 }
+        { label:'Rx', data: results.T.map((t,i)=>({x:t,y:dispF(j.Rx[i])})), borderColor:'#0B3D91', backgroundColor:'transparent', borderWidth:1.6, pointRadius:0, tension:0 },
+        { label:'Ry', data: results.T.map((t,i)=>({x:t,y:dispF(j.Ry[i])})), borderColor:'#1C7293', backgroundColor:'transparent', borderWidth:1.6, pointRadius:0, tension:0 }
       ]},
       options:{ animation:false, responsive:true, maintainAspectRatio:false,
-        plugins:{ legend:{display:false}, zoom:zoomOpts(), title:{display:true,text:'Joint reaction force (N)'} },
-        scales:{ x:{type:'linear',title:{display:true,text:'Time (s)'}}, y:{title:{display:true,text:'Force (N)'}} } }
+        plugins:{ legend:{display:false}, zoom:zoomOpts(), title:{display:true,text:'Joint reaction force ('+forceUnitLabel()+')'} },
+        scales:{ x:{type:'linear',title:{display:true,text:'Time (s)'}}, y:{title:{display:true,text:'Force ('+forceUnitLabel()+')'}} } }
     });
     if (chartMoment) chartMoment.destroy();
     chartMoment = new Chart(el('momentChart'), {
       type:'line',
       data:{ datasets:[
-        { label:'M', data: results.T.map((t,i)=>({x:t,y:j.M[i]})), borderColor:'#E8871E', backgroundColor:'transparent', borderWidth:1.8, pointRadius:0, tension:0 }
+        { label:'M', data: results.T.map((t,i)=>({x:t,y:dispM(j.M[i])})), borderColor:'#D64545', backgroundColor:'transparent', borderWidth:1.8, pointRadius:0, tension:0 }
       ]},
       options:{ animation:false, responsive:true, maintainAspectRatio:false,
-        plugins:{ legend:{display:false}, zoom:zoomOpts(), title:{display:true,text:'Net muscle moment (N·m)'} },
-        scales:{ x:{type:'linear',title:{display:true,text:'Time (s)'}}, y:{title:{display:true,text:'Moment (N·m)'}} } }
+        plugins:{ legend:{display:false}, zoom:zoomOpts(), title:{display:true,text:'Net muscle moment ('+momentUnitLabel()+')'} },
+        scales:{ x:{type:'linear',title:{display:true,text:'Time (s)'}}, y:{title:{display:true,text:'Moment ('+momentUnitLabel()+')'}} } }
     });
   }
 
   function renderPeakTable(){
+    const fLbl = forceUnitLabel(), mLbl = momentUnitLabel();
     const rows = results.joints.map(j => {
-      const R = j.Rx.map((v,i)=>Math.hypot(v,j.Ry[i]));
-      let iR=0; for (let i=1;i<R.length;i++) if (R[i]>R[iR]) iR=i;
+      let iRx=0; for (let i=1;i<j.Rx.length;i++) if (Math.abs(j.Rx[i])>Math.abs(j.Rx[iRx])) iRx=i;
+      let iRy=0; for (let i=1;i<j.Ry.length;i++) if (Math.abs(j.Ry[i])>Math.abs(j.Ry[iRy])) iRy=i;
       let iM=0; for (let i=1;i<j.M.length;i++) if (Math.abs(j.M[i])>Math.abs(j.M[iM])) iM=i;
-      return '<tr><td>'+j.name+'</td><td class="num">'+fmt(R[iR],1)+' N</td><td class="num">'+fmt(results.T[iR],3)+' s</td>'
-        + '<td class="num">'+fmt(j.M[iM],2)+' N·m</td><td class="num">'+fmt(results.T[iM],3)+' s</td></tr>';
+      return '<tr><td>'+j.name+'</td>'
+        + '<td class="num">'+fmt(dispF(j.Rx[iRx]),2)+' '+fLbl+'</td><td class="num">'+fmt(results.T[iRx],3)+' s</td>'
+        + '<td class="num">'+fmt(dispF(j.Ry[iRy]),2)+' '+fLbl+'</td><td class="num">'+fmt(results.T[iRy],3)+' s</td>'
+        + '<td class="num">'+fmt(dispM(j.M[iM]),3)+' '+mLbl+'</td><td class="num">'+fmt(results.T[iM],3)+' s</td></tr>';
     }).join('');
-    el('peakTable').innerHTML = '<thead><tr><th>Joint</th><th>Peak |reaction force|</th><th>at time</th><th>Peak net moment</th><th>at time</th></tr></thead><tbody>'+rows+'</tbody>';
+    el('peakTable').innerHTML = '<thead><tr><th>Joint</th><th>Peak Rx</th><th>at time</th><th>Peak Ry</th><th>at time</th><th>Peak moment</th><th>at time</th></tr></thead><tbody>'+rows+'</tbody>';
   }
 
   // ---- schematic FBD ----
@@ -1349,18 +1415,18 @@
     const len = Math.hypot(dxPx,dyPx);
     if (len < 2) return '';
     const ux=dxPx/len, uy=dyPx/len;
-    const headLen=7, headW=3.6;
+    const headLen=10, headW=5;
     const hx=x2-ux*headLen, hy=y2-uy*headLen;
     const px=-uy, py=ux;
     const h1x=hx+px*headW, h1y=hy+py*headW, h2x=hx-px*headW, h2y=hy-py*headW;
-    let s = '<line x1="'+x1.toFixed(1)+'" y1="'+y1.toFixed(1)+'" x2="'+x2.toFixed(1)+'" y2="'+y2.toFixed(1)+'" stroke="'+color+'" stroke-width="2.2"/>';
+    let s = '<line x1="'+x1.toFixed(1)+'" y1="'+y1.toFixed(1)+'" x2="'+x2.toFixed(1)+'" y2="'+y2.toFixed(1)+'" stroke="'+color+'" stroke-width="3.2"/>';
     s += '<polygon points="'+x2.toFixed(1)+','+y2.toFixed(1)+' '+h1x.toFixed(1)+','+h1y.toFixed(1)+' '+h2x.toFixed(1)+','+h2y.toFixed(1)+'" fill="'+color+'"/>';
-    if (label) s += '<text x="'+(x2+5).toFixed(1)+'" y="'+(y2+3).toFixed(1)+'" font-size="9.5" fill="'+color+'">'+label+'</text>';
+    if (label) s += '<text x="'+(x2+6).toFixed(1)+'" y="'+(y2+4).toFixed(1)+'" font-size="11.5" font-weight="600" fill="'+color+'">'+label+'</text>';
     return s;
   }
   function momentGlyph(cx,cy,M,color,dashed,labelPrefix){
     if (!isFinite(M) || Math.abs(M) < 1e-6) return '';
-    const r = 13;
+    const r = 16;
     const ccw = M >= 0;
     const a0 = -0.35, a1 = a0 + (ccw ? 1.6*Math.PI : -1.6*Math.PI);
     const steps = 14;
@@ -1370,14 +1436,15 @@
       pts.push([cx+r*Math.cos(t), cy-r*Math.sin(t)]);
     }
     let d = pts.map((p,i)=> (i===0?'M':'L')+p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
-    const dashAttr = dashed ? ' stroke-dasharray="3,2"' : '';
-    let s = '<path d="'+d+'" fill="none" stroke="'+color+'" stroke-width="2"'+dashAttr+'/>';
+    const dashAttr = dashed ? ' stroke-dasharray="4,2.5"' : '';
+    let s = '<path d="'+d+'" fill="none" stroke="'+color+'" stroke-width="2.8"'+dashAttr+'/>';
     const [ex,ey] = pts[pts.length-1], [px,py] = pts[pts.length-2];
     const dx=ex-px, dy=ey-py, len=Math.hypot(dx,dy)||1;
     const ux=dx/len, uy=dy/len, perp=[-uy,ux];
-    const h1=[ex-ux*6+perp[0]*3.4, ey-uy*6+perp[1]*3.4], h2=[ex-ux*6-perp[0]*3.4, ey-uy*6-perp[1]*3.4];
+    const h1=[ex-ux*8+perp[0]*4.4, ey-uy*8+perp[1]*4.4], h2=[ex-ux*8-perp[0]*4.4, ey-uy*8-perp[1]*4.4];
     s += '<polygon points="'+ex.toFixed(1)+','+ey.toFixed(1)+' '+h1[0].toFixed(1)+','+h1[1].toFixed(1)+' '+h2[0].toFixed(1)+','+h2[1].toFixed(1)+'" fill="'+color+'"/>';
-    s += '<text x="'+(cx+r+4).toFixed(1)+'" y="'+(cy+3).toFixed(1)+'" font-size="8.5" fill="'+color+'">'+(labelPrefix||'')+fmt(M,1)+' N·m</text>';
+    const mLbl = (typeof momentUnitLabel === 'function') ? momentUnitLabel() : 'N·m';
+    s += '<text x="'+(cx+r+5).toFixed(1)+'" y="'+(cy+4).toFixed(1)+'" font-size="10.5" font-weight="600" fill="'+color+'">'+(labelPrefix||'')+fmt(M,(mLbl==='N·m'?1:3))+' '+mLbl+'</text>';
     return s;
   }
 
@@ -1387,7 +1454,7 @@
     el('scrubReadout').textContent = 't = '+fmt(T[i],3)+' s (frame '+(i+1)+' of '+T.length+')';
 
     const nSeg = results.segments.length;
-    const laneW = 220, H = 480, topPad = 44, botPad = 34, sidePad = 50;
+    const laneW = 260, H = 520, topPad = 48, botPad = 38, sidePad = 54;
     const W = laneW*nSeg;
     const svgEl = el('schematic');
     svgEl.setAttribute('width', W);
@@ -1441,35 +1508,38 @@
       const comx = lx(comxw), comy = ly(comyw);
 
       svg += '<rect x="'+(x0+3)+'" y="3" width="'+(laneW-6)+'" height="'+(H-6)+'" rx="8" fill="#FBFCFD" stroke="#D8E2E7"/>';
-      svg += '<text x="'+(x0+laneW/2)+'" y="19" font-size="10.5" font-weight="700" text-anchor="middle" fill="#16232C">'+seg.name+'</text>';
+      svg += '<text x="'+(x0+laneW/2)+'" y="22" font-size="13" font-weight="700" text-anchor="middle" fill="#16232C">'+seg.name+'</text>';
 
       // the isolated segment itself — its TRUE anthropometric body (distal end to its own real
       // proximal landmark, e.g. toe to heel), which may differ from the joint used to hand off
       // force/moment to the next segment up
-      svg += '<line x1="'+dx.toFixed(1)+'" y1="'+dy.toFixed(1)+'" x2="'+gx.toFixed(1)+'" y2="'+gy.toFixed(1)+'" stroke="#3A4750" stroke-width="6" stroke-linecap="round"/>';
-      svg += '<circle cx="'+dx.toFixed(1)+'" cy="'+dy.toFixed(1)+'" r="3.2" fill="#16232C"/>';
-      svg += '<circle cx="'+gx.toFixed(1)+'" cy="'+gy.toFixed(1)+'" r="3.2" fill="#16232C"/>';
-      const dLabelY = dy + (dy > gy ? 15 : -9);
-      const gLabelY = gy + (gy > dy ? 15 : -9);
-      svg += '<text x="'+dx.toFixed(1)+'" y="'+dLabelY.toFixed(1)+'" font-size="8.5" text-anchor="middle" fill="#16232C">'+seg.distalName+'</text>';
-      svg += '<text x="'+gx.toFixed(1)+'" y="'+gLabelY.toFixed(1)+'" font-size="8.5" text-anchor="middle" fill="#16232C">'+seg.geomProximalName+'</text>';
+      svg += '<line x1="'+dx.toFixed(1)+'" y1="'+dy.toFixed(1)+'" x2="'+gx.toFixed(1)+'" y2="'+gy.toFixed(1)+'" stroke="#3A4750" stroke-width="7.5" stroke-linecap="round"/>';
+      svg += '<circle cx="'+dx.toFixed(1)+'" cy="'+dy.toFixed(1)+'" r="4" fill="#16232C"/>';
+      svg += '<circle cx="'+gx.toFixed(1)+'" cy="'+gy.toFixed(1)+'" r="4" fill="#16232C"/>';
+      const dLabelY = dy + (dy > gy ? 18 : -11);
+      const gLabelY = gy + (gy > dy ? 18 : -11);
+      svg += '<text x="'+dx.toFixed(1)+'" y="'+dLabelY.toFixed(1)+'" font-size="10.5" text-anchor="middle" fill="#16232C">'+seg.distalName+'</text>';
+      svg += '<text x="'+gx.toFixed(1)+'" y="'+gLabelY.toFixed(1)+'" font-size="10.5" text-anchor="middle" fill="#16232C">'+seg.geomProximalName+'</text>';
 
       if (hasGeomOverride){
         // the real joint (e.g. ankle) is a separate point rigidly attached to this same body —
         // shown with a thin static line (not a second moving segment) back to the body, since
         // that's where the solved joint force/moment below actually act
-        svg += '<line x1="'+gx.toFixed(1)+'" y1="'+gy.toFixed(1)+'" x2="'+px2.toFixed(1)+'" y2="'+py2.toFixed(1)+'" stroke="#3A4750" stroke-width="1.5" stroke-dasharray="3,2" opacity="0.6"/>';
-        svg += '<circle cx="'+px2.toFixed(1)+'" cy="'+py2.toFixed(1)+'" r="3.2" fill="#16232C"/>';
-        const jLabelY = py2 + (py2 > gy ? 15 : -9);
-        svg += '<text x="'+px2.toFixed(1)+'" y="'+jLabelY.toFixed(1)+'" font-size="8.5" text-anchor="middle" fill="#16232C">'+seg.proximalName+'</text>';
+        svg += '<line x1="'+gx.toFixed(1)+'" y1="'+gy.toFixed(1)+'" x2="'+px2.toFixed(1)+'" y2="'+py2.toFixed(1)+'" stroke="#3A4750" stroke-width="1.8" stroke-dasharray="3,2" opacity="0.6"/>';
+        svg += '<circle cx="'+px2.toFixed(1)+'" cy="'+py2.toFixed(1)+'" r="4" fill="#16232C"/>';
+        const jLabelY = py2 + (py2 > gy ? 18 : -11);
+        svg += '<text x="'+px2.toFixed(1)+'" y="'+jLabelY.toFixed(1)+'" font-size="10.5" text-anchor="middle" fill="#16232C">'+seg.proximalName+'</text>';
       }
 
-      // COM, weight, and the segment's own rotational equation of motion (I·alpha) at COM
-      svg += '<circle cx="'+comx.toFixed(1)+'" cy="'+comy.toFixed(1)+'" r="3.4" fill="#5C7080" stroke="#fff" stroke-width="1"/>';
+      // COM, weight, and the segment's own rotational equation of motion (I·alpha) at COM.
+      // Weight is usually much smaller than the joint/GRF forces that set fScale, so at true
+      // scale its arrow often rounds to sub-pixel and simply doesn't render — floor it to a
+      // guaranteed-visible length instead (direction is always exactly straight down regardless).
+      svg += '<circle cx="'+comx.toFixed(1)+'" cy="'+comy.toFixed(1)+'" r="4.5" fill="#1B8A5A" stroke="#fff" stroke-width="1.3"/>';
       const w = seg.massKg*G;
-      svg += arrowSvg(comx, comy, 0, w*fScale, '#5C7080', 'mg');
+      svg += arrowSvg(comx, comy, 0, Math.max(w*fScale, 20), '#1B8A5A', 'mg');
       const Ia = seg.Icom*seg.alpha[i];
-      svg += momentGlyph(comx-18, comy, Ia, '#7B2D8E', true, 'Iα=');
+      svg += momentGlyph(comx-22, comy, dispM(Ia), '#7B2D8E', true, 'Iα=');
 
       // the joint solved for this segment sits at its proximal end
       const j = results.joints.find(jj => jj.seg === seg);
@@ -1480,21 +1550,21 @@
         // a dashed line back to the COM showing the moment arm that actually produces the torque
         // (this is the same r_dist vector the ΣM equation below uses).
         const copx = lx(copxw), copy = ly(results.floorY);
-        svg += '<line x1="'+copx.toFixed(1)+'" y1="'+copy.toFixed(1)+'" x2="'+comx.toFixed(1)+'" y2="'+comy.toFixed(1)+'" stroke="#0B3D91" stroke-width="1" stroke-dasharray="2,2" opacity="0.55"/>';
-        svg += '<circle cx="'+copx.toFixed(1)+'" cy="'+copy.toFixed(1)+'" r="3" fill="#0B3D91"/>';
-        svg += '<text x="'+copx.toFixed(1)+'" y="'+(copy+13).toFixed(1)+'" font-size="8" text-anchor="middle" fill="#0B3D91">COP</text>';
+        svg += '<line x1="'+copx.toFixed(1)+'" y1="'+copy.toFixed(1)+'" x2="'+comx.toFixed(1)+'" y2="'+comy.toFixed(1)+'" stroke="#0B3D91" stroke-width="1.3" stroke-dasharray="2,2" opacity="0.55"/>';
+        svg += '<circle cx="'+copx.toFixed(1)+'" cy="'+copy.toFixed(1)+'" r="3.6" fill="#0B3D91"/>';
+        svg += '<text x="'+copx.toFixed(1)+'" y="'+(copy+15).toFixed(1)+'" font-size="9.5" text-anchor="middle" fill="#0B3D91">COP</text>';
         svg += arrowSvg(copx, copy, distalR.x[i]*fScale, -distalR.y[i]*fScale, '#0B3D91', 'GRF');
-        svg += momentGlyph(copx-18, copy-18, distalR.M[i], '#E8871E', false, '');
+        svg += momentGlyph(copx-22, copy-22, dispM(distalR.M[i]), '#D64545', false, '');
       } else {
         // every other segment's "known" force is the joint reaction handed up from the segment
         // below, which genuinely acts at the joint marker itself
         svg += arrowSvg(dx, dy, distalR.x[i]*fScale, -distalR.y[i]*fScale, '#0B3D91', null);
-        svg += momentGlyph(dx-18, dy, distalR.M[i], '#E8871E', false, '');
+        svg += momentGlyph(dx-22, dy, dispM(distalR.M[i]), '#D64545', false, '');
       }
 
       // proximal end: the solved joint reaction force/moment
       svg += arrowSvg(px2, py2, j.Rx[i]*fScale, -j.Ry[i]*fScale, '#1C7293', null);
-      svg += momentGlyph(px2+18, py2, j.M[i], '#E8871E', false, '');
+      svg += momentGlyph(px2+22, py2, dispM(j.M[i]), '#D64545', false, '');
     });
 
     el('schematic').innerHTML = svg;
