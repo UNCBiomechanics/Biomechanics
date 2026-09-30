@@ -410,6 +410,14 @@
           <label for="grfNoFilter">Don't filter — already filtered</label>
         </div>
       </div>
+      <p class="hint">Each "pass" here is a 1st-order zero-phase filter, not the 2nd-order-per-pass design most biomechanics software uses — the number you type above is automatically pre-corrected so the filter's real, delivered −3dB cutoff matches what you entered, for any number of passes.</p>
+      <div class="row">
+        <div class="field">
+          <label for="grfThreshold">Force threshold (N)</label>
+          <input type="number" id="grfThreshold" value="20" min="0" step="any">
+          <p class="field-hint">During swing, vertical force is near zero and the reported COP is noise — not a real contact point. Frames where |Fy| falls below this threshold have their force zeroed (which also zeroes their contribution to every downstream moment, COP noise included). Set to 0 to disable.</p>
+        </div>
+      </div>
       <p class="hint">No free-moment (Mz) input is needed here: by definition, the center of pressure is the point where the in-plane (sagittal-bending) moment of the ground's force distribution is zero — that's what makes it the COP. Any Mz your plate reports is about the <em>vertical</em> axis (friction/torsional), a different axis than this 2D sagittal model.</p>
     </div>
   </section>
@@ -442,7 +450,7 @@
             <input type="number" id="jointFsOverride" min="0.001" step="any">
           </div>
         </div>
-        <p class="hint">If this is sampled at a different rate than your force data (common — mocap is often slower), it's linearly interpolated onto the force data's time base once both are parsed; the analysis window is trimmed to where the two overlap.</p>
+        <p class="hint">If this is sampled at a different rate than your force data (common — mocap is often slower), velocity and acceleration are computed at THIS native marker rate first, and only the resulting acceleration curves are interpolated onto the force data's time base — not the raw positions. Differentiating after interpolating onto a finer time base was tried first and produced garbage (near-zero accelerations with spikes at the original sample times), since a linearly-interpolated curve is piecewise straight and its second derivative is zero except at the joints between pieces. The analysis window is trimmed to where the two datasets overlap.</p>
       </div>
       <div id="jointColMap"></div>
       <div class="row">
@@ -464,7 +472,7 @@
           <label for="jointNoFilter">Don't filter — already filtered</label>
         </div>
       </div>
-      <p class="hint">Kinematic data usually needs a much lower cutoff than force data — differentiating twice to get acceleration amplifies high-frequency noise enormously. If you're unsure, check <a href="filter_compare.html">Filter Compare</a> first.</p>
+      <p class="hint">Kinematic data usually needs a much lower cutoff than force data — differentiating twice to get acceleration amplifies high-frequency noise enormously. If you're unsure, check <a href="filter_compare.html">Filter Compare</a> first. As with the force data above, the cutoff you type here is pre-corrected so the filter's real, delivered −3dB point matches it exactly, regardless of pass count.</p>
     </div>
   </section>
 
@@ -918,9 +926,23 @@
     }
     return y;
   }
+  // this cascades a 1st-order Butterworth nPasses times (alternating direction for zero lag), not
+  // a 2nd-order filter run twice like most biomechanics software — so its real combined -3dB point
+  // is NOT the cutoff you designed each individual pass at. For N passes of a 1st-order filter,
+  // |H_total(f)| = |H1(f)|^N, and solving |H1(f)|^N = 1/sqrt(2) gives f_real/f_design =
+  // sqrt(2^(1/N)-1) (e.g. ~0.644 for N=2 — a "6 Hz" 2-pass filter was actually cutting at ~3.9 Hz).
+  // Pre-dividing the requested cutoff by that factor before designing the per-pass filter makes the
+  // ACTUAL delivered cutoff match what was typed, for any number of passes.
+  function cutoffCorrectionFactor(nPasses){
+    return Math.sqrt(Math.pow(2, 1/nPasses) - 1);
+  }
   function applyPassCascade(cutoffHz, fs, nPasses, x){
-    const {b, a} = designButterworth1(cutoffHz, fs);
-    const padLen = Math.max(0, Math.min(3, x.length-1));
+    const designCutoff = cutoffHz / cutoffCorrectionFactor(nPasses);
+    const {b, a} = designButterworth1(Math.min(designCutoff, fs*0.499), fs);
+    // reflective padding at each end damps the filter's start/end transient before it reaches the
+    // real data — 3 samples was far too short to do that (worse still after a second differentiation
+    // downstream); pad more generously, capped at what the trial actually has.
+    const padLen = Math.max(0, Math.min(50, x.length-1));
     let y;
     if (padLen === 0){ y = x; }
     else {
@@ -1309,13 +1331,37 @@
     const dt = T[1]-T[0];
     const Fx = FxF.slice(i0,i1+1), Fy = FyF.slice(i0,i1+1), COPx = COPxF.slice(i0,i1+1);
 
+    // below-threshold frames (typically swing phase) have near-zero vertical force and a COP
+    // that's pure noise, not a real contact point — zeroing the force here also zeroes its
+    // contribution to every downstream cross-product term, so the noisy COP position stops mattering
+    const grfThreshold = parseFloat(el('grfThreshold').value) || 0;
+    if (grfThreshold > 0){
+      for (let t=0;t<Fx.length;t++){
+        if (Math.abs(Fy[t]) < grfThreshold){ Fx[t] = 0; Fy[t] = 0; }
+      }
+    }
+
     const pointPos = {};
+    // native-rate positions (still at the marker's own sampling times, not yet interpolated onto
+    // T) — used ONLY for differentiation below. Interpolating positions onto the (often finer)
+    // force-plate time base and differentiating THAT was the original approach, and it's wrong:
+    // linear interpolation produces a piecewise-straight curve whose second derivative is zero on
+    // every straight segment and spikes only at the original sample boundaries, so with two
+    // different sampling rates the resulting "acceleration" was mostly zero with huge spurious
+    // spikes. Differentiating at the native rate first, then interpolating the (smooth) acceleration
+    // curve, doesn't have this problem.
+    const pointNative = {};
     for (const p of pointsNeeded){
+      pointNative[p.id] = {
+        x: pointFiltered[p.id].x.map(v => v*posUnitFactor),
+        y: pointFiltered[p.id].y.map(v => v*posUnitFactor)
+      };
       pointPos[p.id] = {
-        x: interp1(jointTimes, pointFiltered[p.id].x, T).map(v => v*posUnitFactor),
-        y: interp1(jointTimes, pointFiltered[p.id].y, T).map(v => v*posUnitFactor)
+        x: interp1(jointTimes, pointNative[p.id].x, T),
+        y: interp1(jointTimes, pointNative[p.id].y, T)
       };
     }
+    const jointDt = jointTimes[1]-jointTimes[0];
 
     // per-segment kinematics. "proximal" here always means the JOINT connecting to the next
     // segment up the chain (needed for the force handoff below) \u2014 but a segment's own mass/COM/
@@ -1333,13 +1379,26 @@
       const lengths = T.map((_,t) => Math.hypot(gPos.x[t]-dPos.x[t], gPos.y[t]-dPos.y[t]));
       const L = median(lengths);
       const massKg = bodyMass * segParams[i].massPct/100;
-      const comX = T.map((_,t) => dPos.x[t] + (segParams[i].comPct/100)*(gPos.x[t]-dPos.x[t]));
-      const comY = T.map((_,t) => dPos.y[t] + (segParams[i].comPct/100)*(gPos.y[t]-dPos.y[t]));
-      let theta = T.map((_,t) => Math.atan2(gPos.y[t]-dPos.y[t], gPos.x[t]-dPos.x[t]));
-      theta = unwrap(theta);
-      const ax = centralDeriv2(comX, dt), ay = centralDeriv2(comY, dt);
-      const alpha = centralDeriv2(theta, dt);
+      // de Leva's comPct is defined "from proximal" \u2014 the proximal end is gPos (the segment's own
+      // anthropometric landmark, e.g. heel for the foot), NOT dPos (distal, e.g. toe). COM sits
+      // comPct% of the way from proximal toward distal.
+      const comX = T.map((_,t) => gPos.x[t] + (segParams[i].comPct/100)*(dPos.x[t]-gPos.x[t]));
+      const comY = T.map((_,t) => gPos.y[t] + (segParams[i].comPct/100)*(dPos.y[t]-gPos.y[t]));
       const Icom = massKg * Math.pow((segParams[i].gyrPct/100)*L, 2);
+
+      // acceleration at the MARKER's own native rate, before interpolating onto the (often finer)
+      // force-plate time base T \u2014 see the note above pointNative for why this order matters.
+      const gPosN = useHeel ? pointNative[footHeel.id] : pointNative[proximalPt.id];
+      const dPosN = pointNative[distalPt.id];
+      const comXN = jointTimes.map((_,t) => gPosN.x[t] + (segParams[i].comPct/100)*(dPosN.x[t]-gPosN.x[t]));
+      const comYN = jointTimes.map((_,t) => gPosN.y[t] + (segParams[i].comPct/100)*(dPosN.y[t]-gPosN.y[t]));
+      let thetaN = jointTimes.map((_,t) => Math.atan2(gPosN.y[t]-dPosN.y[t], gPosN.x[t]-dPosN.x[t]));
+      thetaN = unwrap(thetaN);
+      const axN = centralDeriv2(comXN, jointDt), ayN = centralDeriv2(comYN, jointDt);
+      const alphaN = centralDeriv2(thetaN, jointDt);
+      const ax = interp1(jointTimes, axN, T), ay = interp1(jointTimes, ayN, T);
+      const alpha = interp1(jointTimes, alphaN, T);
+
       segments.push({
         name: TYPE_LABEL[segParams[i].type] + ' ('+distalPt.name+' \u2192 '+gName+')',
         distalId: distalPt.id, proximalId: proximalPt.id, distalName: distalPt.name, proximalName: proximalPt.name,
