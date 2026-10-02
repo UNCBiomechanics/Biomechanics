@@ -190,7 +190,8 @@
   /* flex items shrink to fit their container by default — without this, the schematic SVG was
      silently squeezed down to the panel's width no matter how large its own width/height/viewBox
      were set, which is why past size increases never visibly changed anything on screen. */
-  .diagram-wrap svg{flex-shrink:0;}
+  .diagram-wrap svg{flex-shrink:0;cursor:grab;touch-action:none;}
+  .diagram-wrap svg:active{cursor:grabbing;}
 
   .scrub-row{display:flex;gap:1rem;align-items:center;flex-wrap:wrap;margin:0.75rem 0;}
   .scrub-row input[type="range"]{flex:1;min-width:200px;}
@@ -537,7 +538,8 @@
         <input type="range" id="frameSlider" min="0" max="0" value="0" step="1">
         <span class="scrub-readout" id="scrubReadout"></span>
       </div>
-      <div class="diagram-wrap"><svg id="schematic" width="1100" height="1120" viewBox="0 0 1100 1120" xmlns="http://www.w3.org/2000/svg"></svg></div>
+      <div class="diagram-wrap"><svg id="schematic" width="620" height="440" viewBox="0 0 620 440" xmlns="http://www.w3.org/2000/svg"></svg></div>
+      <p class="hint">Scroll/pinch over the diagram to zoom, drag to pan. <button class="ghost small" id="schematicZoomReset" type="button">Reset view</button></p>
       <div id="eqPanel" style="margin-top:1rem"></div>
       <p class="hint">Each segment is drawn <strong>isolated</strong> from its neighbors — the classic free-body-diagram convention — animated from your actual joint-marker positions at the selected instant, one panel per segment, distal end on the left/bottom of its panel and proximal end on the right/top. Green = weight (mg) at the COM, navy = the known force at the segment's distal end (the ground reaction force at COP for the ground-contact segment, or the reaction handed down from the segment below for every other segment), teal = the solved joint reaction force at the proximal end, red arcs = real net muscle moments at each end, dashed purple arc = the segment's own I&middot;&alpha; (its rotational equation of motion, plotted at the COM — not an applied force, but what the moment equation is actually balancing against). <strong>The GRF only enters the model once, at the ground-contact segment</strong> (first equation block above) — every joint above it inherits the GRF's effect indirectly, since each segment's own solved reaction force/moment becomes the next segment's known input, by Newton's third law. The equation panel names that first block's terms <code>GRF_x</code>/<code>GRF_y</code>/<code>M_GRF</code> explicitly instead of the generic <code>R_dist</code>/<code>M_dist</code> used everywhere else, so it's unambiguous where the ground force actually shows up in the numbers. Equation-panel values always show this tool's own raw solve direction, unaffected by the sign-flip/normalize display options above.</p>
     </section>
@@ -551,7 +553,7 @@
   <footer>
     Solved bottom-up per segment using Newton's second law (&Sigma;F = m&middot;a<sub>com</sub>) and the rotational equivalent about each segment's own center of mass (&Sigma;M<sub>com</sub> = I<sub>com</sub>&middot;&alpha;), starting from the ground-contact segment (known force = the filtered GRF at COP; known moment = zero, since COP is defined as the point where the ground's in-plane moment is zero) and carrying each solved joint reaction force/moment, negated per Newton's third law, up as the "known" distal input for the next segment. Segment center of mass and radius of gyration use de Leva's (1996) percentages for whichever type you assign each link; segment length comes from the actual distance between your two pasted joint markers (median over the trial) rather than a separately-entered length. de Leva's tables define each segment's own proximal anthropometric landmark precisely (e.g. the <em>heel</em>, not the ankle, for the foot) — for the shank/thigh/upper-arm/forearm that already coincides with the real joint (ankle, knee, shoulder, elbow), but for the ground-contact segment it usually doesn't, since what connects to the next segment up the chain is a joint (the ankle), not the segment's true anthropometric end. Step 2's "true proximal landmark is different" option handles this: when enabled, mass/COM/inertia are computed from that landmark (e.g. heel) to the distal point (e.g. toe), while the joint reaction force/moment at the actual joint (e.g. ankle) are still solved and reported there, unaffected — leave it off and the tool falls back to using the joint itself for both, same as before. Linear and angular accelerations are computed by second-order central finite difference on the filtered position/angle time series.
     <p style="margin-top:1rem;color:var(--muted)">Created by Abbie Ferris, PhD — University of Northern Colorado</p>
-    <p style="margin-top:0.25rem;color:var(--muted);font-size:0.78rem">Last updated: 2026-09-30</p>
+    <p style="margin-top:0.25rem;color:var(--muted);font-size:0.78rem">Last updated: 2026-10-01</p>
   </footer>
 
 </div>
@@ -1647,19 +1649,19 @@
     const len = Math.hypot(dxPx,dyPx);
     if (len < 2) return '';
     const ux=dxPx/len, uy=dyPx/len;
-    const headLen=21, headW=10.5;
+    const headLen=12, headW=6;
     const hx=x2-ux*headLen, hy=y2-uy*headLen;
     const px=-uy, py=ux;
     const h1x=hx+px*headW, h1y=hy+py*headW, h2x=hx-px*headW, h2y=hy-py*headW;
-    let s = '<line x1="'+x1.toFixed(1)+'" y1="'+y1.toFixed(1)+'" x2="'+x2.toFixed(1)+'" y2="'+y2.toFixed(1)+'" stroke="'+color+'" stroke-width="7"/>';
+    let s = '<line x1="'+x1.toFixed(1)+'" y1="'+y1.toFixed(1)+'" x2="'+x2.toFixed(1)+'" y2="'+y2.toFixed(1)+'" stroke="'+color+'" stroke-width="4"/>';
     s += '<polygon points="'+x2.toFixed(1)+','+y2.toFixed(1)+' '+h1x.toFixed(1)+','+h1y.toFixed(1)+' '+h2x.toFixed(1)+','+h2y.toFixed(1)+'" fill="'+color+'"/>';
-    if (label) s += labelWithBg(x2+14, y2+9, label, color, 20, 'start');
+    if (label) s += labelWithBg(x2+8, y2+5, label, color, 13, 'start');
     return s;
   }
   function momentGlyph(cx,cy,M,color,dashed,labelPrefix,showText){
     if (!isFinite(M) || Math.abs(M) < 1e-6) return '';
     if (showText === undefined) showText = true;
-    const r = 33;
+    const r = 19;
     const ccw = M >= 0;
     const a0 = -0.35, a1 = a0 + (ccw ? 1.6*Math.PI : -1.6*Math.PI);
     const steps = 14;
@@ -1669,18 +1671,75 @@
       pts.push([cx+r*Math.cos(t), cy-r*Math.sin(t)]);
     }
     let d = pts.map((p,i)=> (i===0?'M':'L')+p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
-    const dashAttr = dashed ? ' stroke-dasharray="7,4.5"' : '';
-    let s = '<path d="'+d+'" fill="none" stroke="'+color+'" stroke-width="5"'+dashAttr+'/>';
+    const dashAttr = dashed ? ' stroke-dasharray="4,2.5"' : '';
+    let s = '<path d="'+d+'" fill="none" stroke="'+color+'" stroke-width="2.8"'+dashAttr+'/>';
     const [ex,ey] = pts[pts.length-1], [px,py] = pts[pts.length-2];
     const dx=ex-px, dy=ey-py, len=Math.hypot(dx,dy)||1;
     const ux=dx/len, uy=dy/len, perp=[-uy,ux];
-    const h1=[ex-ux*14+perp[0]*7.7, ey-uy*14+perp[1]*7.7], h2=[ex-ux*14-perp[0]*7.7, ey-uy*14-perp[1]*7.7];
+    const h1=[ex-ux*8+perp[0]*4.4, ey-uy*8+perp[1]*4.4], h2=[ex-ux*8-perp[0]*4.4, ey-uy*8-perp[1]*4.4];
     s += '<polygon points="'+ex.toFixed(1)+','+ey.toFixed(1)+' '+h1[0].toFixed(1)+','+h1[1].toFixed(1)+' '+h2[0].toFixed(1)+','+h2[1].toFixed(1)+'" fill="'+color+'"/>';
     if (showText){
       const mLbl = (typeof momentUnitLabel === 'function') ? momentUnitLabel() : 'N·m';
-      s += labelWithBg(cx+r+10, cy+8, (labelPrefix||'')+fmt(M,(mLbl==='N·m'?1:3))+' '+mLbl, color, 20, 'start');
+      s += labelWithBg(cx+r+6, cy+5, (labelPrefix||'')+fmt(M,(mLbl==='N·m'?1:3))+' '+mLbl, color, 13, 'start');
     }
     return s;
+  }
+
+  // ---- schematic zoom/pan ----
+  // viewBox-based zoom: shrinking the viewBox below the SVG's native width/height zooms in, since
+  // the browser always stretches whatever the viewBox covers to fill the element's rendered size.
+  // svgView persists across renderSchematic() calls (frame scrubbing, display-option toggles) so
+  // zooming in doesn't get silently undone every time the user drags the frame slider — it only
+  // resets when the chain itself changes (new compute with a different segment count).
+  let svgView = null;
+  let schematicZoomPanBound = false;
+  function resetSchematicView(){
+    if (!svgView) return;
+    svgView.x = 0; svgView.y = 0; svgView.w = svgView.fullW; svgView.h = svgView.fullH;
+    el('schematic').setAttribute('viewBox', '0 0 '+svgView.fullW+' '+svgView.fullH);
+  }
+  function setupSchematicZoomPan(svgEl){
+    if (schematicZoomPanBound) return;
+    schematicZoomPanBound = true;
+
+    function applyView(){ svgEl.setAttribute('viewBox', svgView.x+' '+svgView.y+' '+svgView.w+' '+svgView.h); }
+    function clampView(){
+      const minW = svgView.fullW/8, minH = svgView.fullH/8;
+      svgView.w = Math.max(minW, Math.min(svgView.fullW, svgView.w));
+      svgView.h = Math.max(minH, Math.min(svgView.fullH, svgView.h));
+    }
+
+    svgEl.addEventListener('wheel', function(e){
+      if (!svgView) return;
+      e.preventDefault();
+      const rect = svgEl.getBoundingClientRect();
+      const mx = (e.clientX - rect.left) / rect.width, my = (e.clientY - rect.top) / rect.height;
+      const px = svgView.x + mx*svgView.w, py = svgView.y + my*svgView.h;
+      const factor = e.deltaY < 0 ? 0.88 : 1/0.88;
+      const newW = svgView.w*factor, newH = svgView.h*factor;
+      svgView.x = px - mx*newW; svgView.y = py - my*newH;
+      svgView.w = newW; svgView.h = newH;
+      clampView();
+      applyView();
+    }, { passive:false });
+
+    let dragging = false, dragStartX=0, dragStartY=0, viewStartX=0, viewStartY=0;
+    svgEl.addEventListener('mousedown', function(e){
+      if (!svgView) return;
+      dragging = true; dragStartX = e.clientX; dragStartY = e.clientY;
+      viewStartX = svgView.x; viewStartY = svgView.y;
+      svgEl.style.cursor = 'grabbing';
+    });
+    window.addEventListener('mousemove', function(e){
+      if (!dragging || !svgView) return;
+      const rect = svgEl.getBoundingClientRect();
+      svgView.x = viewStartX - (e.clientX-dragStartX)*(svgView.w/rect.width);
+      svgView.y = viewStartY - (e.clientY-dragStartY)*(svgView.h/rect.height);
+      applyView();
+    });
+    window.addEventListener('mouseup', function(){ dragging = false; svgEl.style.cursor = ''; });
+
+    el('schematicZoomReset').addEventListener('click', resetSchematicView);
   }
 
   function renderSchematic(){
@@ -1689,18 +1748,24 @@
     el('scrubReadout').textContent = 't = '+fmt(T[i],3)+' s (frame '+(i+1)+' of '+T.length+')';
 
     const nSeg = results.segments.length;
-    const laneW = 600, H = 1120, topPad = 90, sidePad = 115;
+    const laneW = 340, H = 640, topPad = 52, sidePad = 66;
     // bottom of each lane is a fixed, non-moving numeric readout — the animated diagram above it
     // used to carry these same numbers as floating labels next to whatever arrow/point they
     // belonged to, but which point an arrow was pointing at varies every frame, so the labels
     // collided unpredictably. A fixed panel is always in the same place and never overlaps anything.
-    const readoutH = 230, botPad = 50;
+    const readoutH = 132, botPad = 30;
     const diagramH = H - readoutH;
     const W = laneW*nSeg;
     const svgEl = el('schematic');
     svgEl.setAttribute('width', W);
     svgEl.setAttribute('height', H);
-    svgEl.setAttribute('viewBox', '0 0 '+W+' '+H);
+    // the viewBox drives zoom/pan (see setupSchematicZoomPan) and is intentionally NOT reset to
+    // "0 0 W H" on every render — only when the chain itself changes — so scrubbing frames or
+    // toggling display options doesn't keep kicking the user back out to the fully zoomed-out view.
+    if (!svgView || svgView.nSeg !== nSeg){ svgView = { x:0, y:0, w:W, h:H, nSeg, fullW:W, fullH:H }; }
+    else { svgView.fullW = W; svgView.fullH = H; }
+    svgEl.setAttribute('viewBox', svgView.x+' '+svgView.y+' '+svgView.w+' '+svgView.h);
+    setupSchematicZoomPan(svgEl);
 
     // force-to-pixel scale, shared across every panel at this instant — scaled to THIS frame's
     // largest force (not the whole trial's) so arrows stay a legible size throughout the animation
@@ -1708,7 +1773,7 @@
     let maxF = 1e-6;
     maxF = Math.max(maxF, Math.hypot(results.Fx[i], results.Fy[i]));
     results.joints.forEach(j => { maxF = Math.max(maxF, Math.hypot(j.Rx[i], j.Ry[i])); });
-    const fScale = 95/maxF;
+    const fScale = 55/maxF;
 
     let svg = '';
     results.segments.forEach((seg, k) => {
@@ -1750,7 +1815,7 @@
 
       svg += '<rect x="'+(x0+3)+'" y="3" width="'+(laneW-6)+'" height="'+(H-6)+'" rx="8" fill="#FBFCFD" stroke="#D8E2E7"/>';
       svg += '<line x1="'+(x0+3)+'" y1="'+diagramH.toFixed(1)+'" x2="'+(x0+laneW-3)+'" y2="'+diagramH.toFixed(1)+'" stroke="#D8E2E7"/>';
-      svg += '<text x="'+(x0+laneW/2)+'" y="40" font-size="26" font-weight="700" text-anchor="middle" fill="#16232C">'+seg.name+'</text>';
+      svg += '<text x="'+(x0+laneW/2)+'" y="24" font-size="15" font-weight="700" text-anchor="middle" fill="#16232C">'+seg.name+'</text>';
 
       // the isolated segment itself — its TRUE anthropometric body (distal end to its own real
       // proximal landmark, e.g. toe to heel), which may differ from the joint used to hand off
@@ -1758,33 +1823,37 @@
       // actual numbers live in the fixed readout panel below, not as floating labels here, since
       // where an arrow points (and so where its label would land) changes every frame and kept
       // colliding with whatever else was nearby.
-      svg += '<line x1="'+dx.toFixed(1)+'" y1="'+dy.toFixed(1)+'" x2="'+gx.toFixed(1)+'" y2="'+gy.toFixed(1)+'" stroke="#3A4750" stroke-width="14" stroke-linecap="round"/>';
-      svg += '<circle cx="'+dx.toFixed(1)+'" cy="'+dy.toFixed(1)+'" r="8" fill="#16232C"/>';
-      svg += '<circle cx="'+gx.toFixed(1)+'" cy="'+gy.toFixed(1)+'" r="8" fill="#16232C"/>';
-      const dLabelY = dy + (dy > gy ? 34 : -22);
-      const gLabelY = gy + (gy > dy ? 34 : -22);
-      svg += labelWithBg(dx, dLabelY, seg.distalName, '#16232C', 20, 'middle');
-      svg += labelWithBg(gx, gLabelY, seg.geomProximalName, '#16232C', 20, 'middle');
+      svg += '<line x1="'+dx.toFixed(1)+'" y1="'+dy.toFixed(1)+'" x2="'+gx.toFixed(1)+'" y2="'+gy.toFixed(1)+'" stroke="#3A4750" stroke-width="8" stroke-linecap="round"/>';
+      svg += '<circle cx="'+dx.toFixed(1)+'" cy="'+dy.toFixed(1)+'" r="4.5" fill="#16232C"/>';
+      svg += '<circle cx="'+gx.toFixed(1)+'" cy="'+gy.toFixed(1)+'" r="4.5" fill="#16232C"/>';
+      // point-name labels are collected here but drawn LAST (after every arrow/moment glyph below)
+      // so they always sit on top — drawing them this early meant a long force arrow could paint
+      // right over a label and hide it (e.g. the ankle label disappearing under its own GRF arrow).
+      let pointLabelsSvg = '';
+      const dLabelY = dy + (dy > gy ? 20 : -12);
+      const gLabelY = gy + (gy > dy ? 20 : -12);
+      pointLabelsSvg += labelWithBg(dx, dLabelY, seg.distalName, '#16232C', 11.5, 'middle');
+      pointLabelsSvg += labelWithBg(gx, gLabelY, seg.geomProximalName, '#16232C', 11.5, 'middle');
 
       if (hasGeomOverride){
         // the real joint (e.g. ankle) is a separate point rigidly attached to this same body —
         // shown with a thin static line (not a second moving segment) back to the body, since
         // that's where the solved joint force/moment below actually act
-        svg += '<line x1="'+gx.toFixed(1)+'" y1="'+gy.toFixed(1)+'" x2="'+px2.toFixed(1)+'" y2="'+py2.toFixed(1)+'" stroke="#3A4750" stroke-width="3.2" stroke-dasharray="5,3.5" opacity="0.6"/>';
-        svg += '<circle cx="'+px2.toFixed(1)+'" cy="'+py2.toFixed(1)+'" r="8" fill="#16232C"/>';
-        const jLabelY = py2 + (py2 > gy ? 34 : -22);
-        svg += labelWithBg(px2, jLabelY, seg.proximalName, '#16232C', 20, 'middle');
+        svg += '<line x1="'+gx.toFixed(1)+'" y1="'+gy.toFixed(1)+'" x2="'+px2.toFixed(1)+'" y2="'+py2.toFixed(1)+'" stroke="#3A4750" stroke-width="1.8" stroke-dasharray="3,2" opacity="0.6"/>';
+        svg += '<circle cx="'+px2.toFixed(1)+'" cy="'+py2.toFixed(1)+'" r="4.5" fill="#16232C"/>';
+        const jLabelY = py2 + (py2 > gy ? 20 : -12);
+        pointLabelsSvg += labelWithBg(px2, jLabelY, seg.proximalName, '#16232C', 11.5, 'middle');
       }
 
       // COM, weight, and the segment's own rotational equation of motion (I·alpha) at COM.
       // Weight is usually much smaller than the joint/GRF forces that set fScale, so at true
       // scale its arrow often rounds to sub-pixel and simply doesn't render — floor it to a
       // guaranteed-visible length instead (direction is always exactly straight down regardless).
-      svg += '<circle cx="'+comx.toFixed(1)+'" cy="'+comy.toFixed(1)+'" r="9" fill="#1B8A5A" stroke="#fff" stroke-width="2.5"/>';
+      svg += '<circle cx="'+comx.toFixed(1)+'" cy="'+comy.toFixed(1)+'" r="5" fill="#1B8A5A" stroke="#fff" stroke-width="1.5"/>';
       const w = seg.massKg*G;
-      svg += arrowSvg(comx, comy, 0, Math.max(w*fScale, 38), '#1B8A5A', null);
+      svg += arrowSvg(comx, comy, 0, Math.max(w*fScale, 22), '#1B8A5A', null);
       const Ia = seg.Icom*seg.alpha[i];
-      svg += momentGlyph(comx-42, comy, dispM(Ia), '#7B2D8E', true, '', false);
+      svg += momentGlyph(comx-24, comy, dispM(Ia), '#7B2D8E', true, '', false);
 
       // the joint solved for this segment sits at its proximal end
       const j = results.joints.find(jj => jj.seg === seg);
@@ -1798,32 +1867,36 @@
         // a dashed line back to the COM showing the moment arm that actually produces the torque
         // (this is the same r_dist vector the ΣM equation below uses).
         copx = lx(copxw); copy = ly(results.floorY);
-        svg += '<line x1="'+copx.toFixed(1)+'" y1="'+copy.toFixed(1)+'" x2="'+comx.toFixed(1)+'" y2="'+comy.toFixed(1)+'" stroke="#0B3D91" stroke-width="2.3" stroke-dasharray="3,3" opacity="0.55"/>';
-        svg += '<circle cx="'+copx.toFixed(1)+'" cy="'+copy.toFixed(1)+'" r="7" fill="#0B3D91"/>';
-        svg += labelWithBg(copx, copy+30, 'COP', '#0B3D91', 18, 'middle');
+        svg += '<line x1="'+copx.toFixed(1)+'" y1="'+copy.toFixed(1)+'" x2="'+comx.toFixed(1)+'" y2="'+comy.toFixed(1)+'" stroke="#0B3D91" stroke-width="1.3" stroke-dasharray="2,2" opacity="0.55"/>';
+        svg += '<circle cx="'+copx.toFixed(1)+'" cy="'+copy.toFixed(1)+'" r="4" fill="#0B3D91"/>';
+        pointLabelsSvg += labelWithBg(copx, copy+17, 'COP', '#0B3D91', 10.5, 'middle');
         svg += componentArrowsSvg(copx, copy, distalR.x[i]*fScale, -distalR.y[i]*fScale, '#0B3D91');
-        svg += momentGlyph(copx-42, copy-42, dispM(distalR.M[i]), '#D64545', false, '', false);
+        svg += momentGlyph(copx-24, copy-24, dispM(distalR.M[i]), '#D64545', false, '', false);
       } else {
         // every other segment's "known" force is the joint reaction handed up from the segment
         // below, which genuinely acts at the joint marker itself
         svg += componentArrowsSvg(dx, dy, distalR.x[i]*fScale, -distalR.y[i]*fScale, '#0B3D91');
-        svg += momentGlyph(dx-42, dy, dispM(distalR.M[i]), '#D64545', false, '', false);
+        svg += momentGlyph(dx-24, dy, dispM(distalR.M[i]), '#D64545', false, '', false);
       }
 
       // proximal end: the solved joint reaction force — drawn as two separate Rx/Ry arrows, not a resultant
       svg += componentArrowsSvg(px2, py2, j.Rx[i]*fScale, -j.Ry[i]*fScale, '#1C7293');
-      svg += momentGlyph(px2+42, py2, dispM(j.M[i]), '#D64545', false, '', false);
+      svg += momentGlyph(px2+24, py2, dispM(j.M[i]), '#D64545', false, '', false);
+
+      // point-name labels go on top of every arrow/moment glyph above, so a long arrow can never
+      // paint over and hide a label (see the comment where pointLabelsSvg was started)
+      svg += pointLabelsSvg;
 
       // ---- fixed numeric readout panel (never moves, never collides with the diagram above) ----
-      const ry0 = diagramH + 35;
+      const ry0 = diagramH + 20;
       const distLabel = isGround ? 'GRF at COP' : seg.distalName+' (from below)';
-      svg += '<text x="'+(x0+22)+'" y="'+ry0+'" font-size="20" font-weight="700" fill="#0B3D91">'+distLabel+'</text>';
-      svg += '<text x="'+(x0+22)+'" y="'+(ry0+30)+'" font-size="19" fill="#0B3D91">Fx='+fmt(dispF(distalR.x[i]),2)+' '+fLbl+'   Fy='+fmt(dispF(distalR.y[i]),2)+' '+fLbl+'</text>';
-      svg += '<text x="'+(x0+22)+'" y="'+(ry0+58)+'" font-size="19" fill="#D64545">M='+fmt(dispM(distalR.M[i]),mDp)+' '+mLbl+'</text>';
+      svg += '<text x="'+(x0+14)+'" y="'+ry0+'" font-size="11.5" font-weight="700" fill="#0B3D91">'+distLabel+'</text>';
+      svg += '<text x="'+(x0+14)+'" y="'+(ry0+18)+'" font-size="11.5" fill="#0B3D91">Fx='+fmt(dispF(distalR.x[i]),2)+' '+fLbl+'   Fy='+fmt(dispF(distalR.y[i]),2)+' '+fLbl+'</text>';
+      svg += '<text x="'+(x0+14)+'" y="'+(ry0+35)+'" font-size="11.5" fill="#D64545">M='+fmt(dispM(distalR.M[i]),mDp)+' '+mLbl+'</text>';
 
-      svg += '<text x="'+(x0+22)+'" y="'+(ry0+95)+'" font-size="20" font-weight="700" fill="#1C7293">'+seg.proximalName+' (solved)</text>';
-      svg += '<text x="'+(x0+22)+'" y="'+(ry0+125)+'" font-size="19" fill="#1C7293">Rx='+fmt(dispF(j.Rx[i]),2)+' '+fLbl+'   Ry='+fmt(dispF(j.Ry[i]),2)+' '+fLbl+'</text>';
-      svg += '<text x="'+(x0+22)+'" y="'+(ry0+153)+'" font-size="19" fill="#D64545">M='+fmt(dispM(j.M[i]),mDp)+' '+mLbl+'</text>';
+      svg += '<text x="'+(x0+14)+'" y="'+(ry0+58)+'" font-size="11.5" font-weight="700" fill="#1C7293">'+seg.proximalName+' (solved)</text>';
+      svg += '<text x="'+(x0+14)+'" y="'+(ry0+76)+'" font-size="11.5" fill="#1C7293">Rx='+fmt(dispF(j.Rx[i]),2)+' '+fLbl+'   Ry='+fmt(dispF(j.Ry[i]),2)+' '+fLbl+'</text>';
+      svg += '<text x="'+(x0+14)+'" y="'+(ry0+93)+'" font-size="11.5" fill="#D64545">M='+fmt(dispM(j.M[i]),mDp)+' '+mLbl+'</text>';
     });
 
     el('schematic').innerHTML = svg;
