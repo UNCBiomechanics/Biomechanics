@@ -553,7 +553,7 @@
   <footer>
     Solved bottom-up per segment using Newton's second law (&Sigma;F = m&middot;a<sub>com</sub>) and the rotational equivalent about each segment's own center of mass (&Sigma;M<sub>com</sub> = I<sub>com</sub>&middot;&alpha;), starting from the ground-contact segment (known force = the filtered GRF at COP; known moment = zero, since COP is defined as the point where the ground's in-plane moment is zero) and carrying each solved joint reaction force/moment, negated per Newton's third law, up as the "known" distal input for the next segment. Segment center of mass and radius of gyration use de Leva's (1996) percentages for whichever type you assign each link; segment length comes from the actual distance between your two pasted joint markers (median over the trial) rather than a separately-entered length. de Leva's tables define each segment's own proximal anthropometric landmark precisely (e.g. the <em>heel</em>, not the ankle, for the foot) — for the shank/thigh/upper-arm/forearm that already coincides with the real joint (ankle, knee, shoulder, elbow), but for the ground-contact segment it usually doesn't, since what connects to the next segment up the chain is a joint (the ankle), not the segment's true anthropometric end. Step 2's "true proximal landmark is different" option handles this: when enabled, mass/COM/inertia are computed from that landmark (e.g. heel) to the distal point (e.g. toe), while the joint reaction force/moment at the actual joint (e.g. ankle) are still solved and reported there, unaffected — leave it off and the tool falls back to using the joint itself for both, same as before. Linear and angular accelerations are computed by second-order central finite difference on the filtered position/angle time series.
     <p style="margin-top:1rem;color:var(--muted)">Created by Abbie Ferris, PhD — University of Northern Colorado</p>
-    <p style="margin-top:0.25rem;color:var(--muted);font-size:0.78rem">Last updated: 2026-10-01</p>
+    <p style="margin-top:0.25rem;color:var(--muted);font-size:0.78rem">Last updated: 2026-10-07</p>
   </footer>
 
 </div>
@@ -1561,9 +1561,28 @@
     renderSchematic();
   });
 
+  // vertical marker at the animation's current frame, drawn on every time-series chart so the
+  // plots and the FBD animation can be read together; redrawn via chart.draw() on each frame change
+  const frameLinePlugin = {
+    id:'frameLine',
+    afterDatasetsDraw(chart){
+      if (!results) return;
+      const px = chart.scales.x.getPixelForValue(results.T[frameIdx]);
+      const a = chart.chartArea;
+      if (!isFinite(px) || px < a.left || px > a.right) return;
+      const ctx = chart.ctx;
+      ctx.save();
+      ctx.strokeStyle = '#16232C'; ctx.lineWidth = 1.5; ctx.setLineDash([5,4]);
+      ctx.beginPath(); ctx.moveTo(px, a.top); ctx.lineTo(px, a.bottom); ctx.stroke();
+      ctx.restore();
+    }
+  };
+  function redrawFrameLines(){ [chartGrf, chartForce, chartMoment].forEach(c => { if (c) c.draw(); }); }
+
   function renderGrfChart(){
     if (chartGrf) chartGrf.destroy();
     chartGrf = new Chart(el('grfChart'), {
+      plugins:[frameLinePlugin],
       type:'line',
       data:{ datasets:[
         { label:'Fx', data: results.T.map((t,i)=>({x:t,y:dispF(results.Fx[i])})), borderColor:'#0B3D91', backgroundColor:'transparent', borderWidth:1.6, pointRadius:0, tension:0 },
@@ -1580,6 +1599,7 @@
     const j = results.joints[ji];
     if (chartForce) chartForce.destroy();
     chartForce = new Chart(el('forceChart'), {
+      plugins:[frameLinePlugin],
       type:'line',
       data:{ datasets:[
         { label:'Rx', data: results.T.map((t,i)=>({x:t,y:dispF(j.Rx[i])})), borderColor:'#0B3D91', backgroundColor:'transparent', borderWidth:1.6, pointRadius:0, tension:0 },
@@ -1591,6 +1611,7 @@
     });
     if (chartMoment) chartMoment.destroy();
     chartMoment = new Chart(el('momentChart'), {
+      plugins:[frameLinePlugin],
       type:'line',
       data:{ datasets:[
         { label:'M', data: results.T.map((t,i)=>({x:t,y:dispM(j.M[i])})), borderColor:'#D64545', backgroundColor:'transparent', borderWidth:1.8, pointRadius:0, tension:0 }
@@ -1653,15 +1674,16 @@
     const hx=x2-ux*headLen, hy=y2-uy*headLen;
     const px=-uy, py=ux;
     const h1x=hx+px*headW, h1y=hy+py*headW, h2x=hx-px*headW, h2y=hy-py*headW;
-    let s = '<line x1="'+x1.toFixed(1)+'" y1="'+y1.toFixed(1)+'" x2="'+x2.toFixed(1)+'" y2="'+y2.toFixed(1)+'" stroke="'+color+'" stroke-width="4"/>';
+    // shaft stops at the head's base (not the tip) — otherwise the line's square end pokes out past the arrow's point
+    let s = '<line x1="'+x1.toFixed(1)+'" y1="'+y1.toFixed(1)+'" x2="'+hx.toFixed(1)+'" y2="'+hy.toFixed(1)+'" stroke="'+color+'" stroke-width="4"/>';
     s += '<polygon points="'+x2.toFixed(1)+','+y2.toFixed(1)+' '+h1x.toFixed(1)+','+h1y.toFixed(1)+' '+h2x.toFixed(1)+','+h2y.toFixed(1)+'" fill="'+color+'"/>';
     if (label) s += labelWithBg(x2+8, y2+5, label, color, 13, 'start');
     return s;
   }
-  function momentGlyph(cx,cy,M,color,dashed,labelPrefix,showText){
+  function momentGlyph(cx,cy,M,color,dashed,labelPrefix,showText,radius){
     if (!isFinite(M) || Math.abs(M) < 1e-6) return '';
     if (showText === undefined) showText = true;
-    const r = 19;
+    const r = radius || 19;
     const ccw = M >= 0;
     const a0 = -0.35, a1 = a0 + (ccw ? 1.6*Math.PI : -1.6*Math.PI);
     const steps = 14;
@@ -1671,8 +1693,10 @@
       pts.push([cx+r*Math.cos(t), cy-r*Math.sin(t)]);
     }
     let d = pts.map((p,i)=> (i===0?'M':'L')+p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
-    const dashAttr = dashed ? ' stroke-dasharray="4,2.5"' : '';
-    let s = '<path d="'+d+'" fill="none" stroke="'+color+'" stroke-width="2.8"'+dashAttr+'/>';
+    const dashAttr = dashed ? ' stroke-dasharray="5,3"' : '';
+    // thin white backing under the arc so it still reads where it crosses the dark segment bar
+    let s = '<path d="'+d+'" fill="none" stroke="#fff" stroke-width="5.5" opacity="0.9"/>';
+    s += '<path d="'+d+'" fill="none" stroke="'+color+'" stroke-width="2.8"'+dashAttr+'/>';
     const [ex,ey] = pts[pts.length-1], [px,py] = pts[pts.length-2];
     const dx=ex-px, dy=ey-py, len=Math.hypot(dx,dy)||1;
     const ux=dx/len, uy=dy/len, perp=[-uy,ux];
@@ -1746,6 +1770,7 @@
     if (!results) return;
     const T = results.T, i = frameIdx;
     el('scrubReadout').textContent = 't = '+fmt(T[i],3)+' s (frame '+(i+1)+' of '+T.length+')';
+    redrawFrameLines();
 
     const nSeg = results.segments.length;
     const laneW = 340, H = 640, topPad = 52, sidePad = 66;
@@ -1826,14 +1851,21 @@
       svg += '<line x1="'+dx.toFixed(1)+'" y1="'+dy.toFixed(1)+'" x2="'+gx.toFixed(1)+'" y2="'+gy.toFixed(1)+'" stroke="#3A4750" stroke-width="8" stroke-linecap="round"/>';
       svg += '<circle cx="'+dx.toFixed(1)+'" cy="'+dy.toFixed(1)+'" r="4.5" fill="#16232C"/>';
       svg += '<circle cx="'+gx.toFixed(1)+'" cy="'+gy.toFixed(1)+'" r="4.5" fill="#16232C"/>';
-      // point-name labels are collected here but drawn LAST (after every arrow/moment glyph below)
-      // so they always sit on top — drawing them this early meant a long force arrow could paint
-      // right over a label and hide it (e.g. the ankle label disappearing under its own GRF arrow).
+      // point-name labels sit in a DIAGONAL corner off their point, pushed away from the COM —
+      // force arrows only ever run purely horizontal/vertical out of a point, and moment arcs are
+      // centered on it (radius 19), so a diagonal corner just outside that radius is the one spot
+      // nothing else gets drawn. Labels go in BEFORE the arrows/moments so that in the rare frame
+      // where something does cross a label, the arrow stays visible on top rather than the name.
+      // defSx is the horizontal side to use when the point is nearly straight above/below the COM.
+      function pointLabel(px, py, text, color, fontSize, defSx){
+        const ddx = px - comx, ddy = py - comy;
+        const sx = Math.abs(ddx) > 8 ? Math.sign(ddx) : defSx;
+        const sy = Math.abs(ddy) > 8 ? Math.sign(ddy) : 1;
+        return labelWithBg(px + sx*26, py + (sy > 0 ? 24 : -14), text, color, fontSize, sx > 0 ? 'start' : 'end');
+      }
       let pointLabelsSvg = '';
-      const dLabelY = dy + (dy > gy ? 20 : -12);
-      const gLabelY = gy + (gy > dy ? 20 : -12);
-      pointLabelsSvg += labelWithBg(dx, dLabelY, seg.distalName, '#16232C', 11.5, 'middle');
-      pointLabelsSvg += labelWithBg(gx, gLabelY, seg.geomProximalName, '#16232C', 11.5, 'middle');
+      pointLabelsSvg += pointLabel(dx, dy, seg.distalName, '#16232C', 11.5, 1);
+      pointLabelsSvg += pointLabel(gx, gy, seg.geomProximalName, '#16232C', 11.5, -1);
 
       if (hasGeomOverride){
         // the real joint (e.g. ankle) is a separate point rigidly attached to this same body —
@@ -1841,9 +1873,14 @@
         // that's where the solved joint force/moment below actually act
         svg += '<line x1="'+gx.toFixed(1)+'" y1="'+gy.toFixed(1)+'" x2="'+px2.toFixed(1)+'" y2="'+py2.toFixed(1)+'" stroke="#3A4750" stroke-width="1.8" stroke-dasharray="3,2" opacity="0.6"/>';
         svg += '<circle cx="'+px2.toFixed(1)+'" cy="'+py2.toFixed(1)+'" r="4.5" fill="#16232C"/>';
-        const jLabelY = py2 + (py2 > gy ? 20 : -12);
-        pointLabelsSvg += labelWithBg(px2, jLabelY, seg.proximalName, '#16232C', 11.5, 'middle');
+        pointLabelsSvg += pointLabel(px2, py2, seg.proximalName, '#16232C', 11.5, -1);
       }
+      let copx, copy;
+      if (isGround){
+        copx = lx(copxw); copy = ly(results.floorY);
+        pointLabelsSvg += pointLabel(copx, copy, 'COP', '#0B3D91', 10.5, 1);
+      }
+      svg += pointLabelsSvg;
 
       // COM, weight, and the segment's own rotational equation of motion (I·alpha) at COM.
       // Weight is usually much smaller than the joint/GRF forces that set fScale, so at true
@@ -1852,8 +1889,12 @@
       svg += '<circle cx="'+comx.toFixed(1)+'" cy="'+comy.toFixed(1)+'" r="5" fill="#1B8A5A" stroke="#fff" stroke-width="1.5"/>';
       const w = seg.massKg*G;
       svg += arrowSvg(comx, comy, 0, Math.max(w*fScale, 22), '#1B8A5A', null);
+      // every moment arc is centered ON the point it acts about (COM, joint, COP) — offsetting them
+      // to the side made the foot's COM and ankle arcs collide and land on the segment bar, so it
+      // wasn't clear which arc belonged to which point. COM's I·α is a smaller dashed purple arc;
+      // real joint moments are full-size solid red, so the two kinds never look alike.
       const Ia = seg.Icom*seg.alpha[i];
-      svg += momentGlyph(comx-24, comy, dispM(Ia), '#7B2D8E', true, '', false);
+      svg += momentGlyph(comx, comy, dispM(Ia), '#7B2D8E', true, '', false, 14);
 
       // the joint solved for this segment sits at its proximal end
       const j = results.joints.find(jj => jj.seg === seg);
@@ -1861,31 +1902,24 @@
       const fLbl = forceUnitLabel(), mLbl = momentUnitLabel();
       const mDp = (mLbl==='N·m') ? 1 : 3;
 
-      let copx, copy;
       if (isGround){
         // the GRF acts at the true COP location, not at the distal marker — draw it there, with
         // a dashed line back to the COM showing the moment arm that actually produces the torque
         // (this is the same r_dist vector the ΣM equation below uses).
-        copx = lx(copxw); copy = ly(results.floorY);
         svg += '<line x1="'+copx.toFixed(1)+'" y1="'+copy.toFixed(1)+'" x2="'+comx.toFixed(1)+'" y2="'+comy.toFixed(1)+'" stroke="#0B3D91" stroke-width="1.3" stroke-dasharray="2,2" opacity="0.55"/>';
         svg += '<circle cx="'+copx.toFixed(1)+'" cy="'+copy.toFixed(1)+'" r="4" fill="#0B3D91"/>';
-        pointLabelsSvg += labelWithBg(copx, copy+17, 'COP', '#0B3D91', 10.5, 'middle');
         svg += componentArrowsSvg(copx, copy, distalR.x[i]*fScale, -distalR.y[i]*fScale, '#0B3D91');
-        svg += momentGlyph(copx-24, copy-24, dispM(distalR.M[i]), '#D64545', false, '', false);
+        svg += momentGlyph(copx, copy, dispM(distalR.M[i]), '#D64545', false, '', false);
       } else {
         // every other segment's "known" force is the joint reaction handed up from the segment
         // below, which genuinely acts at the joint marker itself
         svg += componentArrowsSvg(dx, dy, distalR.x[i]*fScale, -distalR.y[i]*fScale, '#0B3D91');
-        svg += momentGlyph(dx-24, dy, dispM(distalR.M[i]), '#D64545', false, '', false);
+        svg += momentGlyph(dx, dy, dispM(distalR.M[i]), '#D64545', false, '', false);
       }
 
       // proximal end: the solved joint reaction force — drawn as two separate Rx/Ry arrows, not a resultant
       svg += componentArrowsSvg(px2, py2, j.Rx[i]*fScale, -j.Ry[i]*fScale, '#1C7293');
-      svg += momentGlyph(px2+24, py2, dispM(j.M[i]), '#D64545', false, '', false);
-
-      // point-name labels go on top of every arrow/moment glyph above, so a long arrow can never
-      // paint over and hide a label (see the comment where pointLabelsSvg was started)
-      svg += pointLabelsSvg;
+      svg += momentGlyph(px2, py2, dispM(j.M[i]), '#D64545', false, '', false);
 
       // ---- fixed numeric readout panel (never moves, never collides with the diagram above) ----
       const ry0 = diagramH + 20;
