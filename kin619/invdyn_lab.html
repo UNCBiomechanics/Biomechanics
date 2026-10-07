@@ -210,6 +210,36 @@
   }
   .eq-block .hdr{color:#7FD1E8;font-weight:700;}
 
+  /* results: sticky play bar + one two-column section per joint (FBD left, its charts right) */
+  .playbar{
+    position:sticky;top:0;z-index:20;
+    display:flex;gap:1rem;align-items:center;flex-wrap:wrap;
+    background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    padding:0.6rem 1rem;margin-bottom:1.5rem;box-shadow:0 4px 12px rgba(22,35,44,0.08);
+  }
+  .playbar input[type="range"]{flex:1;min-width:200px;}
+  details.joint-sec{background:var(--panel);border:1px solid var(--line);border-radius:10px;margin-bottom:1.5rem;}
+  details.joint-sec > summary{cursor:pointer;padding:1rem 1.5rem;font-weight:700;font-size:1.1rem;}
+  .js-sub{font-weight:500;color:var(--muted);font-size:0.88rem;margin-left:0.6rem;}
+  .js-body{display:grid;grid-template-columns:minmax(280px,420px) minmax(0,1fr);gap:1.25rem;padding:0 1.5rem 1rem;align-items:start;}
+  .js-fbd{position:sticky;top:78px;}
+  .js-fbd svg{width:100%;height:auto;display:block;border:1px solid var(--line);border-radius:8px;background:#FBFCFD;cursor:grab;touch-action:pan-y;}
+  .chart-holder.sm{height:200px;margin-bottom:0.5rem;}
+  .chart-na{font-size:0.83rem;color:var(--muted);background:#EEF3F6;border:1px dashed var(--line);border-radius:8px;padding:0.7rem 0.9rem;margin:0 0 0.6rem;}
+  .phase-ctl{display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center;background:#FFF6EC;border:1px solid #F3D9B8;border-radius:8px;padding:0.55rem 0.75rem;margin:0.4rem 0 0.6rem;}
+  .phase-ctl label{margin:0;font-size:0.82rem;}
+  .phase-ctl select{width:auto;padding:0.3rem 0.5rem;font-size:0.85rem;}
+  .phase-ctl .ph-custom{display:inline-flex;flex-wrap:wrap;gap:0.4rem;align-items:center;}
+  .phase-ctl input[type="number"]{width:6.5rem;padding:0.3rem 0.45rem;font-size:0.85rem;}
+  .phase-note{flex-basis:100%;margin:0;font-size:0.8rem;color:var(--amber);}
+  .work-sum{font-size:0.85rem;margin:-0.2rem 0 0.8rem;color:var(--ink);}
+  .eq-details{padding:0 1.5rem 1.25rem;}
+  .eq-details > summary{cursor:pointer;font-size:0.85rem;font-weight:600;color:var(--navy);margin-bottom:0.6rem;}
+  @media (max-width:900px){
+    .js-body{grid-template-columns:minmax(0,1fr);}
+    .js-fbd{position:static;}
+  }
+
   footer{margin-top:2rem;font-size:0.82rem;color:var(--muted);max-width:76ch;}
   footer a{color:var(--navy);}
 
@@ -478,6 +508,53 @@
   </section>
 
   <section class="panel">
+    <h2>4. Outputs</h2>
+    <p class="hint">Choose which time series appear in each joint's section of the results. You can change any of these after computing too — the results update instantly, no need to recompute.</p>
+    <div class="row" style="margin-top:0">
+      <div class="checkline"><input type="checkbox" id="outGrf" checked><label for="outGrf">Ground reaction force (in the ground-contact segment's section)</label></div>
+      <div class="checkline"><input type="checkbox" id="outJrf" checked><label for="outJrf">Joint reaction force</label></div>
+      <div class="checkline"><input type="checkbox" id="outMoment" checked><label for="outMoment">Net muscle moment</label></div>
+      <div class="checkline"><input type="checkbox" id="outAngle" checked><label for="outAngle">Joint angle</label></div>
+      <div class="checkline"><input type="checkbox" id="outOmega" checked><label for="outOmega">Joint angular velocity</label></div>
+      <div class="checkline"><input type="checkbox" id="outPower" checked><label for="outPower">Joint power</label></div>
+      <div class="checkline"><input type="checkbox" id="outWork" checked><label for="outWork">Joint work</label></div>
+    </div>
+    <p class="field-hint"><strong>Joint angle</strong> is the relative angle between the two segments meeting at a joint (distal segment's angle − proximal segment's angle; 0° = segments in line, so a straight knee reads 0°; for the ankle, where the foot sits at roughly a right angle to the shank in neutral, that 90° is removed so neutral also reads ≈ 0°). The ankle's 0° is exactly "foot line perpendicular to shank": with the "true proximal landmark" (heel) option on, the foot line is heel→toe, close to the sole; without it, the foot line is toe→ankle, which tilts up from the sole by several degrees, so a neutral ankle will read off zero by that tilt. Angles and angular velocities are reported in degrees; power is still computed with ω in rad/s, as P = M·ω requires. <strong>Joint angular velocity</strong> is the relative angular velocity of the two segments meeting at a joint (distal segment's ω − proximal segment's ω), plotted in the same sign convention as the moment — so <strong>joint power P = M·ω</strong> is simply the product of the two curves above it, and is positive (energy <em>generated</em> by the muscles) whenever M and ω share a sign, negative (energy <em>absorbed</em>) when they don't. The top joint of your chain has no segment above it, so it gets moment and reaction force but no ω, power or work.</p>
+
+    <div class="row">
+      <div class="field" style="min-width:220px">
+        <label for="workMeasure">Work to report</label>
+        <select id="workMeasure">
+          <option value="net">Net work (positive + negative)</option>
+          <option value="pos">Positive work only (generation)</option>
+          <option value="neg">Negative work only (absorption)</option>
+          <option value="all" selected>All three</option>
+        </select>
+      </div>
+      <div class="field" style="min-width:240px">
+        <label for="workPhase">Default phase (every joint)</label>
+        <select id="workPhase">
+          <option value="whole" selected>Whole trial</option>
+          <option value="stance">Stance (frames above the force threshold)</option>
+          <option value="custom">Custom phase (start → end time)</option>
+        </select>
+      </div>
+    </div>
+    <div class="row" id="workCustomFields">
+      <div class="field">
+        <label for="workStart">Phase start (s)</label>
+        <input type="number" id="workStart" step="any">
+        <button class="ghost small" id="workStartNow" type="button" style="margin-top:0.35rem" disabled>Use current frame</button>
+      </div>
+      <div class="field">
+        <label for="workEnd">Phase end (s)</label>
+        <input type="number" id="workEnd" step="any">
+        <button class="ghost small" id="workEndNow" type="button" style="margin-top:0.35rem" disabled>Use current frame</button>
+      </div>
+    </div>
+    <p class="field-hint">Work is the time integral of joint power (trapezoidal rule), taken over the phase you choose here. <strong>Net</strong> work sums generation and absorption; <strong>positive</strong> and <strong>negative</strong> work integrate each part separately (split exactly at every zero crossing), which is why net = positive + negative. "Use current frame" buttons work after computing — scrub the results' play bar to the instant you want, then press one. The chosen phase is shaded orange on every chart. This sets the starting phase for <strong>every</strong> joint (and resets them all when changed); each joint's own section then has its own phase picker, so e.g. the ankle can use push-off while the knee uses early stance.</p>  </section>
+
+  <section class="panel">
     <div class="actions" style="margin-top:0">
       <button class="primary" id="computeBtn" type="button">Compute inverse dynamics</button>
     </div>
@@ -497,9 +574,19 @@
       <div class="row">
         <div class="checkline">
           <input type="checkbox" id="normalizeBW" checked>
-          <label for="normalizeBW">Normalize: forces to body weight (×BW), moments to body mass (N&middot;m/kg)</label>
+          <label for="normalizeBW">Normalize: forces to body weight (×BW), moments, power and work to body mass (N&middot;m/kg, W/kg, J/kg)</label>
         </div>
       </div>
+      <div class="row">
+        <div class="field" style="min-width:300px">
+          <label for="arrowScale">Force arrow lengths in the diagrams</label>
+          <select id="arrowScale">
+            <option value="enhanced" selected>Enhanced — √-scaled, so small forces stay visible</option>
+            <option value="true">True scale — length proportional to force</option>
+          </select>
+        </div>
+      </div>
+      <p class="hint">Enhanced keeps every arrow pointing the right way and a bigger force still always draws a longer arrow, but lengths are no longer proportional (a force 4× larger draws 2× longer) — otherwise a small horizontal force next to a large vertical one is only a few pixels long and effectively invisible. Either way, the actual value is printed at each arrow's tip.</p>
     </section>
 
     <div class="stats" id="statsRow"></div>
@@ -510,38 +597,29 @@
       <table class="datatab" id="segLenTable"></table>
     </section>
 
-    <section class="panel">
-      <h2>Ground reaction force vs. time</h2>
-      <div class="legend-note" id="grfLegend"></div>
-      <div class="chart-holder"><canvas id="grfChart"></canvas></div>
-    </section>
+    <div class="playbar">
+      <button class="ghost small" id="playBtn" type="button">Play</button>
+      <input type="range" id="frameSlider" min="0" max="0" value="0" step="1">
+      <span class="scrub-readout" id="scrubReadout"></span>
+      <button class="ghost small" id="chartZoomReset" type="button">Reset chart zoom</button>
+    </div>
 
     <section class="panel">
-      <h2>Joint kinetics vs. time</h2>
-      <div class="row" style="margin-top:0">
-        <div class="field">
-          <label for="jointSelect">Joint</label>
-          <select id="jointSelect"></select>
-        </div>
-      </div>
-      <div class="legend-note" id="forceLegend"></div>
-      <div class="chart-holder"><canvas id="forceChart"></canvas></div>
-      <div class="chart-holder" style="margin-top:1rem"><canvas id="momentChart"></canvas></div>
-      <p class="hint">Reaction force / moment are what the <strong>proximal</strong> segment applies onto the <strong>distal</strong> segment at this joint by this tool's own solve direction (Newton's third law gives you the reverse — flip the "Flip moment sign" option above for moments in Winter's convention instead). Click any chart on this page to jump the schematic below to that instant.</p>
+      <h2>Joint-by-joint results</h2>
+      <p class="hint" style="margin-top:0">One section per joint, working up the chain from the ground. Each shows the free-body diagram of the segment that joint is solved on (left) beside that joint's time series (right). The play bar above stays pinned to the top of the screen as you scroll, and the dashed line on every chart marks the instant the diagrams are showing — click any chart to jump there. Charts share one time axis: drag to pan, Ctrl+scroll to zoom (all charts follow).</p>
+      <div class="legend-note" id="schematicLegend" style="margin:0"></div>
+      <details style="margin-top:0.8rem">
+        <summary class="hint" style="cursor:pointer;margin:0">How to read the free-body diagrams</summary>
+        <p class="hint">Each segment is drawn <strong>isolated</strong> from its neighbors — the classic free-body-diagram convention — animated from your actual joint-marker positions at the selected instant. Green = weight (mg) at the COM, navy = the known force at the segment's distal end (the ground reaction force at COP for the ground-contact segment, or the reaction handed down from the segment below for every other segment), teal = the solved joint reaction force at the proximal end, red arcs = real net muscle moments, each centered on the point it acts about, dashed purple arc = the segment's own I&middot;&alpha; (its rotational equation of motion, plotted at the COM — not an applied force, but what the moment equation is actually balancing against). Reaction force / moment are what the <strong>proximal</strong> segment applies onto the <strong>distal</strong> segment at that joint by this tool's own solve direction (Newton's third law gives you the reverse — use "Flip moment sign" above for moments in Winter's convention). <strong>The GRF only enters the model once, at the ground-contact segment</strong> — every joint above it inherits the GRF's effect indirectly, since each segment's own solved reaction force/moment becomes the next segment's known input, by Newton's third law. The equation panels name that first block's terms <code>GRF_x</code>/<code>GRF_y</code>/<code>M_GRF</code> explicitly instead of the generic <code>R_dist</code>/<code>M_dist</code> used everywhere else. Equation-panel values always show this tool's own raw solve direction, unaffected by the sign-flip/normalize display options above.</p>
+      </details>
     </section>
 
+    <div id="jointSections"></div>
+
     <section class="panel">
-      <h2>Free-body-diagram schematic</h2>
-      <div class="legend-note" id="schematicLegend"></div>
-      <div class="scrub-row">
-        <button class="ghost small" id="playBtn" type="button">Play</button>
-        <input type="range" id="frameSlider" min="0" max="0" value="0" step="1">
-        <span class="scrub-readout" id="scrubReadout"></span>
-      </div>
-      <div class="diagram-wrap"><svg id="schematic" width="620" height="440" viewBox="0 0 620 440" xmlns="http://www.w3.org/2000/svg"></svg></div>
-      <p class="hint">Scroll/pinch over the diagram to zoom, drag to pan. <button class="ghost small" id="schematicZoomReset" type="button">Reset view</button></p>
-      <div id="eqPanel" style="margin-top:1rem"></div>
-      <p class="hint">Each segment is drawn <strong>isolated</strong> from its neighbors — the classic free-body-diagram convention — animated from your actual joint-marker positions at the selected instant, one panel per segment, distal end on the left/bottom of its panel and proximal end on the right/top. Green = weight (mg) at the COM, navy = the known force at the segment's distal end (the ground reaction force at COP for the ground-contact segment, or the reaction handed down from the segment below for every other segment), teal = the solved joint reaction force at the proximal end, red arcs = real net muscle moments at each end, dashed purple arc = the segment's own I&middot;&alpha; (its rotational equation of motion, plotted at the COM — not an applied force, but what the moment equation is actually balancing against). <strong>The GRF only enters the model once, at the ground-contact segment</strong> (first equation block above) — every joint above it inherits the GRF's effect indirectly, since each segment's own solved reaction force/moment becomes the next segment's known input, by Newton's third law. The equation panel names that first block's terms <code>GRF_x</code>/<code>GRF_y</code>/<code>M_GRF</code> explicitly instead of the generic <code>R_dist</code>/<code>M_dist</code> used everywhere else, so it's unambiguous where the ground force actually shows up in the numbers. Equation-panel values always show this tool's own raw solve direction, unaffected by the sign-flip/normalize display options above.</p>
+      <h2>Joint work</h2>
+      <table class="datatab" id="workTable"></table>
+      <p class="hint" id="workTableNote"></p>
     </section>
 
     <section class="panel">
@@ -551,7 +629,7 @@
   </section>
 
   <footer>
-    Solved bottom-up per segment using Newton's second law (&Sigma;F = m&middot;a<sub>com</sub>) and the rotational equivalent about each segment's own center of mass (&Sigma;M<sub>com</sub> = I<sub>com</sub>&middot;&alpha;), starting from the ground-contact segment (known force = the filtered GRF at COP; known moment = zero, since COP is defined as the point where the ground's in-plane moment is zero) and carrying each solved joint reaction force/moment, negated per Newton's third law, up as the "known" distal input for the next segment. Segment center of mass and radius of gyration use de Leva's (1996) percentages for whichever type you assign each link; segment length comes from the actual distance between your two pasted joint markers (median over the trial) rather than a separately-entered length. de Leva's tables define each segment's own proximal anthropometric landmark precisely (e.g. the <em>heel</em>, not the ankle, for the foot) — for the shank/thigh/upper-arm/forearm that already coincides with the real joint (ankle, knee, shoulder, elbow), but for the ground-contact segment it usually doesn't, since what connects to the next segment up the chain is a joint (the ankle), not the segment's true anthropometric end. Step 2's "true proximal landmark is different" option handles this: when enabled, mass/COM/inertia are computed from that landmark (e.g. heel) to the distal point (e.g. toe), while the joint reaction force/moment at the actual joint (e.g. ankle) are still solved and reported there, unaffected — leave it off and the tool falls back to using the joint itself for both, same as before. Linear and angular accelerations are computed by second-order central finite difference on the filtered position/angle time series.
+    Solved bottom-up per segment using Newton's second law (&Sigma;F = m&middot;a<sub>com</sub>) and the rotational equivalent about each segment's own center of mass (&Sigma;M<sub>com</sub> = I<sub>com</sub>&middot;&alpha;), starting from the ground-contact segment (known force = the filtered GRF at COP; known moment = zero, since COP is defined as the point where the ground's in-plane moment is zero) and carrying each solved joint reaction force/moment, negated per Newton's third law, up as the "known" distal input for the next segment. Segment center of mass and radius of gyration use de Leva's (1996) percentages for whichever type you assign each link; segment length comes from the actual distance between your two pasted joint markers (median over the trial) rather than a separately-entered length. de Leva's tables define each segment's own proximal anthropometric landmark precisely (e.g. the <em>heel</em>, not the ankle, for the foot) — for the shank/thigh/upper-arm/forearm that already coincides with the real joint (ankle, knee, shoulder, elbow), but for the ground-contact segment it usually doesn't, since what connects to the next segment up the chain is a joint (the ankle), not the segment's true anthropometric end. Step 2's "true proximal landmark is different" option handles this: when enabled, mass/COM/inertia are computed from that landmark (e.g. heel) to the distal point (e.g. toe), while the joint reaction force/moment at the actual joint (e.g. ankle) are still solved and reported there, unaffected — leave it off and the tool falls back to using the joint itself for both, same as before. Linear and angular accelerations are computed by second-order central finite difference on the filtered position/angle time series, and segment angular velocity by first-order central difference. Joint power is the net moment times the relative angular velocity of the two segments at that joint, P = M&middot;(&omega;<sub>distal</sub> &minus; &omega;<sub>proximal</sub>), and joint work is its trapezoidal time integral over the chosen phase.
     <p style="margin-top:1rem;color:var(--muted)">Created by Abbie Ferris, PhD — University of Northern Colorado</p>
     <p style="margin-top:0.25rem;color:var(--muted);font-size:0.78rem">Last updated: 2026-10-07</p>
   </footer>
@@ -1206,6 +1284,16 @@
     }
     return out;
   }
+  function centralDeriv1(y, dt){
+    const n=y.length, out=new Array(n);
+    for (let i=0;i<n;i++){
+      if (n < 2){ out[i]=0; continue; }
+      if (i===0) out[i] = (y[1]-y[0])/dt;
+      else if (i===n-1) out[i] = (y[n-1]-y[n-2])/dt;
+      else out[i] = (y[i+1]-y[i-1])/(2*dt);
+    }
+    return out;
+  }
   function centralDeriv2(y, dt){
     const n=y.length, out=new Array(n);
     for (let i=0;i<n;i++){
@@ -1398,14 +1486,17 @@
       thetaN = unwrap(thetaN);
       const axN = centralDeriv2(comXN, jointDt), ayN = centralDeriv2(comYN, jointDt);
       const alphaN = centralDeriv2(thetaN, jointDt);
+      const omegaN = centralDeriv1(thetaN, jointDt);
       const ax = interp1(jointTimes, axN, T), ay = interp1(jointTimes, ayN, T);
       const alpha = interp1(jointTimes, alphaN, T);
+      const omega = interp1(jointTimes, omegaN, T);
+      const theta = interp1(jointTimes, thetaN, T);
 
       segments.push({
-        name: TYPE_LABEL[segParams[i].type] + ' ('+distalPt.name+' \u2192 '+gName+')',
+        name: TYPE_LABEL[segParams[i].type] + ' ('+distalPt.name+' \u2192 '+gName+')', type: segParams[i].type,
         distalId: distalPt.id, proximalId: proximalPt.id, distalName: distalPt.name, proximalName: proximalPt.name,
         geomProximalId: useHeel ? footHeel.id : proximalPt.id, geomProximalName: gName,
-        massKg, L, Icom, comX, comY, ax, ay, alpha
+        massKg, L, Icom, comX, comY, ax, ay, alpha, omega, theta
       });
     }
 
@@ -1439,6 +1530,35 @@
       RdX = RpX.map(v=>-v); RdY = RpY.map(v=>-v); Md = Mp.map(v=>-v);
     }
 
+    // joint angular velocity and power. M (raw solve direction) is the moment the proximal side
+    // applies ON the distal segment, so the muscles' power into the distal segment is M·ω_distal
+    // and into the proximal segment (which feels −M) is −M·ω_proximal — net joint power is
+    // M·(ω_distal − ω_proximal). The top joint of the chain has no proximal segment to measure,
+    // so its ω/power are left null rather than silently assuming that missing segment is still.
+    joints.forEach((jt, k) => {
+      const distSeg = segments[k], proxSeg = segments[k+1];
+      if (proxSeg){
+        jt.omega = T.map((_,t) => distSeg.omega[t] - proxSeg.omega[t]);
+        jt.P = T.map((_,t) => jt.M[t]*jt.omega[t]);
+        // relative (joint) angle θ_distal − θ_proximal, the quantity whose time derivative is ω
+        // above. Segment angles are unwrapped over time, so shift the whole curve by one constant
+        // multiple of 2π to start within ±180° — keeps it continuous while reading sensibly.
+        const raw = T.map((_,t) => distSeg.theta[t] - proxSeg.theta[t]);
+        const shift = 2*Math.PI*Math.round(raw[0]/(2*Math.PI));
+        let ang = raw.map(v => v - shift);
+        // a foot sits roughly perpendicular to the shank in neutral (where every in-line joint,
+        // like the knee, is already 0°), so its raw relative angle hovers near ±90° — remove that
+        // quarter turn so neutral reads ≈ 0° too. ±90° depends on which way the subject faces,
+        // so the sign comes from the data. A constant offset leaves ω and power untouched.
+        if (distSeg.type === 'foot'){
+          const mean = ang.reduce((a,v) => a+v, 0)/ang.length;
+          const q = (mean >= 0 ? 1 : -1)*Math.PI/2;
+          ang = ang.map(v => v - q);
+        }
+        jt.angle = ang;
+      } else { jt.omega = null; jt.P = null; jt.angle = null; }
+    });
+
     results = { T, dt, Fx, Fy, COPx, floorY, chainPoints, pointPos, segments, joints, bodyMass };
 
     // sanity check: no real human body segment is under ~3cm or over ~1m long. If one comes out
@@ -1464,20 +1584,206 @@
   });
 
   // ================= results rendering =================
-  let chartGrf = null, chartForce = null, chartMoment = null, frameIdx = 0, playTimer = null;
+  let frameIdx = 0, playTimer = null;
+  // every time-series chart currently on the page — the frame marker, the shared time-axis zoom
+  // and click-to-jump all loop over this one list instead of tracking each chart by name
+  let charts = [];
+  // one entry per joint section: its FBD svg, equation host, and the svg's fixed height
+  let sectionRefs = [];
+  // each joint's own work/power phase choice ({mode, start, end}), since the phase of interest
+  // differs joint to joint — seeded from the "4. Outputs" defaults, then editable per section
+  let jointPhase = [];
+  function defaultPhase(){ return { mode: el('workPhase').value, start: el('workStart').value, end: el('workEnd').value }; }
 
   // ---- display-layer transforms (sign flip / normalization) — applied only when rendering
   // charts/tables/schematic labels, never touching the underlying solved arrays (results.joints[].
-  // Rx/Ry/M), which stay in this tool's own raw solve direction and real units so the physics chain
-  // (and the equation panel, deliberately) stay internally consistent and independently checkable.
+  // Rx/Ry/M/omega/P), which stay in this tool's own raw solve direction and real units so the physics
+  // chain (and the equation panel, deliberately) stay internally consistent and independently checkable.
   function momentSign(){ return el('flipMomentSign').checked ? -1 : 1; }
-  function fScaleDisp(){ return el('normalizeBW').checked ? 1/(results.bodyMass*G) : 1; }
-  function mScaleDisp(){ return el('normalizeBW').checked ? 1/results.bodyMass : 1; }
+  function normalized(){ return el('normalizeBW').checked; }
+  function fScaleDisp(){ return normalized() ? 1/(results.bodyMass*G) : 1; }
+  function mScaleDisp(){ return normalized() ? 1/results.bodyMass : 1; }
   function dispF(raw){ return raw*fScaleDisp(); }
   function dispM(raw){ return raw*momentSign()*mScaleDisp(); }
-  function forceUnitLabel(){ return el('normalizeBW').checked ? '×BW' : 'N'; }
-  function momentUnitLabel(){ return el('normalizeBW').checked ? 'N·m/kg' : 'N·m'; }
+  // joint angle and angular velocity are shown in the SAME sign convention as the moment (they flip
+  // along with "Flip moment sign"), so displayed M and displayed ω always share a sign exactly when
+  // power is positive. Power and work themselves never flip: generation is positive and absorption
+  // negative in either convention. Angles/ω are displayed in degrees (the usual reporting unit);
+  // every power calculation still uses rad/s internally, since P = M·ω only holds in radians.
+  const DEG = 180/Math.PI;
+  function dispOmega(raw){ return raw*momentSign()*DEG; }
+  function dispAngle(raw){ return raw*momentSign()*DEG; }
+  function dispP(raw){ return raw*mScaleDisp(); }
+  function forceUnitLabel(){ return normalized() ? '×BW' : 'N'; }
+  function momentUnitLabel(){ return normalized() ? 'N·m/kg' : 'N·m'; }
+  function powerUnitLabel(){ return normalized() ? 'W/kg' : 'W'; }
+  function workUnitLabel(){ return normalized() ? 'J/kg' : 'J'; }
+  function outOn(id){ return el(id).checked; }
+  function esc(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
+  // ---- work / power ----
+  // which frames work is integrated over: the whole trial, stance (first to last frame with a
+  // non-zero vertical GRF after the force threshold), or a custom start/end time
+  function getWorkWindow(ph){
+    const T = results.T, mode = ph.mode, last = T.length-1;
+    const whole = { i0:0, i1:last, label:'whole trial', whole:true };
+    if (mode === 'stance'){
+      let a = -1, b = -1;
+      for (let t=0;t<T.length;t++){ if (Math.abs(results.Fy[t]) > 0){ if (a < 0) a = t; b = t; } }
+      if (a >= 0 && b > a) return { i0:a, i1:b, label:'stance, '+fmt(T[a],3)+'–'+fmt(T[b],3)+' s', whole:(a===0 && b===last) };
+      return Object.assign(whole, { note:'no frames are above the force threshold, so stance couldn\'t be found — using the whole trial' });
+    }
+    if (mode === 'custom'){
+      const ta = parseFloat(ph.start), tb = parseFloat(ph.end);
+      if (isFinite(ta) && isFinite(tb) && tb > ta){
+        const a = nearestIndexT(ta), b = nearestIndexT(tb);
+        if (b > a) return { i0:a, i1:b, label:fmt(T[a],3)+'–'+fmt(T[b],3)+' s', whole:(a===0 && b===last) };
+      }
+      return Object.assign(whole, { note:'enter a start and an end time (end after start) for the custom phase — using the whole trial until then' });
+    }
+    return whole;
+  }
+  // trapezoidal integral of power over frames a..b, split into its positive and negative parts.
+  // Where power changes sign between two samples, that interval is split at the interpolated zero
+  // crossing, so one straddling trapezoid doesn't leak area from one sign into the other.
+  function workIntegrals(P, T, a, b){
+    const n = T.length;
+    const cumNet = new Array(n).fill(null), cumPos = new Array(n).fill(null), cumNeg = new Array(n).fill(null);
+    let net = 0, pos = 0, neg = 0;
+    cumNet[a] = 0; cumPos[a] = 0; cumNeg[a] = 0;
+    for (let t=a+1;t<=b;t++){
+      const h = T[t]-T[t-1], p0 = P[t-1], p1 = P[t];
+      let ap = 0, an = 0;
+      if ((p0 >= 0 && p1 >= 0) || (p0 <= 0 && p1 <= 0)){
+        const area = (p0+p1)/2*h;
+        if (area >= 0) ap = area; else an = area;
+      } else {
+        const f = p0/(p0-p1); // fraction of the interval before the zero crossing
+        const a1 = p0*f*h/2, a2 = p1*(1-f)*h/2;
+        if (a1 > 0){ ap = a1; an = a2; } else { an = a1; ap = a2; }
+      }
+      pos += ap; neg += an; net += ap+an;
+      cumNet[t] = net; cumPos[t] = pos; cumNeg[t] = neg;
+    }
+    return { net, pos, neg, cumNet, cumPos, cumNeg };
+  }
+  const WORK_NAMES = { net:'Net', pos:'Positive', neg:'Negative' };
+  function workCols(){ const m = el('workMeasure').value; return m === 'all' ? ['net','pos','neg'] : [m]; }
+
+  // ---- charts ----
+  function nearestIndexT(tVal){
+    const T = results.T;
+    let lo=0, hi=T.length-1;
+    while (lo<hi){ const mid=(lo+hi)>>1; if (T[mid]<tVal) lo=mid+1; else hi=mid; }
+    if (lo>0 && Math.abs(T[lo-1]-tVal) < Math.abs(T[lo]-tVal)) return lo-1;
+    return lo;
+  }
+  // time axis only, and wheel-zoom only with Ctrl held — the results are one long scrolling page of
+  // stacked charts, so a plain scroll wheel has to keep scrolling the page, not zoom whatever it's over
+  function zoomOpts(){
+    return { pan:{enabled:true,mode:'x',onPanComplete:syncChartX},
+             zoom:{wheel:{enabled:true,modifierKey:'ctrl'},pinch:{enabled:true},drag:{enabled:false},mode:'x',onZoomComplete:syncChartX} };
+  }
+  // every chart shares one time axis — zooming or panning any of them applies the same window to all
+  function syncChartX({chart}){
+    const {min, max} = chart.scales.x;
+    charts.forEach(c => { if (c !== chart){ c.options.scales.x.min = min; c.options.scales.x.max = max; c.update('none'); } });
+  }
+  function resetChartZoom(){
+    if (!results) return;
+    const T = results.T;
+    charts.forEach(c => { c.options.scales.x.min = T[0]; c.options.scales.x.max = T[T.length-1]; c.update('none'); });
+  }
+  // vertical marker at the animation's current frame, plus a light band over the work phase when it
+  // isn't the whole trial — on every chart, so the plots and the FBD animation can be read together
+  const frameLinePlugin = {
+    id:'frameLine',
+    beforeDatasetsDraw(chart){
+      const win = chart.$win; // the phase of the joint section this chart belongs to
+      if (!results || !win || win.whole) return;
+      const xs = chart.scales.x, a = chart.chartArea;
+      const x0 = Math.max(a.left, xs.getPixelForValue(results.T[win.i0]));
+      const x1 = Math.min(a.right, xs.getPixelForValue(results.T[win.i1]));
+      if (!(x1 > x0)) return;
+      const ctx = chart.ctx;
+      ctx.save(); ctx.fillStyle = 'rgba(232,135,30,0.10)'; ctx.fillRect(x0, a.top, x1-x0, a.bottom-a.top); ctx.restore();
+    },
+    afterDatasetsDraw(chart){
+      if (!results) return;
+      const px = chart.scales.x.getPixelForValue(results.T[frameIdx]);
+      const a = chart.chartArea;
+      if (!isFinite(px) || px < a.left || px > a.right) return;
+      const ctx = chart.ctx;
+      ctx.save();
+      ctx.strokeStyle = '#16232C'; ctx.lineWidth = 1.5; ctx.setLineDash([5,4]);
+      ctx.beginPath(); ctx.moveTo(px, a.top); ctx.lineTo(px, a.bottom); ctx.stroke();
+      ctx.restore();
+    }
+  };
+  // redrawing every chart on every animation frame gets slow with several joints' worth of charts,
+  // so only on-screen charts redraw immediately; off-screen ones are marked stale and redraw the
+  // moment they scroll (or their section expands) into view
+  const chartVisObserver = ('IntersectionObserver' in window) ? new IntersectionObserver(entries => {
+    entries.forEach(en => {
+      if (!en.isIntersecting) return;
+      const c = Chart.getChart(en.target);
+      if (c && c.$frameStale){ c.$frameStale = false; c.draw(); }
+    });
+  }) : null;
+  function redrawFrameLines(){
+    const vh = window.innerHeight;
+    charts.forEach(c => {
+      const r = c.canvas.getBoundingClientRect();
+      if (!chartVisObserver || (r.height > 0 && r.bottom > 0 && r.top < vh)){ c.$frameStale = false; c.draw(); }
+      else c.$frameStale = true;
+    });
+  }
+  function setFrame(i){
+    frameIdx = i;
+    el('frameSlider').value = i;
+    renderFrame();
+  }
+  function bindChartClick(canvas, ch){
+    let downX = 0, downY = 0;
+    canvas.addEventListener('pointerdown', e => { downX = e.clientX; downY = e.clientY; });
+    canvas.addEventListener('click', e => {
+      if (Math.hypot(e.clientX-downX, e.clientY-downY) > 4) return; // that was a pan drag, not a click
+      const tVal = ch.scales.x.getValueForPixel(e.offsetX);
+      if (isFinite(tVal)) setFrame(nearestIndexT(tVal));
+    });
+  }
+  function seriesLine(label, ys, color, extra){
+    return Object.assign({ label, data: results.T.map((t,i) => ({x:t, y:ys[i]})), borderColor:color, backgroundColor:color,
+      borderWidth:1.6, pointRadius:0, tension:0, fill:false }, extra || {});
+  }
+  function makeChart(canvas, datasets, title, yLabel, showXTitle, win){
+    const T = results.T;
+    const ch = new Chart(canvas, {
+      type:'line',
+      plugins:[frameLinePlugin],
+      data:{ datasets },
+      options:{ animation:false, responsive:true, maintainAspectRatio:false,
+        plugins:{
+          legend:{ display:true, position:'top', align:'end', labels:{ boxWidth:14, boxHeight:3, font:{size:11}, filter: item => !item.text.startsWith('_') } },
+          title:{ display:true, text:title, align:'start', font:{size:12, weight:'600'}, padding:{top:2, bottom:0} },
+          zoom: zoomOpts()
+        },
+        scales:{ x:{ type:'linear', min:T[0], max:T[T.length-1], title:{display:!!showXTitle, text:'Time (s)'} },
+                 y:{ title:{display:true, text:yLabel} } } }
+    });
+    ch.$win = win;
+    ch.draw(); // first paint happened before $win was attached
+    bindChartClick(canvas, ch);
+    if (chartVisObserver) chartVisObserver.observe(canvas);
+    charts.push(ch);
+    return ch;
+  }
+  function destroyCharts(){
+    charts.forEach(c => { if (chartVisObserver) chartVisObserver.unobserve(c.canvas); c.destroy(); });
+    charts = [];
+  }
+
+  // ---- results page ----
   function renderResults(){
     el('resultsSection').style.display = 'block';
 
@@ -1493,159 +1799,228 @@
     ).join('');
     el('segLenTable').innerHTML = '<thead><tr><th>Segment</th><th>Length (median over trial)</th><th>Mass</th><th>I about COM</th></tr></thead><tbody>'+segLenRows+'</tbody>';
 
-    const jointSelect = el('jointSelect');
-    jointSelect.innerHTML = results.joints.map((j,i) => '<option value="'+i+'">'+j.name+' ('+j.segName+')</option>').join('');
-    jointSelect.onchange = renderKinetics;
-
     el('frameSlider').min = 0;
     el('frameSlider').max = results.T.length-1;
     frameIdx = 0;
     el('frameSlider').value = 0;
-    el('frameSlider').oninput = function(){ frameIdx = parseInt(this.value,10); renderSchematic(); };
 
-    el('grfLegend').innerHTML =
-      '<span><span class="swatch" style="background:#0B3D91"></span>Fx (horizontal)</span>'
-      + '<span><span class="swatch" style="background:#1C7293"></span>Fy (vertical)</span>';
-    el('forceLegend').innerHTML =
-      '<span><span class="swatch" style="background:#0B3D91"></span>Rx (horizontal)</span>'
-      + '<span><span class="swatch" style="background:#1C7293"></span>Ry (vertical)</span>';
     el('schematicLegend').innerHTML =
       '<span><span class="dot" style="background:#3A4750"></span>segment (isolated)</span>'
       + '<span><span class="dot" style="background:#1B8A5A"></span>weight (mg) at COM</span>'
-      + '<span><span class="dot" style="background:#0B3D91"></span>known force (GRF at COP for the ground segment; handed down from below for every other segment)</span>'
+      + '<span><span class="dot" style="background:#0B3D91"></span>known force at the distal end (GRF at COP for the ground segment)</span>'
       + '<span><span class="dot" style="background:#1C7293"></span>solved joint reaction force (proximal end)</span>'
-      + '<span><span class="dot" style="background:#D64545"></span>real net muscle moment (both ends)</span>'
-      + '<span><span class="dot" style="background:#7B2D8E"></span>I&middot;&alpha; at COM (dashed — not an applied force)</span>';
+      + '<span><span class="dot" style="background:#D64545"></span>net muscle moment (solid arc)</span>'
+      + '<span><span class="dot" style="background:#7B2D8E"></span>I&middot;&alpha; at COM (dashed arc — not an applied force)</span>'
+      + '<span><span class="dot" style="background:#A0522D"></span>joint angle</span>'
+      + '<span><span class="dot" style="background:#5B4FCF"></span>joint angular velocity</span>';
 
-    renderGrfChart();
-    renderKinetics();
-    renderSchematic();
+    el('workStartNow').disabled = false;
+    el('workEndNow').disabled = false;
+    jointPhase = results.joints.map(() => defaultPhase());
+    rebuildResults();
+  }
+  function rebuildResults(){
+    buildJointSections();
+    renderFrame();
+    renderWorkTable();
     renderPeakTable();
   }
-  el('flipMomentSign').addEventListener('change', function(){ if (results){ renderKinetics(); renderPeakTable(); renderSchematic(); } });
-  el('normalizeBW').addEventListener('change', function(){ if (results){ renderGrfChart(); renderKinetics(); renderPeakTable(); renderSchematic(); } });
 
-  function nearestIndexT(tVal){
+  // one collapsible section per joint: the FBD of the segment that joint is solved on (left, sticky
+  // while its charts scroll past) beside that joint's time series (right), all sharing one time axis
+  // and the frame marker driven by the sticky play bar above
+  const FBD_W = 400, FBD_DIAG_H = 440;
+  function fbdShowsOmega(){ return outOn('outAngle') || outOn('outOmega') || outOn('outPower'); }
+  function buildJointSections(){
+    destroyCharts();
+    sectionRefs = [];
+    const host = el('jointSections');
+    const wasClosed = new Set([...host.querySelectorAll('details.joint-sec')].filter(d => !d.open).map(d => d.dataset.k));
+    host.innerHTML = '';
     const T = results.T;
-    let lo=0, hi=T.length-1;
-    while (lo<hi){ const mid=(lo+hi)>>1; if (T[mid]<tVal) lo=mid+1; else hi=mid; }
-    if (lo>0 && Math.abs(T[lo-1]-tVal) < Math.abs(T[lo]-tVal)) return lo-1;
-    return lo;
-  }
+    const uF = forceUnitLabel(), uM = momentUnitLabel(), uP = powerUnitLabel(), uW = workUnitLabel();
+    const wDp = normalized() ? 3 : 2;
 
-  function zoomOpts(){
-    return { pan:{enabled:true,mode:'xy',modifierKey:null}, zoom:{wheel:{enabled:true},pinch:{enabled:true},drag:{enabled:false},mode:'xy'} };
-  }
-  el('grfChart').addEventListener('click', function(evt){
-    if (!chartGrf) return;
-    const tVal = chartGrf.scales.x.getValueForPixel(evt.offsetX);
-    if (!isFinite(tVal)) return;
-    frameIdx = nearestIndexT(tVal);
-    el('frameSlider').value = frameIdx;
-    renderSchematic();
-  });
-  el('forceChart').addEventListener('click', function(evt){
-    if (!chartForce) return;
-    const tVal = chartForce.scales.x.getValueForPixel(evt.offsetX);
-    if (!isFinite(tVal)) return;
-    frameIdx = nearestIndexT(tVal);
-    el('frameSlider').value = frameIdx;
-    renderSchematic();
-  });
-  el('momentChart').addEventListener('click', function(evt){
-    if (!chartMoment) return;
-    const tVal = chartMoment.scales.x.getValueForPixel(evt.offsetX);
-    if (!isFinite(tVal)) return;
-    frameIdx = nearestIndexT(tVal);
-    el('frameSlider').value = frameIdx;
-    renderSchematic();
-  });
+    results.joints.forEach((j, k) => {
+      const seg = j.seg, hasOmega = !!j.omega;
+      if (!jointPhase[k]) jointPhase[k] = defaultPhase();
+      const win = getWorkWindow(jointPhase[k]);
+      const sec = document.createElement('details');
+      sec.className = 'joint-sec';
+      sec.dataset.k = k;
+      sec.open = !wasClosed.has(String(k));
+      sec.innerHTML = '<summary>'+esc(j.name)+'<span class="js-sub">solved on the '+esc(seg.name)+'</span></summary>'
+        + '<div class="js-body">'
+        +   '<div class="js-fbd"><svg xmlns="http://www.w3.org/2000/svg"></svg>'
+        +     '<p class="hint" style="margin:0.4rem 0 0">Ctrl+scroll to zoom, drag to pan, double-click to reset.</p></div>'
+        +   '<div class="js-charts"></div>'
+        + '</div>'
+        + '<details class="eq-details"><summary>Equations at this instant</summary><div class="eq-host"></div></details>';
+      host.appendChild(sec);
 
-  // vertical marker at the animation's current frame, drawn on every time-series chart so the
-  // plots and the FBD animation can be read together; redrawn via chart.draw() on each frame change
-  const frameLinePlugin = {
-    id:'frameLine',
-    afterDatasetsDraw(chart){
-      if (!results) return;
-      const px = chart.scales.x.getPixelForValue(results.T[frameIdx]);
-      const a = chart.chartArea;
-      if (!isFinite(px) || px < a.left || px > a.right) return;
-      const ctx = chart.ctx;
-      ctx.save();
-      ctx.strokeStyle = '#16232C'; ctx.lineWidth = 1.5; ctx.setLineDash([5,4]);
-      ctx.beginPath(); ctx.moveTo(px, a.top); ctx.lineTo(px, a.bottom); ctx.stroke();
-      ctx.restore();
-    }
-  };
-  function redrawFrameLines(){ [chartGrf, chartForce, chartMoment].forEach(c => { if (c) c.draw(); }); }
+      const chartsEl = sec.querySelector('.js-charts');
+      const kinds = [];
+      if (k === 0 && outOn('outGrf')) kinds.push('grf');
+      if (outOn('outJrf')) kinds.push('jrf');
+      if (outOn('outMoment')) kinds.push('moment');
+      if (outOn('outAngle')) kinds.push('angle');
+      if (outOn('outOmega')) kinds.push('omega');
+      if (outOn('outPower')) kinds.push('power');
+      if (outOn('outWork')) kinds.push('work');
+      const needsOmega = s => (s === 'angle' || s === 'omega' || s === 'power' || s === 'work');
+      const drawable = kinds.filter(s => hasOmega || !needsOmega(s));
+      if (!kinds.length) chartsEl.innerHTML = '<p class="chart-na">No time series selected — turn some on under "4. Outputs".</p>';
+      let naShown = false, phaseShown = false;
+      kinds.forEach(s => {
+        if (!hasOmega && needsOmega(s)){
+          if (!naShown) chartsEl.insertAdjacentHTML('beforeend', '<p class="chart-na">Joint angle, angular velocity, power and work need the segment on the <em>other</em> side of the '+esc(j.name)+' — it\'s the top of your chain, so there isn\'t one. Add one more chain point above it in step 2 (e.g. a shoulder point, which adds a trunk segment) to get them here.</p>');
+          naShown = true;
+          return;
+        }
+        // this joint's own work phase, right above the first chart it affects
+        if ((s === 'power' || s === 'work') && !phaseShown){
+          chartsEl.appendChild(phaseControl(k, j, win));
+          phaseShown = true;
+        }
+        const holder = document.createElement('div');
+        holder.className = 'chart-holder sm';
+        const cv = document.createElement('canvas');
+        holder.appendChild(cv);
+        chartsEl.appendChild(holder);
+        const showX = (s === drawable[drawable.length-1]);
+        if (s === 'grf'){
+          makeChart(cv, [ seriesLine('Fx (horizontal)', results.Fx.map(dispF), '#0B3D91'), seriesLine('Fy (vertical)', results.Fy.map(dispF), '#1C7293') ],
+            'Ground reaction force ('+uF+')', uF, showX, win);
+        } else if (s === 'jrf'){
+          makeChart(cv, [ seriesLine('Rx (horizontal)', j.Rx.map(dispF), '#0B3D91'), seriesLine('Ry (vertical)', j.Ry.map(dispF), '#1C7293') ],
+            j.name+' joint reaction force ('+uF+')', uF, showX, win);
+        } else if (s === 'moment'){
+          makeChart(cv, [ seriesLine('M', j.M.map(dispM), '#D64545', {borderWidth:1.8}) ],
+            j.name+' net muscle moment ('+uM+')', uM, showX, win);
+        } else if (s === 'angle'){
+          makeChart(cv, [ seriesLine('θ', j.angle.map(dispAngle), '#A0522D') ],
+            j.name+' joint angle (deg)', 'deg', showX, win);
+        } else if (s === 'omega'){
+          makeChart(cv, [ seriesLine('ω', j.omega.map(dispOmega), '#5B4FCF') ],
+            j.name+' joint angular velocity (deg/s)', 'deg/s', showX, win);
+        } else if (s === 'power'){
+          const Pd = j.P.map(dispP);
+          const shade = Pd.map((v,t) => (t >= win.i0 && t <= win.i1) ? v : null);
+          makeChart(cv, [
+              seriesLine('_shade', shade, 'rgba(0,0,0,0)', { borderWidth:0, fill:{ target:'origin', above:'rgba(27,138,90,0.28)', below:'rgba(214,69,69,0.28)' } }),
+              seriesLine('P = M·ω', Pd, '#16232C')
+            ], j.name+' joint power ('+uP+') — green = generation, red = absorption', uP, showX, win);
+        } else if (s === 'work'){
+          const wi = workIntegrals(j.P, T, win.i0, win.i1);
+          const sc = mScaleDisp();
+          const scaleCum = arr => arr.map(v => v === null ? null : v*sc);
+          const style = { net:['#16232C',{}], pos:['#1B8A5A',{}], neg:['#D64545',{borderDash:[5,3]}] };
+          const cols = workCols();
+          makeChart(cv, cols.map(c => seriesLine(WORK_NAMES[c], scaleCum(wi['cum'+c[0].toUpperCase()+c.slice(1)]), style[c][0], style[c][1])),
+            j.name+' cumulative work, '+win.label+' ('+uW+')', uW, showX, win);
+          chartsEl.insertAdjacentHTML('beforeend', '<p class="work-sum">'
+            + cols.map(c => WORK_NAMES[c]+' work = <strong>'+fmt(wi[c]*sc, wDp)+' '+uW+'</strong>').join(' &nbsp;·&nbsp; ')
+            + ' &nbsp;over '+esc(win.label)+'</p>');
+        }
+      });
 
-  function renderGrfChart(){
-    if (chartGrf) chartGrf.destroy();
-    chartGrf = new Chart(el('grfChart'), {
-      plugins:[frameLinePlugin],
-      type:'line',
-      data:{ datasets:[
-        { label:'Fx', data: results.T.map((t,i)=>({x:t,y:dispF(results.Fx[i])})), borderColor:'#0B3D91', backgroundColor:'transparent', borderWidth:1.6, pointRadius:0, tension:0 },
-        { label:'Fy', data: results.T.map((t,i)=>({x:t,y:dispF(results.Fy[i])})), borderColor:'#1C7293', backgroundColor:'transparent', borderWidth:1.6, pointRadius:0, tension:0 }
-      ]},
-      options:{ animation:false, responsive:true, maintainAspectRatio:false,
-        plugins:{ legend:{display:false}, zoom:zoomOpts(), title:{display:true,text:'Ground reaction force ('+forceUnitLabel()+')'} },
-        scales:{ x:{type:'linear',title:{display:true,text:'Time (s)'}}, y:{title:{display:true,text:'Force ('+forceUnitLabel()+')'}} } }
+      const svg = sec.querySelector('.js-fbd svg');
+      const H = FBD_DIAG_H + 132 + (fbdShowsOmega() ? 22 : 0);
+      attachZoomPan(svg, FBD_W, H);
+      const eqDetails = sec.querySelector('.eq-details');
+      const ref = { svg, H, eqHost: sec.querySelector('.eq-host'), eqDetails, win };
+      eqDetails.addEventListener('toggle', () => { if (eqDetails.open) ref.eqHost.innerHTML = eqBlock(k); });
+      sectionRefs.push(ref);
     });
   }
 
-  function renderKinetics(){
-    const ji = parseInt(el('jointSelect').value,10) || 0;
-    const j = results.joints[ji];
-    if (chartForce) chartForce.destroy();
-    chartForce = new Chart(el('forceChart'), {
-      plugins:[frameLinePlugin],
-      type:'line',
-      data:{ datasets:[
-        { label:'Rx', data: results.T.map((t,i)=>({x:t,y:dispF(j.Rx[i])})), borderColor:'#0B3D91', backgroundColor:'transparent', borderWidth:1.6, pointRadius:0, tension:0 },
-        { label:'Ry', data: results.T.map((t,i)=>({x:t,y:dispF(j.Ry[i])})), borderColor:'#1C7293', backgroundColor:'transparent', borderWidth:1.6, pointRadius:0, tension:0 }
-      ]},
-      options:{ animation:false, responsive:true, maintainAspectRatio:false,
-        plugins:{ legend:{display:false}, zoom:zoomOpts(), title:{display:true,text:'Joint reaction force ('+forceUnitLabel()+')'} },
-        scales:{ x:{type:'linear',title:{display:true,text:'Time (s)'}}, y:{title:{display:true,text:'Force ('+forceUnitLabel()+')'}} } }
+  // per-joint work-phase picker: whole trial / stance / custom start–end, with "current frame"
+  // buttons so a phase can be set by scrubbing the play bar to an event (e.g. this joint's own
+  // power burst) rather than typing times. Any change re-integrates and redraws everything.
+  function phaseControl(k, j, win){
+    const ph = jointPhase[k];
+    const div = document.createElement('div');
+    div.className = 'phase-ctl';
+    div.innerHTML = '<label>'+esc(j.name)+' work phase</label>'
+      + '<select class="ph-mode">'
+      +   '<option value="whole">Whole trial</option>'
+      +   '<option value="stance">Stance (force above threshold)</option>'
+      +   '<option value="custom">Custom (start → end)</option>'
+      + '</select>'
+      + '<span class="ph-custom"'+(ph.mode === 'custom' ? '' : ' style="display:none"')+'>'
+      +   '<input type="number" step="any" class="ph-start" placeholder="start (s)">'
+      +   '<button type="button" class="ghost small ph-start-now">Start = current frame</button>'
+      +   '<input type="number" step="any" class="ph-end" placeholder="end (s)">'
+      +   '<button type="button" class="ghost small ph-end-now">End = current frame</button>'
+      + '</span>'
+      + (win.note ? '<p class="phase-note">'+esc(win.note)+'.</p>' : '');
+    const q = c => div.querySelector(c);
+    q('.ph-mode').value = ph.mode;
+    q('.ph-start').value = ph.start;
+    q('.ph-end').value = ph.end;
+    q('.ph-mode').addEventListener('change', e => { ph.mode = e.target.value; rebuildResults(); });
+    q('.ph-start').addEventListener('change', e => { ph.start = e.target.value; rebuildResults(); });
+    q('.ph-end').addEventListener('change', e => { ph.end = e.target.value; rebuildResults(); });
+    q('.ph-start-now').addEventListener('click', () => { ph.start = results.T[frameIdx].toFixed(3); rebuildResults(); });
+    q('.ph-end-now').addEventListener('click', () => { ph.end = results.T[frameIdx].toFixed(3); rebuildResults(); });
+    return div;
+  }
+
+  function renderFrame(){
+    if (!results) return;
+    const T = results.T, i = frameIdx;
+    el('scrubReadout').textContent = 't = '+fmt(T[i],3)+' s (frame '+(i+1)+' of '+T.length+')';
+    // force-to-pixel scale, shared across every section at this instant — scaled to THIS frame's
+    // largest force (not the whole trial's) so arrows stay a legible size throughout the animation
+    // rather than shrinking to a few pixels whenever the current frame is far from the trial's peak.
+    let maxF = 1e-6;
+    maxF = Math.max(maxF, Math.abs(results.Fx[i]), Math.abs(results.Fy[i]));
+    results.joints.forEach(j => { maxF = Math.max(maxF, Math.abs(j.Rx[i]), Math.abs(j.Ry[i])); });
+    sectionRefs.forEach((r, k) => {
+      r.svg.innerHTML = fbdSvgContent(k, maxF, r.H);
+      if (r.eqDetails.open) r.eqHost.innerHTML = eqBlock(k);
     });
-    if (chartMoment) chartMoment.destroy();
-    chartMoment = new Chart(el('momentChart'), {
-      plugins:[frameLinePlugin],
-      type:'line',
-      data:{ datasets:[
-        { label:'M', data: results.T.map((t,i)=>({x:t,y:dispM(j.M[i])})), borderColor:'#D64545', backgroundColor:'transparent', borderWidth:1.8, pointRadius:0, tension:0 }
-      ]},
-      options:{ animation:false, responsive:true, maintainAspectRatio:false,
-        plugins:{ legend:{display:false}, zoom:zoomOpts(), title:{display:true,text:'Net muscle moment ('+momentUnitLabel()+')'} },
-        scales:{ x:{type:'linear',title:{display:true,text:'Time (s)'}}, y:{title:{display:true,text:'Moment ('+momentUnitLabel()+')'}} } }
-    });
+    redrawFrameLines();
+  }
+
+  function renderWorkTable(){
+    const sc = mScaleDisp(), u = workUnitLabel(), dp = normalized() ? 3 : 2, cols = workCols();
+    const rows = results.joints.map((j, k) => {
+      if (!j.P) return '<tr><td>'+esc(j.name)+'</td><td colspan="'+(cols.length+1)+'" style="color:var(--muted)">needs a segment above the '+esc(j.name)+' (top of the chain)</td></tr>';
+      const win = sectionRefs[k].win;
+      const wi = workIntegrals(j.P, results.T, win.i0, win.i1);
+      return '<tr><td>'+esc(j.name)+'</td><td>'+esc(win.label)+'</td>'+cols.map(c => '<td class="num">'+fmt(wi[c]*sc, dp)+' '+u+'</td>').join('')+'</tr>';
+    }).join('');
+    el('workTable').innerHTML = '<thead><tr><th>Joint</th><th>Phase</th>'+cols.map(c => '<th>'+WORK_NAMES[c]+' work</th>').join('')+'</tr></thead><tbody>'+rows+'</tbody>';
+    el('workTableNote').textContent = 'Each joint uses its own phase, set in its section above. Work = ∫P dt (trapezoidal); positive = energy generated by the muscles, negative = energy absorbed.';
   }
 
   function renderPeakTable(){
-    const fLbl = forceUnitLabel(), mLbl = momentUnitLabel();
+    const fLbl = forceUnitLabel(), mLbl = momentUnitLabel(), pLbl = powerUnitLabel();
+    const peakIdx = arr => { let k=0; for (let i=1;i<arr.length;i++) if (Math.abs(arr[i])>Math.abs(arr[k])) k=i; return k; };
     const rows = results.joints.map(j => {
-      let iRx=0; for (let i=1;i<j.Rx.length;i++) if (Math.abs(j.Rx[i])>Math.abs(j.Rx[iRx])) iRx=i;
-      let iRy=0; for (let i=1;i<j.Ry.length;i++) if (Math.abs(j.Ry[i])>Math.abs(j.Ry[iRy])) iRy=i;
-      let iM=0; for (let i=1;i<j.M.length;i++) if (Math.abs(j.M[i])>Math.abs(j.M[iM])) iM=i;
-      return '<tr><td>'+j.name+'</td>'
+      const iRx = peakIdx(j.Rx), iRy = peakIdx(j.Ry), iM = peakIdx(j.M);
+      let pCells = '<td class="num">—</td><td class="num">—</td>';
+      if (j.P){ const iP = peakIdx(j.P); pCells = '<td class="num">'+fmt(dispP(j.P[iP]), normalized()?3:1)+' '+pLbl+'</td><td class="num">'+fmt(results.T[iP],3)+' s</td>'; }
+      return '<tr><td>'+esc(j.name)+'</td>'
         + '<td class="num">'+fmt(dispF(j.Rx[iRx]),2)+' '+fLbl+'</td><td class="num">'+fmt(results.T[iRx],3)+' s</td>'
         + '<td class="num">'+fmt(dispF(j.Ry[iRy]),2)+' '+fLbl+'</td><td class="num">'+fmt(results.T[iRy],3)+' s</td>'
-        + '<td class="num">'+fmt(dispM(j.M[iM]),3)+' '+mLbl+'</td><td class="num">'+fmt(results.T[iM],3)+' s</td></tr>';
+        + '<td class="num">'+fmt(dispM(j.M[iM]),3)+' '+mLbl+'</td><td class="num">'+fmt(results.T[iM],3)+' s</td>'
+        + pCells + '</tr>';
     }).join('');
-    el('peakTable').innerHTML = '<thead><tr><th>Joint</th><th>Peak Rx</th><th>at time</th><th>Peak Ry</th><th>at time</th><th>Peak moment</th><th>at time</th></tr></thead><tbody>'+rows+'</tbody>';
+    el('peakTable').innerHTML = '<thead><tr><th>Joint</th><th>Peak Rx</th><th>at time</th><th>Peak Ry</th><th>at time</th><th>Peak moment</th><th>at time</th><th>Peak power</th><th>at time</th></tr></thead><tbody>'+rows+'</tbody>';
   }
 
   // ---- schematic FBD ----
   // small opaque backing plate behind a label so it stays legible even when it lands on top of
   // the segment line or another element — geometric collision-avoidance for an arbitrary segment
   // angle is a much bigger problem than this page needs to solve; a backing plate sidesteps it.
+  function labelBoxW(text, fontSize){ return text.length*fontSize*0.64 + 8; }
   function labelWithBg(x, y, lines, color, fontSize, anchor){
     anchor = anchor || 'start';
     const arr = Array.isArray(lines) ? lines : [lines];
     const lineH = fontSize*1.3;
-    const maxLen = Math.max(...arr.map(l => l.length));
-    const boxW = maxLen*fontSize*0.64 + 8;
+    const boxW = Math.max(...arr.map(l => labelBoxW(l, fontSize)));
     const boxH = arr.length*lineH + 6;
     let bx = x - 4;
     if (anchor==='middle') bx = x - boxW/2;
@@ -1657,32 +2032,82 @@
     });
     return s;
   }
+  // returns a place(...) function that draws a label like labelWithBg, but first slides it along
+  // y (in direction dir: +1 down, -1 up) past any label already placed in this diagram it would
+  // overlap — e.g. when the COP sits just under the ankle, the GRF's Fy value, the ankle's Rx
+  // value and the "Ankle" name all want the same few pixels.
+  function makeLabelPlacer(){
+    const boxes = [];
+    return function place(x, y, text, color, fs, anchor, dir){
+      const bw = labelBoxW(text, fs), bh = fs*1.3 + 6, top = fs*0.95 + 3;
+      const bx = anchor === 'middle' ? x - bw/2 : anchor === 'end' ? x - bw + 4 : x - 4;
+      const boxAt = yy => ({ x0:bx, x1:bx+bw, y0:yy-top, y1:yy-top+bh });
+      let yy = y;
+      for (let tries=0; tries<8; tries++){
+        const b = boxAt(yy);
+        const hit = boxes.find(o => b.x0 < o.x1 && b.x1 > o.x0 && b.y0 < o.y1 && b.y1 > o.y0);
+        if (!hit) break;
+        yy = dir > 0 ? hit.y1 + top + 1 : hit.y0 - bh + top - 1;
+      }
+      boxes.push(boxAt(yy));
+      return labelWithBg(x, yy, text, color, fs, anchor);
+    };
+  }
+  // force → arrow length in px. "Enhanced" (default) scales with √force and floors every
+  // non-negligible arrow at 20 px: with a shared linear scale a ~40 N horizontal force next to an
+  // ~800 N vertical one drew only a few pixels long, so the horizontal components — half of what
+  // this diagram is for — were effectively invisible. "True" keeps length strictly proportional.
+  const ARROW_MAX = 62;
+  function arrowLenPx(F, maxF){
+    if (!isFinite(F) || Math.abs(F) < maxF*1e-3) return 0;
+    if (el('arrowScale').value === 'true') return F/maxF*ARROW_MAX;
+    return Math.sign(F)*Math.max(20, ARROW_MAX*Math.sqrt(Math.abs(F)/maxF));
+  }
   // draws a force as two separate perpendicular arrows (one purely horizontal for Fx/Rx, one
   // purely vertical for Fy/Ry) from the same origin, instead of one arrow pointing at the combined
   // angle — a single diagonal arrow is visually indistinguishable from a resultant vector even if
   // its length happens to equal one, which is exactly what these values are NOT (they're the two
-  // solved components).
-  function componentArrowsSvg(x, y, fxPx, fyPx, color){
-    return arrowSvg(x, y, fxPx, 0, color, null) + arrowSvg(x, y, 0, fyPx, color, null);
+  // solved components). Each arrow's value is printed just past its tip, continuing along the
+  // arrow's own line (away from the busy point it starts at), and returned separately so the
+  // caller can draw every value label on top of every arrow.
+  function componentArrowsSvg(x, y, Fx, Fy, color, maxF, nameX, nameY, W, diagramH, place){
+    const lxPx = arrowLenPx(Fx, maxF), lyPx = -arrowLenPx(Fy, maxF); // screen y points down
+    const arrows = arrowSvg(x, y, lxPx, 0, color) + arrowSvg(x, y, 0, lyPx, color);
+    const u = forceUnitLabel(), dp = (u === 'N') ? 0 : 2, fs = 11;
+    let labels = '';
+    if (lxPx){
+      const text = nameX+' '+fmt(dispF(Fx),dp)+' '+u, bw = labelBoxW(text, fs);
+      let tx = x+lxPx+(lxPx > 0 ? 7 : -7), ty = y+4, anchor = lxPx > 0 ? 'start' : 'end';
+      // past the panel edge: tuck the label just above the arrow's tip instead of clipping it
+      if (anchor === 'start' && tx+bw > W-2){ tx = x+lxPx; anchor = 'end'; ty = y-11; }
+      if (anchor === 'end' && tx-bw < 2){ tx = x+lxPx; anchor = 'start'; ty = y-11; }
+      labels += place(tx, ty, text, color, fs, anchor, ty < y ? -1 : 1);
+    }
+    if (lyPx){
+      const text = nameY+' '+fmt(dispF(Fy),dp)+' '+u, bw = labelBoxW(text, fs);
+      let tx = Math.min(Math.max(x, 2+bw/2), W-2-bw/2);
+      let ty = lyPx > 0 ? y+lyPx+16 : y+lyPx-8;
+      ty = Math.min(Math.max(ty, 16), diagramH-6);
+      labels += place(tx, ty, text, color, fs, 'middle', lyPx > 0 ? 1 : -1);
+    }
+    return [arrows, labels];
   }
-  function arrowSvg(x1,y1,dxPx,dyPx,color,label){
+  function arrowSvg(x1,y1,dxPx,dyPx,color){
     const x2=x1+dxPx, y2=y1+dyPx;
     const len = Math.hypot(dxPx,dyPx);
     if (len < 2) return '';
     const ux=dxPx/len, uy=dyPx/len;
-    const headLen=12, headW=6;
+    const headLen=Math.min(12, len*0.7), headW=headLen/2;
     const hx=x2-ux*headLen, hy=y2-uy*headLen;
     const px=-uy, py=ux;
     const h1x=hx+px*headW, h1y=hy+py*headW, h2x=hx-px*headW, h2y=hy-py*headW;
     // shaft stops at the head's base (not the tip) — otherwise the line's square end pokes out past the arrow's point
     let s = '<line x1="'+x1.toFixed(1)+'" y1="'+y1.toFixed(1)+'" x2="'+hx.toFixed(1)+'" y2="'+hy.toFixed(1)+'" stroke="'+color+'" stroke-width="4"/>';
     s += '<polygon points="'+x2.toFixed(1)+','+y2.toFixed(1)+' '+h1x.toFixed(1)+','+h1y.toFixed(1)+' '+h2x.toFixed(1)+','+h2y.toFixed(1)+'" fill="'+color+'"/>';
-    if (label) s += labelWithBg(x2+8, y2+5, label, color, 13, 'start');
     return s;
   }
-  function momentGlyph(cx,cy,M,color,dashed,labelPrefix,showText,radius){
+  function momentGlyph(cx,cy,M,color,dashed,radius){
     if (!isFinite(M) || Math.abs(M) < 1e-6) return '';
-    if (showText === undefined) showText = true;
     const r = radius || 19;
     const ccw = M >= 0;
     const a0 = -0.35, a1 = a0 + (ccw ? 1.6*Math.PI : -1.6*Math.PI);
@@ -1702,288 +2127,254 @@
     const ux=dx/len, uy=dy/len, perp=[-uy,ux];
     const h1=[ex-ux*8+perp[0]*4.4, ey-uy*8+perp[1]*4.4], h2=[ex-ux*8-perp[0]*4.4, ey-uy*8-perp[1]*4.4];
     s += '<polygon points="'+ex.toFixed(1)+','+ey.toFixed(1)+' '+h1[0].toFixed(1)+','+h1[1].toFixed(1)+' '+h2[0].toFixed(1)+','+h2[1].toFixed(1)+'" fill="'+color+'"/>';
-    if (showText){
-      const mLbl = (typeof momentUnitLabel === 'function') ? momentUnitLabel() : 'N·m';
-      s += labelWithBg(cx+r+6, cy+5, (labelPrefix||'')+fmt(M,(mLbl==='N·m'?1:3))+' '+mLbl, color, 13, 'start');
-    }
     return s;
   }
 
-  // ---- schematic zoom/pan ----
-  // viewBox-based zoom: shrinking the viewBox below the SVG's native width/height zooms in, since
-  // the browser always stretches whatever the viewBox covers to fill the element's rendered size.
-  // svgView persists across renderSchematic() calls (frame scrubbing, display-option toggles) so
-  // zooming in doesn't get silently undone every time the user drags the frame slider — it only
-  // resets when the chain itself changes (new compute with a different segment count).
-  let svgView = null;
-  let schematicZoomPanBound = false;
-  function resetSchematicView(){
-    if (!svgView) return;
-    svgView.x = 0; svgView.y = 0; svgView.w = svgView.fullW; svgView.h = svgView.fullH;
-    el('schematic').setAttribute('viewBox', '0 0 '+svgView.fullW+' '+svgView.fullH);
-  }
-  function setupSchematicZoomPan(svgEl){
-    if (schematicZoomPanBound) return;
-    schematicZoomPanBound = true;
-
-    function applyView(){ svgEl.setAttribute('viewBox', svgView.x+' '+svgView.y+' '+svgView.w+' '+svgView.h); }
-    function clampView(){
-      const minW = svgView.fullW/8, minH = svgView.fullH/8;
-      svgView.w = Math.max(minW, Math.min(svgView.fullW, svgView.w));
-      svgView.h = Math.max(minH, Math.min(svgView.fullH, svgView.h));
-    }
-
+  // ---- FBD zoom/pan ----
+  // viewBox-based zoom, one independent view per joint section's svg. Wheel zoom needs Ctrl (plain
+  // scrolling has to keep scrolling the page); drag pans via pointer capture, so no window-level
+  // listeners pile up each time the sections are rebuilt; double-click resets.
+  function attachZoomPan(svgEl, W, H){
+    const v = { x:0, y:0, w:W, h:H };
+    const apply = () => svgEl.setAttribute('viewBox', v.x+' '+v.y+' '+v.w+' '+v.h);
+    apply();
     svgEl.addEventListener('wheel', function(e){
-      if (!svgView) return;
+      if (!e.ctrlKey) return;
       e.preventDefault();
       const rect = svgEl.getBoundingClientRect();
-      const mx = (e.clientX - rect.left) / rect.width, my = (e.clientY - rect.top) / rect.height;
-      const px = svgView.x + mx*svgView.w, py = svgView.y + my*svgView.h;
-      const factor = e.deltaY < 0 ? 0.88 : 1/0.88;
-      const newW = svgView.w*factor, newH = svgView.h*factor;
-      svgView.x = px - mx*newW; svgView.y = py - my*newH;
-      svgView.w = newW; svgView.h = newH;
-      clampView();
-      applyView();
+      const mx = (e.clientX-rect.left)/rect.width, my = (e.clientY-rect.top)/rect.height;
+      const px = v.x + mx*v.w, py = v.y + my*v.h;
+      const f = e.deltaY < 0 ? 0.88 : 1/0.88;
+      const nw = Math.max(W/8, Math.min(W, v.w*f)), nh = nw*H/W;
+      v.x = px - mx*nw; v.y = py - my*nh; v.w = nw; v.h = nh;
+      apply();
     }, { passive:false });
-
-    let dragging = false, dragStartX=0, dragStartY=0, viewStartX=0, viewStartY=0;
-    svgEl.addEventListener('mousedown', function(e){
-      if (!svgView) return;
-      dragging = true; dragStartX = e.clientX; dragStartY = e.clientY;
-      viewStartX = svgView.x; viewStartY = svgView.y;
+    let drag = null;
+    svgEl.addEventListener('pointerdown', function(e){
+      drag = { x:e.clientX, y:e.clientY, vx:v.x, vy:v.y };
+      svgEl.setPointerCapture(e.pointerId);
       svgEl.style.cursor = 'grabbing';
     });
-    window.addEventListener('mousemove', function(e){
-      if (!dragging || !svgView) return;
+    svgEl.addEventListener('pointermove', function(e){
+      if (!drag) return;
       const rect = svgEl.getBoundingClientRect();
-      svgView.x = viewStartX - (e.clientX-dragStartX)*(svgView.w/rect.width);
-      svgView.y = viewStartY - (e.clientY-dragStartY)*(svgView.h/rect.height);
-      applyView();
+      v.x = drag.vx - (e.clientX-drag.x)*(v.w/rect.width);
+      v.y = drag.vy - (e.clientY-drag.y)*(v.h/rect.height);
+      apply();
     });
-    window.addEventListener('mouseup', function(){ dragging = false; svgEl.style.cursor = ''; });
-
-    el('schematicZoomReset').addEventListener('click', resetSchematicView);
+    const end = () => { drag = null; svgEl.style.cursor = ''; };
+    svgEl.addEventListener('pointerup', end);
+    svgEl.addEventListener('pointercancel', end);
+    svgEl.addEventListener('dblclick', () => { v.x = 0; v.y = 0; v.w = W; v.h = H; apply(); });
   }
 
-  function renderSchematic(){
-    if (!results) return;
-    const T = results.T, i = frameIdx;
-    el('scrubReadout').textContent = 't = '+fmt(T[i],3)+' s (frame '+(i+1)+' of '+T.length+')';
-    redrawFrameLines();
-
-    const nSeg = results.segments.length;
-    const laneW = 340, H = 640, topPad = 52, sidePad = 66;
-    // bottom of each lane is a fixed, non-moving numeric readout — the animated diagram above it
-    // used to carry these same numbers as floating labels next to whatever arrow/point they
-    // belonged to, but which point an arrow was pointing at varies every frame, so the labels
-    // collided unpredictably. A fixed panel is always in the same place and never overlaps anything.
-    const readoutH = 132, botPad = 30;
-    const diagramH = H - readoutH;
-    const W = laneW*nSeg;
-    const svgEl = el('schematic');
-    svgEl.setAttribute('width', W);
-    svgEl.setAttribute('height', H);
-    // the viewBox drives zoom/pan (see setupSchematicZoomPan) and is intentionally NOT reset to
-    // "0 0 W H" on every render — only when the chain itself changes — so scrubbing frames or
-    // toggling display options doesn't keep kicking the user back out to the fully zoomed-out view.
-    if (!svgView || svgView.nSeg !== nSeg){ svgView = { x:0, y:0, w:W, h:H, nSeg, fullW:W, fullH:H }; }
-    else { svgView.fullW = W; svgView.fullH = H; }
-    svgEl.setAttribute('viewBox', svgView.x+' '+svgView.y+' '+svgView.w+' '+svgView.h);
-    setupSchematicZoomPan(svgEl);
-
-    // force-to-pixel scale, shared across every panel at this instant — scaled to THIS frame's
-    // largest force (not the whole trial's) so arrows stay a legible size throughout the animation
-    // rather than shrinking to a few pixels whenever the current frame is far from the trial's peak.
-    let maxF = 1e-6;
-    maxF = Math.max(maxF, Math.hypot(results.Fx[i], results.Fy[i]));
-    results.joints.forEach(j => { maxF = Math.max(maxF, Math.hypot(j.Rx[i], j.Ry[i])); });
-    const fScale = 55/maxF;
-
-    let svg = '';
-    results.segments.forEach((seg, k) => {
-      const x0 = k*laneW;
-      const dPos = results.pointPos[seg.distalId], pPos = results.pointPos[seg.proximalId];
-      const hasGeomOverride = seg.geomProximalId !== seg.proximalId;
-      const gPos = hasGeomOverride ? results.pointPos[seg.geomProximalId] : pPos;
-      const dxw = dPos.x[i], dyw = dPos.y[i];
-      const pxw = pPos.x[i], pyw = pPos.y[i]; // the real joint (e.g. ankle) — always where joint force/moment act
-      const gxw = gPos.x[i], gyw = gPos.y[i]; // the segment's own anthropometric proximal end (e.g. heel; same as joint unless overridden)
-      const comxw = seg.comX[i], comyw = seg.comY[i];
-      const isGround = (k === 0);
-      const copxw = isGround ? results.COPx[i] : null;
-
-      // local view is recentered on THIS FRAME's own points (distal, geometric proximal, COM, plus
-      // the real joint and COP when those differ from the segment's own two endpoints) — not the
-      // whole trial's range of motion. A segment's own length barely changes frame to frame, but
-      // the whole limb can travel much farther than that over a full trial; scaling to the trial's
-      // total range made every individual segment look like a tiny dot most of the time. Recentering
-      // every frame keeps the segment a legible, full-length line throughout the animation.
-      let xs = [dxw, gxw, comxw], ys = [dyw, gyw, comyw];
-      if (hasGeomOverride){ xs.push(pxw); ys.push(pyw); }
-      if (isGround){ xs.push(copxw); ys.push(results.floorY); }
-      const segLen = Math.hypot(gxw-dxw, gyw-dyw);
-      const pad = Math.max(0.05, segLen*0.45);
-      let minX=Math.min(...xs)-pad, maxX=Math.max(...xs)+pad, minY=Math.min(...ys)-pad, maxY=Math.max(...ys)+pad;
-      const rangeX = Math.max(0.05, maxX-minX), rangeY = Math.max(0.05, maxY-minY);
-      const contentW = laneW - sidePad*2, contentH = diagramH - topPad - botPad;
-      const scale = Math.min(contentW/rangeX, contentH/rangeY);
-      const cx0 = (minX+maxX)/2, cy0 = (minY+maxY)/2;
-      const laneCx = laneW/2, laneCy = topPad + contentH/2;
-      const lx = (x) => x0 + laneCx + (x-cx0)*scale;
-      const ly = (y) => laneCy - (y-cy0)*scale;
-
-      const dx = lx(dxw), dy = ly(dyw);
-      const gx = lx(gxw), gy = ly(gyw);
-      const px2 = lx(pxw), py2 = ly(pyw);
-      const comx = lx(comxw), comy = ly(comyw);
-
-      svg += '<rect x="'+(x0+3)+'" y="3" width="'+(laneW-6)+'" height="'+(H-6)+'" rx="8" fill="#FBFCFD" stroke="#D8E2E7"/>';
-      svg += '<line x1="'+(x0+3)+'" y1="'+diagramH.toFixed(1)+'" x2="'+(x0+laneW-3)+'" y2="'+diagramH.toFixed(1)+'" stroke="#D8E2E7"/>';
-      svg += '<text x="'+(x0+laneW/2)+'" y="24" font-size="15" font-weight="700" text-anchor="middle" fill="#16232C">'+seg.name+'</text>';
-
-      // the isolated segment itself — its TRUE anthropometric body (distal end to its own real
-      // proximal landmark, e.g. toe to heel), which may differ from the joint used to hand off
-      // force/moment to the next segment up. Point names stay small and right at the dot — the
-      // actual numbers live in the fixed readout panel below, not as floating labels here, since
-      // where an arrow points (and so where its label would land) changes every frame and kept
-      // colliding with whatever else was nearby.
-      svg += '<line x1="'+dx.toFixed(1)+'" y1="'+dy.toFixed(1)+'" x2="'+gx.toFixed(1)+'" y2="'+gy.toFixed(1)+'" stroke="#3A4750" stroke-width="8" stroke-linecap="round"/>';
-      svg += '<circle cx="'+dx.toFixed(1)+'" cy="'+dy.toFixed(1)+'" r="4.5" fill="#16232C"/>';
-      svg += '<circle cx="'+gx.toFixed(1)+'" cy="'+gy.toFixed(1)+'" r="4.5" fill="#16232C"/>';
-      // point-name labels sit in a DIAGONAL corner off their point, pushed away from the COM —
-      // force arrows only ever run purely horizontal/vertical out of a point, and moment arcs are
-      // centered on it (radius 19), so a diagonal corner just outside that radius is the one spot
-      // nothing else gets drawn. Labels go in BEFORE the arrows/moments so that in the rare frame
-      // where something does cross a label, the arrow stays visible on top rather than the name.
-      // defSx is the horizontal side to use when the point is nearly straight above/below the COM.
-      function pointLabel(px, py, text, color, fontSize, defSx){
-        const ddx = px - comx, ddy = py - comy;
-        const sx = Math.abs(ddx) > 8 ? Math.sign(ddx) : defSx;
-        const sy = Math.abs(ddy) > 8 ? Math.sign(ddy) : 1;
-        return labelWithBg(px + sx*26, py + (sy > 0 ? 24 : -14), text, color, fontSize, sx > 0 ? 'start' : 'end');
-      }
-      let pointLabelsSvg = '';
-      pointLabelsSvg += pointLabel(dx, dy, seg.distalName, '#16232C', 11.5, 1);
-      pointLabelsSvg += pointLabel(gx, gy, seg.geomProximalName, '#16232C', 11.5, -1);
-
-      if (hasGeomOverride){
-        // the real joint (e.g. ankle) is a separate point rigidly attached to this same body —
-        // shown with a thin static line (not a second moving segment) back to the body, since
-        // that's where the solved joint force/moment below actually act
-        svg += '<line x1="'+gx.toFixed(1)+'" y1="'+gy.toFixed(1)+'" x2="'+px2.toFixed(1)+'" y2="'+py2.toFixed(1)+'" stroke="#3A4750" stroke-width="1.8" stroke-dasharray="3,2" opacity="0.6"/>';
-        svg += '<circle cx="'+px2.toFixed(1)+'" cy="'+py2.toFixed(1)+'" r="4.5" fill="#16232C"/>';
-        pointLabelsSvg += pointLabel(px2, py2, seg.proximalName, '#16232C', 11.5, -1);
-      }
-      let copx, copy;
-      if (isGround){
-        copx = lx(copxw); copy = ly(results.floorY);
-        pointLabelsSvg += pointLabel(copx, copy, 'COP', '#0B3D91', 10.5, 1);
-      }
-      svg += pointLabelsSvg;
-
-      // COM, weight, and the segment's own rotational equation of motion (I·alpha) at COM.
-      // Weight is usually much smaller than the joint/GRF forces that set fScale, so at true
-      // scale its arrow often rounds to sub-pixel and simply doesn't render — floor it to a
-      // guaranteed-visible length instead (direction is always exactly straight down regardless).
-      svg += '<circle cx="'+comx.toFixed(1)+'" cy="'+comy.toFixed(1)+'" r="5" fill="#1B8A5A" stroke="#fff" stroke-width="1.5"/>';
-      const w = seg.massKg*G;
-      svg += arrowSvg(comx, comy, 0, Math.max(w*fScale, 22), '#1B8A5A', null);
-      // every moment arc is centered ON the point it acts about (COM, joint, COP) — offsetting them
-      // to the side made the foot's COM and ankle arcs collide and land on the segment bar, so it
-      // wasn't clear which arc belonged to which point. COM's I·α is a smaller dashed purple arc;
-      // real joint moments are full-size solid red, so the two kinds never look alike.
-      const Ia = seg.Icom*seg.alpha[i];
-      svg += momentGlyph(comx, comy, dispM(Ia), '#7B2D8E', true, '', false, 14);
-
-      // the joint solved for this segment sits at its proximal end
-      const j = results.joints.find(jj => jj.seg === seg);
-      const distalR = j.distalR;
-      const fLbl = forceUnitLabel(), mLbl = momentUnitLabel();
-      const mDp = (mLbl==='N·m') ? 1 : 3;
-
-      if (isGround){
-        // the GRF acts at the true COP location, not at the distal marker — draw it there, with
-        // a dashed line back to the COM showing the moment arm that actually produces the torque
-        // (this is the same r_dist vector the ΣM equation below uses).
-        svg += '<line x1="'+copx.toFixed(1)+'" y1="'+copy.toFixed(1)+'" x2="'+comx.toFixed(1)+'" y2="'+comy.toFixed(1)+'" stroke="#0B3D91" stroke-width="1.3" stroke-dasharray="2,2" opacity="0.55"/>';
-        svg += '<circle cx="'+copx.toFixed(1)+'" cy="'+copy.toFixed(1)+'" r="4" fill="#0B3D91"/>';
-        svg += componentArrowsSvg(copx, copy, distalR.x[i]*fScale, -distalR.y[i]*fScale, '#0B3D91');
-        svg += momentGlyph(copx, copy, dispM(distalR.M[i]), '#D64545', false, '', false);
-      } else {
-        // every other segment's "known" force is the joint reaction handed up from the segment
-        // below, which genuinely acts at the joint marker itself
-        svg += componentArrowsSvg(dx, dy, distalR.x[i]*fScale, -distalR.y[i]*fScale, '#0B3D91');
-        svg += momentGlyph(dx, dy, dispM(distalR.M[i]), '#D64545', false, '', false);
-      }
-
-      // proximal end: the solved joint reaction force — drawn as two separate Rx/Ry arrows, not a resultant
-      svg += componentArrowsSvg(px2, py2, j.Rx[i]*fScale, -j.Ry[i]*fScale, '#1C7293');
-      svg += momentGlyph(px2, py2, dispM(j.M[i]), '#D64545', false, '', false);
-
-      // ---- fixed numeric readout panel (never moves, never collides with the diagram above) ----
-      const ry0 = diagramH + 20;
-      const distLabel = isGround ? 'GRF at COP' : seg.distalName+' (from below)';
-      svg += '<text x="'+(x0+14)+'" y="'+ry0+'" font-size="11.5" font-weight="700" fill="#0B3D91">'+distLabel+'</text>';
-      svg += '<text x="'+(x0+14)+'" y="'+(ry0+18)+'" font-size="11.5" fill="#0B3D91">Fx='+fmt(dispF(distalR.x[i]),2)+' '+fLbl+'   Fy='+fmt(dispF(distalR.y[i]),2)+' '+fLbl+'</text>';
-      svg += '<text x="'+(x0+14)+'" y="'+(ry0+35)+'" font-size="11.5" fill="#D64545">M='+fmt(dispM(distalR.M[i]),mDp)+' '+mLbl+'</text>';
-
-      svg += '<text x="'+(x0+14)+'" y="'+(ry0+58)+'" font-size="11.5" font-weight="700" fill="#1C7293">'+seg.proximalName+' (solved)</text>';
-      svg += '<text x="'+(x0+14)+'" y="'+(ry0+76)+'" font-size="11.5" fill="#1C7293">Rx='+fmt(dispF(j.Rx[i]),2)+' '+fLbl+'   Ry='+fmt(dispF(j.Ry[i]),2)+' '+fLbl+'</text>';
-      svg += '<text x="'+(x0+14)+'" y="'+(ry0+93)+'" font-size="11.5" fill="#D64545">M='+fmt(dispM(j.M[i]),mDp)+' '+mLbl+'</text>';
-    });
-
-    el('schematic').innerHTML = svg;
-    renderEquations();
-  }
-
-  function renderEquations(){
+  // one segment's free-body diagram at the current frame
+  function fbdSvgContent(k, maxF, H){
     const i = frameIdx;
-    let out = '';
-    results.joints.forEach((j, idx) => {
-      const seg = j.seg;
-      const dR = j.distalR, pA = j.proxArm;
-      const crossD = dR.rx[i]*dR.y[i] - dR.ry[i]*dR.x[i];
-      const crossP = pA.rx[i]*j.Ry[i] - pA.ry[i]*j.Rx[i];
-      const isGround = (idx === 0);
+    const seg = results.segments[k], j = results.joints[k];
+    // fixed PIXEL margins around the points (room for a full-length arrow plus its value label),
+    // rather than padding by a fraction of segment length — that left short segments like the
+    // foot drawn small, with every arrow crammed into the same few pixels around the ankle
+    const W = FBD_W, diagramH = FBD_DIAG_H, mX = 110, mY = 95;
+    const dPos = results.pointPos[seg.distalId], pPos = results.pointPos[seg.proximalId];
+    const hasGeomOverride = seg.geomProximalId !== seg.proximalId;
+    const gPos = hasGeomOverride ? results.pointPos[seg.geomProximalId] : pPos;
+    const dxw = dPos.x[i], dyw = dPos.y[i];
+    const pxw = pPos.x[i], pyw = pPos.y[i]; // the real joint (e.g. ankle) — always where joint force/moment act
+    const gxw = gPos.x[i], gyw = gPos.y[i]; // the segment's own anthropometric proximal end (e.g. heel; same as joint unless overridden)
+    const comxw = seg.comX[i], comyw = seg.comY[i];
+    const isGround = (k === 0);
+    const copxw = isGround ? results.COPx[i] : null;
 
-      // the ground segment's "distal" force/moment IS the GRF, applied at COP — name it that
-      // explicitly instead of the generic R_dist/M_dist used for every other segment (whose
-      // distal input is really last segment's solved reaction, handed up by Newton's third law —
-      // which is how the GRF's effect propagates up the whole chain, one joint at a time).
-      const fxName = isGround ? 'GRF_x' : 'Rx_dist (from '+seg.distalName+')';
-      const fyName = isGround ? 'GRF_y' : 'Ry_dist (from '+seg.distalName+')';
-      const mName  = isGround ? 'M_GRF' : 'M_dist (from '+seg.distalName+')';
-      const armName = isGround ? 'r_COP' : 'r_dist';
-      const armForceName = isGround ? 'GRF' : 'R_dist';
+    // view is recentered on THIS FRAME's own points (distal, geometric proximal, COM, plus the real
+    // joint and COP when those differ from the segment's own two endpoints) — not the whole trial's
+    // range of motion, which made the segment look like a tiny dot most of the time.
+    let xs = [dxw, gxw, comxw], ys = [dyw, gyw, comyw];
+    if (hasGeomOverride){ xs.push(pxw); ys.push(pyw); }
+    if (isGround){ xs.push(copxw); ys.push(results.floorY); }
+    const minX=Math.min(...xs), maxX=Math.max(...xs), minY=Math.min(...ys), maxY=Math.max(...ys);
+    const rangeX = Math.max(0.05, maxX-minX), rangeY = Math.max(0.05, maxY-minY);
+    const scale = Math.min((W - 2*mX)/rangeX, (diagramH - 2*mY)/rangeY);
+    const cx0 = (minX+maxX)/2, cy0 = (minY+maxY)/2;
+    const lx = (x) => W/2 + (x-cx0)*scale;
+    const ly = (y) => diagramH/2 - (y-cy0)*scale;
 
-      let block = '<div class="eq-block"><span class="hdr">'+j.name+'</span>  ('+seg.name+', m='+fmt(seg.massKg,2)+' kg, I_com='+fmt(seg.Icom,4)+' kg·m²)\n';
-      if (isGround){
-        block += 'Ground reaction force this instant:  GRF = ('+fmt(dR.x[i],1)+', '+fmt(dR.y[i],1)+') N at COP\n'
-          + 'r_COP (COP − COM of '+seg.name.split(' (')[0]+') = ('+fmt(dR.rx[i],3)+', '+fmt(dR.ry[i],3)+') m  —  this is where the GRF enters the model; every joint above inherits its effect via Newton\'s third law.\n';
-      }
-      block += 'ΣFx:  Rx_'+j.name+' = m·ax − '+fxName+'\n'
-        + '      '+fmt(j.Rx[i],1)+' N = '+fmt(seg.massKg,2)+'×'+fmt(seg.ax[i],2)+' − ('+fmt(dR.x[i],1)+')\n'
-        + 'ΣFy:  Ry_'+j.name+' = m·ay − '+fyName+' + m·g\n'
-        + '      '+fmt(j.Ry[i],1)+' N = '+fmt(seg.massKg,2)+'×'+fmt(seg.ay[i],2)+' − ('+fmt(dR.y[i],1)+') + '+fmt(seg.massKg,2)+'×9.81\n'
-        + 'ΣM_com:  M_'+j.name+' = I·α − '+mName+' − ('+armName+'×'+armForceName+') − (r_prox×R_prox)\n'
-        + '      '+fmt(j.M[i],2)+' N·m = '+fmt(seg.Icom,4)+'×'+fmt(seg.alpha[i],2)+' − ('+fmt(dR.M[i],2)+') − ('+fmt(crossD,2)+') − ('+fmt(crossP,2)+')'
-        + '</div>';
-      out += block;
-    });
-    el('eqPanel').innerHTML = out;
+    const dx = lx(dxw), dy = ly(dyw);
+    const gx = lx(gxw), gy = ly(gyw);
+    const px2 = lx(pxw), py2 = ly(pyw);
+    const comx = lx(comxw), comy = ly(comyw);
+
+    const place = makeLabelPlacer();
+    let svg = '<line x1="0" y1="'+diagramH+'" x2="'+W+'" y2="'+diagramH+'" stroke="#D8E2E7"/>';
+
+    // the isolated segment itself — its TRUE anthropometric body (distal end to its own real
+    // proximal landmark, e.g. toe to heel), which may differ from the joint used to hand off
+    // force/moment to the next segment up.
+    svg += '<line x1="'+dx.toFixed(1)+'" y1="'+dy.toFixed(1)+'" x2="'+gx.toFixed(1)+'" y2="'+gy.toFixed(1)+'" stroke="#3A4750" stroke-width="8" stroke-linecap="round"/>';
+    svg += '<circle cx="'+dx.toFixed(1)+'" cy="'+dy.toFixed(1)+'" r="4.5" fill="#16232C"/>';
+    svg += '<circle cx="'+gx.toFixed(1)+'" cy="'+gy.toFixed(1)+'" r="4.5" fill="#16232C"/>';
+    // point-name labels sit in a DIAGONAL corner off their point, pushed away from the COM —
+    // force arrows only ever run purely horizontal/vertical out of a point, and moment arcs are
+    // centered on it (radius 19), so a diagonal corner just outside that radius is the one spot
+    // nothing else gets drawn. Labels go in BEFORE the arrows/moments so that in the rare frame
+    // where something does cross a label, the arrow stays visible on top rather than the name.
+    // defSx is the horizontal side to use when the point is nearly straight above/below the COM.
+    function pointLabel(px, py, text, color, fontSize, defSx){
+      const ddx = px - comx, ddy = py - comy;
+      const sx = Math.abs(ddx) > 8 ? Math.sign(ddx) : defSx;
+      const sy = Math.abs(ddy) > 8 ? Math.sign(ddy) : 1;
+      return place(px + sx*26, py + (sy > 0 ? 24 : -14), text, color, fontSize, sx > 0 ? 'start' : 'end', sy);
+    }
+    svg += pointLabel(dx, dy, seg.distalName, '#16232C', 11.5, 1);
+    svg += pointLabel(gx, gy, seg.geomProximalName, '#16232C', 11.5, -1);
+    if (hasGeomOverride){
+      // the real joint (e.g. ankle) is a separate point rigidly attached to this same body —
+      // shown with a thin static line back to the body, since that's where the solved joint
+      // force/moment below actually act
+      svg += '<line x1="'+gx.toFixed(1)+'" y1="'+gy.toFixed(1)+'" x2="'+px2.toFixed(1)+'" y2="'+py2.toFixed(1)+'" stroke="#3A4750" stroke-width="1.8" stroke-dasharray="3,2" opacity="0.6"/>';
+      svg += '<circle cx="'+px2.toFixed(1)+'" cy="'+py2.toFixed(1)+'" r="4.5" fill="#16232C"/>';
+      svg += pointLabel(px2, py2, seg.proximalName, '#16232C', 11.5, -1);
+    }
+    let copx, copy;
+    if (isGround){
+      copx = lx(copxw); copy = ly(results.floorY);
+      svg += pointLabel(copx, copy, 'COP', '#0B3D91', 10.5, 1);
+    }
+
+    // COM, weight, and the segment's own rotational equation of motion (I·alpha) at COM. Weight
+    // is usually much smaller than the joint/GRF forces that set the scale, so floor its arrow to a
+    // guaranteed-visible length (direction is always exactly straight down regardless).
+    svg += '<circle cx="'+comx.toFixed(1)+'" cy="'+comy.toFixed(1)+'" r="5" fill="#1B8A5A" stroke="#fff" stroke-width="1.5"/>';
+    const w = seg.massKg*G;
+    svg += arrowSvg(comx, comy, 0, Math.max(Math.abs(arrowLenPx(w, maxF)), 22), '#1B8A5A');
+    // every moment arc is centered ON the point it acts about (COM, joint, COP). COM's I·α is a
+    // smaller dashed purple arc; real joint moments are full-size solid red, so they never look alike.
+    svg += momentGlyph(comx, comy, dispM(seg.Icom*seg.alpha[i]), '#7B2D8E', true, 14);
+
+    const distalR = j.distalR;
+    let valueLabels = '';
+    if (isGround){
+      // the GRF acts at the true COP location, not at the distal marker — draw it there, with a
+      // dashed line back to the COM showing the moment arm that actually produces the torque
+      // (this is the same r_COP vector the ΣM equation uses).
+      svg += '<line x1="'+copx.toFixed(1)+'" y1="'+copy.toFixed(1)+'" x2="'+comx.toFixed(1)+'" y2="'+comy.toFixed(1)+'" stroke="#0B3D91" stroke-width="1.3" stroke-dasharray="2,2" opacity="0.55"/>';
+      svg += '<circle cx="'+copx.toFixed(1)+'" cy="'+copy.toFixed(1)+'" r="4" fill="#0B3D91"/>';
+      const [a, l] = componentArrowsSvg(copx, copy, distalR.x[i], distalR.y[i], '#0B3D91', maxF, 'Fx', 'Fy', W, diagramH, place);
+      svg += a; valueLabels += l;
+      svg += momentGlyph(copx, copy, dispM(distalR.M[i]), '#D64545', false);
+    } else {
+      // every other segment's "known" force is the joint reaction handed up from the segment
+      // below, which genuinely acts at the joint marker itself
+      const [a, l] = componentArrowsSvg(dx, dy, distalR.x[i], distalR.y[i], '#0B3D91', maxF, 'Fx', 'Fy', W, diagramH, place);
+      svg += a; valueLabels += l;
+      svg += momentGlyph(dx, dy, dispM(distalR.M[i]), '#D64545', false);
+    }
+    // proximal end: the solved joint reaction force — two separate Rx/Ry arrows, not a resultant
+    const [a2, l2] = componentArrowsSvg(px2, py2, j.Rx[i], j.Ry[i], '#1C7293', maxF, 'Rx', 'Ry', W, diagramH, place);
+    svg += a2; valueLabels += l2;
+    svg += momentGlyph(px2, py2, dispM(j.M[i]), '#D64545', false);
+    svg += valueLabels;
+
+    // ---- fixed numeric readout panel (never moves, never collides with the diagram above) ----
+    const fLbl = forceUnitLabel(), mLbl = momentUnitLabel();
+    const mDp = normalized() ? 3 : 1;
+    const ry0 = diagramH + 22, tx = 14;
+    const distLabel = isGround ? 'GRF at COP' : seg.distalName+' (from below)';
+    svg += '<text x="'+tx+'" y="'+ry0+'" font-size="11.5" font-weight="700" fill="#0B3D91">'+esc(distLabel)+'</text>';
+    svg += '<text x="'+tx+'" y="'+(ry0+18)+'" font-size="11.5" fill="#0B3D91">Fx='+fmt(dispF(distalR.x[i]),2)+' '+fLbl+'   Fy='+fmt(dispF(distalR.y[i]),2)+' '+fLbl+'</text>';
+    svg += '<text x="'+tx+'" y="'+(ry0+35)+'" font-size="11.5" fill="#D64545">M='+fmt(dispM(distalR.M[i]),mDp)+' '+mLbl+'</text>';
+    svg += '<text x="'+tx+'" y="'+(ry0+58)+'" font-size="11.5" font-weight="700" fill="#1C7293">'+esc(seg.proximalName)+' (solved)</text>';
+    svg += '<text x="'+tx+'" y="'+(ry0+76)+'" font-size="11.5" fill="#1C7293">Rx='+fmt(dispF(j.Rx[i]),2)+' '+fLbl+'   Ry='+fmt(dispF(j.Ry[i]),2)+' '+fLbl+'</text>';
+    svg += '<text x="'+tx+'" y="'+(ry0+93)+'" font-size="11.5" fill="#D64545">M='+fmt(dispM(j.M[i]),mDp)+' '+mLbl+'</text>';
+    if (fbdShowsOmega()){
+      const line = j.omega
+        ? 'θ='+fmt(dispAngle(j.angle[i]),1)+'°   ω='+fmt(dispOmega(j.omega[i]),1)+' deg/s   P='+fmt(dispP(j.P[i]), normalized()?3:1)+' '+powerUnitLabel()
+        : 'θ, ω, power: need a segment above the '+j.name;
+      svg += '<text x="'+tx+'" y="'+(ry0+116)+'" font-size="11.5" fill="#5B4FCF">'+esc(line)+'</text>';
+    }
+    return svg;
   }
 
+  function eqBlock(idx){
+    const i = frameIdx;
+    const j = results.joints[idx];
+    const seg = j.seg;
+    const dR = j.distalR, pA = j.proxArm;
+    const crossD = dR.rx[i]*dR.y[i] - dR.ry[i]*dR.x[i];
+    const crossP = pA.rx[i]*j.Ry[i] - pA.ry[i]*j.Rx[i];
+    const isGround = (idx === 0);
+
+    // the ground segment's "distal" force/moment IS the GRF, applied at COP — name it that
+    // explicitly instead of the generic R_dist/M_dist used for every other segment (whose
+    // distal input is really last segment's solved reaction, handed up by Newton's third law —
+    // which is how the GRF's effect propagates up the whole chain, one joint at a time).
+    const fxName = isGround ? 'GRF_x' : 'Rx_dist (from '+seg.distalName+')';
+    const fyName = isGround ? 'GRF_y' : 'Ry_dist (from '+seg.distalName+')';
+    const mName  = isGround ? 'M_GRF' : 'M_dist (from '+seg.distalName+')';
+    const armName = isGround ? 'r_COP' : 'r_dist';
+    const armForceName = isGround ? 'GRF' : 'R_dist';
+
+    let block = '<div class="eq-block"><span class="hdr">'+esc(j.name)+'</span>  ('+esc(seg.name)+', m='+fmt(seg.massKg,2)+' kg, I_com='+fmt(seg.Icom,4)+' kg·m²)\n';
+    if (isGround){
+      block += 'Ground reaction force this instant:  GRF = ('+fmt(dR.x[i],1)+', '+fmt(dR.y[i],1)+') N at COP\n'
+        + 'r_COP (COP − COM of '+esc(seg.name.split(' (')[0])+') = ('+fmt(dR.rx[i],3)+', '+fmt(dR.ry[i],3)+') m  —  this is where the GRF enters the model; every joint above inherits its effect via Newton\'s third law.\n';
+    }
+    block += 'ΣFx:  Rx_'+esc(j.name)+' = m·ax − '+esc(fxName)+'\n'
+      + '      '+fmt(j.Rx[i],1)+' N = '+fmt(seg.massKg,2)+'×'+fmt(seg.ax[i],2)+' − ('+fmt(dR.x[i],1)+')\n'
+      + 'ΣFy:  Ry_'+esc(j.name)+' = m·ay − '+esc(fyName)+' + m·g\n'
+      + '      '+fmt(j.Ry[i],1)+' N = '+fmt(seg.massKg,2)+'×'+fmt(seg.ay[i],2)+' − ('+fmt(dR.y[i],1)+') + '+fmt(seg.massKg,2)+'×9.81\n'
+      + 'ΣM_com:  M_'+esc(j.name)+' = I·α − '+esc(mName)+' − ('+armName+'×'+armForceName+') − (r_prox×R_prox)\n'
+      + '      '+fmt(j.M[i],2)+' N·m = '+fmt(seg.Icom,4)+'×'+fmt(seg.alpha[i],2)+' − ('+fmt(dR.M[i],2)+') − ('+fmt(crossD,2)+') − ('+fmt(crossP,2)+')';
+    if (j.omega){
+      const proxSeg = results.segments[idx+1];
+      const short = s => s.name.split(' (')[0];
+      block += '\nω_'+esc(j.name)+' = ω_'+esc(short(seg))+' − ω_'+esc(short(proxSeg))+'\n'
+        + '      '+fmt(j.omega[i],3)+' rad/s = '+fmt(seg.omega[i],3)+' − ('+fmt(proxSeg.omega[i],3)+')   (= '+fmt(j.omega[i]*DEG,1)+' deg/s)\n'
+        + 'Power:  P_'+esc(j.name)+' = M·ω   (ω must be in rad/s here, not deg/s)\n'
+        + '      '+fmt(j.P[i],1)+' W = '+fmt(j.M[i],2)+' N·m × '+fmt(j.omega[i],3)+' rad/s';
+    }
+    return block + '</div>';
+  }
+
+  // ---- controls ----
+  el('frameSlider').addEventListener('input', function(){ if (results) setFrame(parseInt(this.value,10)); });
   el('playBtn').addEventListener('click', function(){
     if (playTimer){ clearInterval(playTimer); playTimer=null; el('playBtn').textContent='Play'; return; }
     el('playBtn').textContent='Pause';
     playTimer = setInterval(function(){
       if (!results) return;
-      frameIdx = (frameIdx+1) % results.T.length;
-      el('frameSlider').value = frameIdx;
-      renderSchematic();
+      setFrame((frameIdx+1) % results.T.length);
     }, 40);
   });
+  el('chartZoomReset').addEventListener('click', resetChartZoom);
+  el('arrowScale').addEventListener('change', function(){ if (results) renderFrame(); });
+  ['flipMomentSign','normalizeBW','outGrf','outJrf','outMoment','outAngle','outOmega','outPower','outWork','workMeasure'].forEach(id => {
+    el(id).addEventListener('change', function(){ if (results) rebuildResults(); });
+  });
+  // the step-4 phase is the DEFAULT for every joint — changing it resets all of them to it
+  // (each joint's own picker in its section can then override just that joint)
+  function applyDefaultPhaseToAll(){
+    if (!results) return;
+    jointPhase = results.joints.map(() => defaultPhase());
+    rebuildResults();
+  }
+  ['workPhase','workStart','workEnd'].forEach(id => {
+    el(id).addEventListener('change', function(){
+      if (id === 'workPhase') syncWorkPhaseFields();
+      applyDefaultPhaseToAll();
+    });
+  });
+  function syncWorkPhaseFields(){
+    el('workCustomFields').style.display = el('workPhase').value === 'custom' ? 'flex' : 'none';
+  }
+  syncWorkPhaseFields();
+  function setWorkBound(inputId){
+    if (!results) return;
+    el(inputId).value = results.T[frameIdx].toFixed(3);
+    applyDefaultPhaseToAll();
+  }
+  el('workStartNow').addEventListener('click', () => setWorkBound('workStart'));
+  el('workEndNow').addEventListener('click', () => setWorkBound('workEnd'));
 
   // start with two blank chain points so the UI isn't empty
   addPoint(''); addPoint('');
