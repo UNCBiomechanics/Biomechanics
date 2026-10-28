@@ -240,6 +240,15 @@
     .js-fbd{position:static;}
   }
 
+  .mp-holder{position:relative;height:190px;margin-bottom:0.3rem;}
+  table.datatab td.gen{color:var(--green);font-weight:600;}
+  table.datatab td.abs{color:var(--red);font-weight:600;}
+  table.datatab tr.mphase td{background:#F3F6F8;font-weight:600;border-top:2px solid var(--line);}
+  table.datatab button{padding:0.25rem 0.55rem;font-size:0.76rem;}
+  .callout{background:#EEF3F6;border:1px solid var(--line);border-radius:8px;padding:0.75rem 0.9rem;font-size:0.86rem;margin:0.6rem 0 0.9rem;line-height:1.5;}
+  .callout strong{color:var(--navy);}
+  .flow-wrap{background:#FBFCFD;border:1px solid var(--line);border-radius:10px;padding:0.5rem;display:flex;justify-content:center;}
+  .flow-wrap svg{width:100%;max-width:820px;height:auto;}
   footer{margin-top:2rem;font-size:0.82rem;color:var(--muted);max-width:76ch;}
   footer a{color:var(--navy);}
 
@@ -536,6 +545,7 @@
         <select id="workPhase">
           <option value="whole" selected>Whole trial</option>
           <option value="stance">Stance (frames above the force threshold)</option>
+          <option value="swing">Swing (longest run of frames below the force threshold)</option>
           <option value="custom">Custom phase (start → end time)</option>
         </select>
       </div>
@@ -616,6 +626,49 @@
 
     <div id="jointSections"></div>
 
+    <section class="panel" id="mpPanel">
+      <h2>From moments to powers: what are the muscles doing?</h2>
+      <p class="hint" style="margin-top:0">A net joint moment tells you which muscle group dominates (e.g. extensors), but not whether those muscles are shortening or lengthening. Multiply the moment by the joint angular velocity and the sign of the product answers that: <strong>P = M&middot;&omega; &gt; 0</strong> when the joint rotates the same way the moment acts (concentric, energy <strong>generated</strong>); <strong>P &lt; 0</strong> when the joint rotates against the moment (eccentric, energy <strong>absorbed</strong>). The shading on all three charts is the sign of the power.</p>
+      <div class="row" style="margin-top:0">
+        <div class="field"><label for="mpJoint">Joint</label><select id="mpJoint"></select></div>
+        <p class="hint" id="mpDirNote" style="flex:1;margin:0 0 0.4rem"></p>
+      </div>
+      <div class="legend-note" style="margin-top:0.9rem">
+        <span><span class="swatch" style="background:rgba(27,138,90,0.45);height:10px"></span>power &gt; 0: generation (concentric)</span>
+        <span><span class="swatch" style="background:rgba(214,69,69,0.40);height:10px"></span>power &lt; 0: absorption (eccentric)</span>
+        <span><span class="swatch" style="background:rgba(232,135,30,0.35);height:10px"></span>this joint's work phase</span>
+      </div>
+      <div class="mp-holder"><canvas id="mpM"></canvas></div>
+      <div class="mp-holder"><canvas id="mpW"></canvas></div>
+      <div class="mp-holder"><canvas id="mpP"></canvas></div>
+      <h2 style="margin-top:1.2rem">Moment phases, and the power bursts inside each one</h2>
+      <p class="hint">Grey rows are the stretches where the moment keeps one direction. The rows under each one are the power bursts inside it: the same moment can be absorbing energy in one part and generating it in the next. Phases and bursts smaller than 4% of the joint's largest are left out, so periods when the joint is doing almost nothing (e.g. the ankle in swing) don't show up as bursts. Click <em>Use as work phase</em> to set this joint's work window to that burst; it is shaded orange on every chart and reported in the Joint work table.</p>
+      <table class="datatab" id="mpTable"></table>
+      <p class="hint">Net joint power is the <em>sum</em> over every muscle crossing the joint. Co-contraction and two-joint muscles can hide inside it: a small net power does not prove the muscles are doing little.</p>
+    </section>
+
+    <section class="panel" id="flowPanel">
+      <h2>Power flow between segments</h2>
+      <p class="hint" style="margin-top:0">Joint power is not delivered to "the joint": it goes into (or comes out of) the two segments on either side. At each joint the tool splits it into what goes to the segment <strong>below</strong> and the segment <strong>above</strong>, and adds the energy the joint reaction force carries across the joint without any muscle generating it.</p>
+      <div class="callout">
+        <strong>Into the segment below:</strong> M&middot;&omega;<sub>below</sub> + F&middot;v<sub>joint</sub> &nbsp;&nbsp;&middot;&nbsp;&nbsp;
+        <strong>Into the segment above:</strong> &minus;M&middot;&omega;<sub>above</sub> &minus; F&middot;v<sub>joint</sub><br>
+        Add the two and the F&middot;v terms cancel, leaving the joint power M&middot;(&omega;<sub>below</sub> &minus; &omega;<sub>above</sub>). So muscles <em>generate or absorb</em> energy (M&middot;&omega; terms), while the joint force only <em>transfers</em> it (F&middot;v, equal and opposite on the two segments). M and F are the moment and force the upper segment applies to the lower one; v is the joint centre's velocity.
+      </div>
+      <div class="flow-wrap"><svg id="flowSvg" viewBox="0 0 820 800" xmlns="http://www.w3.org/2000/svg"></svg></div>
+      <p class="hint">The diagram follows the play bar. Arrows point the way energy is flowing at this instant (arrow width &prop; power). Each joint's circle is the energy its muscles are generating (green) or absorbing (red). Each segment box shows its rate of energy change from the motion (dE/dt, from &frac12;mv&sup2; + &frac12;I&omega;&sup2; + mgh) and the sum of every power flowing into it. Those two should match: that is the check that the flow adds up.</p>
+      <div class="row">
+        <div class="field"><label for="flowJoint">Joint to plot</label><select id="flowJoint"></select></div>
+        <div class="checkline"><input type="checkbox" id="flowSplit"><label for="flowSplit">Split each flow into its muscle (M&middot;&omega;) and joint-force (F&middot;v) parts</label></div>
+      </div>
+      <div class="chart-holder" style="height:260px;margin-top:0.8rem"><canvas id="flowChart"></canvas></div>
+      <div class="row">
+        <div class="field"><label for="flowSeg">Segment energy check</label><select id="flowSeg"></select></div>
+        <p class="hint" id="flowCheck" style="flex:1;margin:0 0 0.4rem"></p>
+      </div>
+      <div class="chart-holder" style="height:230px;margin-top:0.8rem"><canvas id="flowSegChart"></canvas></div>
+    </section>
+
     <section class="panel">
       <h2>Joint work</h2>
       <table class="datatab" id="workTable"></table>
@@ -629,9 +682,9 @@
   </section>
 
   <footer>
-    Solved bottom-up per segment using Newton's second law (&Sigma;F = m&middot;a<sub>com</sub>) and the rotational equivalent about each segment's own center of mass (&Sigma;M<sub>com</sub> = I<sub>com</sub>&middot;&alpha;), starting from the ground-contact segment (known force = the filtered GRF at COP; known moment = zero, since COP is defined as the point where the ground's in-plane moment is zero) and carrying each solved joint reaction force/moment, negated per Newton's third law, up as the "known" distal input for the next segment. Segment center of mass and radius of gyration use de Leva's (1996) percentages for whichever type you assign each link; segment length comes from the actual distance between your two pasted joint markers (median over the trial) rather than a separately-entered length. de Leva's tables define each segment's own proximal anthropometric landmark precisely (e.g. the <em>heel</em>, not the ankle, for the foot) — for the shank/thigh/upper-arm/forearm that already coincides with the real joint (ankle, knee, shoulder, elbow), but for the ground-contact segment it usually doesn't, since what connects to the next segment up the chain is a joint (the ankle), not the segment's true anthropometric end. Step 2's "true proximal landmark is different" option handles this: when enabled, mass/COM/inertia are computed from that landmark (e.g. heel) to the distal point (e.g. toe), while the joint reaction force/moment at the actual joint (e.g. ankle) are still solved and reported there, unaffected — leave it off and the tool falls back to using the joint itself for both, same as before. Linear and angular accelerations are computed by second-order central finite difference on the filtered position/angle time series, and segment angular velocity by first-order central difference. Joint power is the net moment times the relative angular velocity of the two segments at that joint, P = M&middot;(&omega;<sub>distal</sub> &minus; &omega;<sub>proximal</sub>), and joint work is its trapezoidal time integral over the chosen phase.
+    Solved bottom-up per segment using Newton's second law (&Sigma;F = m&middot;a<sub>com</sub>) and the rotational equivalent about each segment's own center of mass (&Sigma;M<sub>com</sub> = I<sub>com</sub>&middot;&alpha;), starting from the ground-contact segment (known force = the filtered GRF at COP; known moment = zero, since COP is defined as the point where the ground's in-plane moment is zero) and carrying each solved joint reaction force/moment, negated per Newton's third law, up as the "known" distal input for the next segment. Segment center of mass and radius of gyration use de Leva's (1996) percentages for whichever type you assign each link; segment length comes from the actual distance between your two pasted joint markers (median over the trial) rather than a separately-entered length. de Leva's tables define each segment's own proximal anthropometric landmark precisely (e.g. the <em>heel</em>, not the ankle, for the foot) — for the shank/thigh/upper-arm/forearm that already coincides with the real joint (ankle, knee, shoulder, elbow), but for the ground-contact segment it usually doesn't, since what connects to the next segment up the chain is a joint (the ankle), not the segment's true anthropometric end. Step 2's "true proximal landmark is different" option handles this: when enabled, mass/COM/inertia are computed from that landmark (e.g. heel) to the distal point (e.g. toe), while the joint reaction force/moment at the actual joint (e.g. ankle) are still solved and reported there, unaffected — leave it off and the tool falls back to using the joint itself for both, same as before. Linear and angular accelerations are computed by second-order central finite difference on the filtered position/angle time series, and segment angular velocity by first-order central difference. Joint power is the net moment times the relative angular velocity of the two segments at that joint, P = M&middot;(&omega;<sub>distal</sub> &minus; &omega;<sub>proximal</sub>), and joint work is its trapezoidal time integral over the chosen phase. Power flow follows segment power analysis (Robertson &amp; Winter, 1980): power into each segment at a joint is M&middot;&omega;<sub>segment</sub> plus the joint force power F&middot;v<sub>joint</sub>, and each segment's rate of energy change (&frac12;mv&sup2; + &frac12;I&omega;&sup2; + mgh) is compared with the sum of the powers flowing into it.
     <p style="margin-top:1rem;color:var(--muted)">Created by Abbie Ferris, PhD — University of Northern Colorado</p>
-    <p style="margin-top:0.25rem;color:var(--muted);font-size:0.78rem">Last updated: 2026-10-07</p>
+    <p style="margin-top:0.25rem;color:var(--muted);font-size:0.78rem">Last updated: 2026-10-28</p>
   </footer>
 
 </div>
@@ -1451,7 +1504,17 @@
         y: interp1(jointTimes, pointNative[p.id].y, T)
       };
     }
-    const jointDt = jointTimes[1]-jointTimes[0];
+    // mean spacing, so a time column rounded to a few decimals (0.0067, 0.0066, 0.0067, ...) doesn't
+    // bias every derivative by the rounding error of its first interval
+    const jointDt = (jointTimes[jointTimes.length-1]-jointTimes[0])/(jointTimes.length-1);
+    // joint-centre velocities (native rate, then interpolated), needed for joint-force power F·v
+    const pointVel = {};
+    for (const p of pointsNeeded){
+      pointVel[p.id] = {
+        x: interp1(jointTimes, centralDeriv1(pointNative[p.id].x, jointDt), T),
+        y: interp1(jointTimes, centralDeriv1(pointNative[p.id].y, jointDt), T)
+      };
+    }
 
     // per-segment kinematics. "proximal" here always means the JOINT connecting to the next
     // segment up the chain (needed for the force handoff below) \u2014 but a segment's own mass/COM/
@@ -1491,12 +1554,13 @@
       const alpha = interp1(jointTimes, alphaN, T);
       const omega = interp1(jointTimes, omegaN, T);
       const theta = interp1(jointTimes, thetaN, T);
+      const vx = interp1(jointTimes, centralDeriv1(comXN, jointDt), T), vy = interp1(jointTimes, centralDeriv1(comYN, jointDt), T);
 
       segments.push({
         name: TYPE_LABEL[segParams[i].type] + ' ('+distalPt.name+' \u2192 '+gName+')', type: segParams[i].type,
         distalId: distalPt.id, proximalId: proximalPt.id, distalName: distalPt.name, proximalName: proximalPt.name,
         geomProximalId: useHeel ? footHeel.id : proximalPt.id, geomProximalName: gName,
-        massKg, L, Icom, comX, comY, ax, ay, alpha, omega, theta
+        massKg, L, Icom, comX, comY, ax, ay, alpha, omega, theta, vx, vy
       });
     }
 
@@ -1559,7 +1623,14 @@
       } else { jt.omega = null; jt.P = null; jt.angle = null; }
     });
 
-    results = { T, dt, Fx, Fy, COPx, floorY, chainPoints, pointPos, segments, joints, bodyMass };
+    results = { T, dt, Fx, Fy, COPx, floorY, chainPoints, pointPos, pointVel, segments, joints, bodyMass };
+    // which way is the subject travelling? (needed to name moments anatomically)
+    {
+      const top = pointPos[chainPoints[chainPoints.length-1].id].x;
+      const dx = top[top.length-1]-top[0];
+      results.walkDir = Math.abs(dx) > 0.05 ? Math.sign(dx) : 0;
+    }
+    results.flow = computeFlow(results);
 
     // sanity check: no real human body segment is under ~3cm or over ~1m long. If one comes out
     // that way, it's almost always a units mismatch (e.g. data pasted in meters but "Joint marker
@@ -1632,6 +1703,17 @@
       for (let t=0;t<T.length;t++){ if (Math.abs(results.Fy[t]) > 0){ if (a < 0) a = t; b = t; } }
       if (a >= 0 && b > a) return { i0:a, i1:b, label:'stance, '+fmt(T[a],3)+'–'+fmt(T[b],3)+' s', whole:(a===0 && b===last) };
       return Object.assign(whole, { note:'no frames are above the force threshold, so stance couldn\'t be found — using the whole trial' });
+    }
+    if (mode === 'swing'){
+      // longest run of frames with no vertical GRF (after the force threshold)
+      let best = null, a = -1;
+      for (let t=0;t<=T.length;t++){
+        const off = t < T.length && !(Math.abs(results.Fy[t]) > 0);
+        if (off && a < 0) a = t;
+        if (!off && a >= 0){ if (!best || (t-1-a) > (best[1]-best[0])) best = [a, t-1]; a = -1; }
+      }
+      if (best && best[1] > best[0]) return { i0:best[0], i1:best[1], label:'swing, '+fmt(T[best[0]],3)+'–'+fmt(T[best[1]],3)+' s', whole:(best[0]===0 && best[1]===last) };
+      return Object.assign(whole, { note:'no frames are below the force threshold, so swing couldn\'t be found — using the whole trial' });
     }
     if (mode === 'custom'){
       const ta = parseFloat(ph.start), tb = parseFloat(ph.end);
@@ -1756,11 +1838,13 @@
     return Object.assign({ label, data: results.T.map((t,i) => ({x:t, y:ys[i]})), borderColor:color, backgroundColor:color,
       borderWidth:1.6, pointRadius:0, tension:0, fill:false }, extra || {});
   }
-  function makeChart(canvas, datasets, title, yLabel, showXTitle, win){
+  function makeChart(canvas, datasets, title, yLabel, showXTitle, win, bands){
     const T = results.T;
+    const old = Chart.getChart(canvas);
+    if (old){ charts = charts.filter(c => c !== old); if (chartVisObserver) chartVisObserver.unobserve(canvas); old.destroy(); }
     const ch = new Chart(canvas, {
       type:'line',
-      plugins:[frameLinePlugin],
+      plugins:[frameLinePlugin, powerBandPlugin],
       data:{ datasets },
       options:{ animation:false, responsive:true, maintainAspectRatio:false,
         plugins:{
@@ -1772,6 +1856,7 @@
                  y:{ title:{display:true, text:yLabel} } } }
     });
     ch.$win = win;
+    ch.$bands = bands || null;
     ch.draw(); // first paint happened before $win was attached
     bindChartClick(canvas, ch);
     if (chartVisObserver) chartVisObserver.observe(canvas);
@@ -1782,6 +1867,293 @@
     charts.forEach(c => { if (chartVisObserver) chartVisObserver.unobserve(c.canvas); c.destroy(); });
     charts = [];
   }
+
+  // ================= power flow (segment power analysis) =================
+  // At joint k, M and R are what the upper segment applies to the lower one (this tool's solve
+  // direction). Power into the lower segment = M·ω_lower + R·v_joint; into the upper segment =
+  // −M·ω_upper − R·v_joint. Their sum is the joint power M·(ω_lower − ω_upper): the R·v parts only
+  // move energy across the joint. Each segment's energy rate dE/dt should equal the sum of every
+  // power flowing into it (including the GRF's power on the foot), which is checked and shown.
+  function computeFlow(R){
+    const T = R.T, n = T.length, segs = R.segments, J = R.joints;
+    const dtm = (T[n-1]-T[0])/(n-1);
+    const joints = J.map((j,k) => {
+      const v = R.pointVel[segs[k].proximalId], low = segs[k], up = segs[k+1];
+      const mBelow = T.map((_,t) => j.M[t]*low.omega[t]);
+      const fv = T.map((_,t) => j.Rx[t]*v.x[t] + j.Ry[t]*v.y[t]);
+      const below = T.map((_,t) => mBelow[t] + fv[t]);
+      let mAbove = null, above = null;
+      if (up){ mAbove = T.map((_,t) => -j.M[t]*up.omega[t]); above = T.map((_,t) => mAbove[t] - fv[t]); }
+      return { mBelow, fvBelow: fv, below, mAbove, fvAbove: fv.map(x => -x), above };
+    });
+    // GRF power on the foot: GRF · velocity of the foot point under the COP (v_com + ω × r)
+    const s0 = segs[0], d0 = J[0].distalR;
+    const ground = T.map((_,t) => {
+      const w = s0.omega[t], rx = d0.rx[t], ry = d0.ry[t];
+      return R.Fx[t]*(s0.vx[t] - w*ry) + R.Fy[t]*(s0.vy[t] + w*rx);
+    });
+    const segE = segs.map((sg,k) => {
+      const E = T.map((_,t) => 0.5*sg.massKg*(sg.vx[t]*sg.vx[t]+sg.vy[t]*sg.vy[t]) + 0.5*sg.Icom*sg.omega[t]*sg.omega[t] + sg.massKg*G*sg.comY[t]);
+      const dEdt = centralDeriv1(E, dtm);
+      const inBottom = k === 0 ? ground : joints[k-1].above;
+      const inTop = joints[k].below;
+      const sumIn = T.map((_,t) => inBottom[t] + inTop[t]);
+      return { dEdt, sumIn, inBottom, inTop };
+    });
+    return { joints, ground, segE };
+  }
+
+  // anatomical names for the common lower-limb joints. f is the sign that turns this tool's raw
+  // (counterclockwise-positive, subject facing +horizontal) moment into "extensor / plantarflexor
+  // positive"; flipped again if the subject travels toward −horizontal.
+  function anatInfo(name){
+    if (/ankle/i.test(name)) return { f:-1, pos:'plantarflexor', neg:'dorsiflexor', posMot:'plantarflexing', negMot:'dorsiflexing' };
+    if (/knee/i.test(name))  return { f: 1, pos:'extensor', neg:'flexor', posMot:'extending', negMot:'flexing' };
+    if (/hip/i.test(name))   return { f:-1, pos:'extensor', neg:'flexor', posMot:'extending', negMot:'flexing' };
+    return null;
+  }
+  function momentName(k, rawM){
+    const a = anatInfo(results.joints[k].name);
+    if (a && results.walkDir) return (rawM*a.f*results.walkDir >= 0 ? a.pos : a.neg)+' moment';
+    return (dispM(rawM) >= 0 ? 'positive' : 'negative')+' moment';
+  }
+  function motionName(k, rawW){
+    const a = anatInfo(results.joints[k].name);
+    if (a && results.walkDir) return rawW*a.f*results.walkDir >= 0 ? a.posMot : a.negMot;
+    return dispOmega(rawW) >= 0 ? 'ω positive' : 'ω negative';
+  }
+  function signAxisNote(k, motion){
+    const a = anatInfo(results.joints[k].name);
+    if (!(a && results.walkDir)) return '';
+    const posIsPos = a.f*results.walkDir*momentSign() > 0; // displayed + ↔ raw sign momentSign()
+    if (motion) return ' (+ = '+(posIsPos ? a.posMot : a.negMot)+')';
+    return ' (+ = '+(posIsPos ? a.pos : a.neg)+')';
+  }
+  function segLabel(sg){ return sg.type === 'custom' ? sg.distalName+'–'+sg.geomProximalName : sg.name.split(' (')[0]; }
+
+  // contiguous same-sign runs of vals. Runs whose measure is under frac × the largest are dropped
+  // (left as gaps: a joint in swing doing almost nothing shouldn't get absorbed into a real burst),
+  // and two same-sign runs separated only by a short dropped blip are joined back into one.
+  function signRuns(vals, measure, frac, T){
+    const n = vals.length;
+    let runs = [], cur = null;
+    for (let t=0;t<n;t++){
+      let sg = vals[t] > 0 ? 1 : (vals[t] < 0 ? -1 : 0);
+      if (sg === 0) sg = cur ? cur.s : 1;
+      if (cur && cur.s === sg) cur.b = t;
+      else { cur = { a:t, b:t, s:sg }; runs.push(cur); }
+    }
+    const ms = runs.map(r => measure(r.a, r.b));
+    const thr = frac*Math.max(...ms, 0);
+    const kept = runs.filter((r,i) => ms[i] >= thr && ms[i] > 0);
+    const maxGap = 0.04*(T[n-1]-T[0]);
+    const out = [];
+    kept.forEach(r => {
+      const l = out[out.length-1];
+      if (l && l.s === r.s && (T[r.a]-T[l.b]) <= maxGap) l.b = r.b; else out.push(Object.assign({}, r));
+    });
+    return out;
+  }
+  function absIntegral(arr, T, a, b){
+    let s = 0;
+    for (let t=a+1;t<=b;t++) s += Math.abs(arr[t]+arr[t-1])/2*(T[t]-T[t-1]);
+    return s;
+  }
+  function burstLetter(name){
+    const m = String(name).trim().match(/[A-Za-z]/);
+    return m ? m[0].toUpperCase() : 'J';
+  }
+  function powerBursts(k){
+    const j = results.joints[k], T = results.T;
+    const runs = signRuns(j.P, (a,b) => Math.abs(workIntegrals(j.P, T, a, b).net), 0.04, T);
+    return runs.map((r,i) => Object.assign(r, { label: burstLetter(j.name)+(i+1), wi: workIntegrals(j.P, T, r.a, r.b) }));
+  }
+  function momentPhases(k){
+    const j = results.joints[k];
+    return signRuns(j.M, (a,b) => absIntegral(j.M, results.T, a, b), 0.04, results.T);
+  }
+
+  // shading of generation/absorption behind a chart's data
+  const powerBandPlugin = {
+    id:'powerBands',
+    beforeDatasetsDraw(chart){
+      const bands = chart.$bands;
+      if (!results || !bands) return;
+      const xs = chart.scales.x, ar = chart.chartArea, ctx = chart.ctx, T = results.T;
+      ctx.save();
+      bands.forEach(b => {
+        const x0 = Math.max(ar.left, xs.getPixelForValue(T[b.a])), x1 = Math.min(ar.right, xs.getPixelForValue(T[Math.min(b.b+1, T.length-1)]));
+        if (!(x1 > x0)) return;
+        ctx.fillStyle = b.s > 0 ? 'rgba(27,138,90,0.13)' : 'rgba(214,69,69,0.12)';
+        ctx.fillRect(x0, ar.top, x1-x0, ar.bottom-ar.top);
+      });
+      ctx.restore();
+    }
+  };
+
+  function powerJoints(){ return results.joints.map((j,k) => k).filter(k => results.joints[k].P); }
+  function fillSelect(id, items, keep){
+    const sel = el(id), prev = sel.value;
+    sel.innerHTML = items.map(([v,l]) => '<option value="'+v+'">'+esc(l)+'</option>').join('');
+    if (keep && items.some(([v]) => String(v) === prev)) sel.value = prev;
+  }
+
+  function renderMomentPower(){
+    const ks = powerJoints();
+    const panel = el('mpPanel');
+    if (!ks.length){
+      panel.querySelector('#mpTable').innerHTML = '';
+      el('mpDirNote').textContent = 'Power needs a segment above the joint. Add one more chain point above your top joint in step 2 (e.g. a pelvis or trunk point above the hip).';
+      return;
+    }
+    fillSelect('mpJoint', ks.map(k => [k, results.joints[k].name]), true);
+    const k = parseInt(el('mpJoint').value,10);
+    const j = results.joints[k], T = results.T;
+    const bursts = powerBursts(k), phases = momentPhases(k);
+    const win = sectionRefs[k] ? sectionRefs[k].win : null;
+    const uM = momentUnitLabel(), uP = powerUnitLabel(), uW = workUnitLabel(), wDp = normalized() ? 3 : 2;
+    const note = signAxisNote(k);
+    makeChart(el('mpM'), [seriesLine('M', j.M.map(dispM), '#D64545', {borderWidth:2})], j.name+' net moment ('+uM+')'+note, uM, false, win, bursts);
+    makeChart(el('mpW'), [seriesLine('ω', j.omega.map(dispOmega), '#5B4FCF', {borderWidth:2})], j.name+' angular velocity (deg/s)'+signAxisNote(k, true), 'deg/s', false, win, bursts);
+    makeChart(el('mpP'), [seriesLine('P = M·ω', j.P.map(dispP), '#16232C', {borderWidth:2})], j.name+' power = M × ω ('+uP+')', uP, true, win, bursts);
+    el('mpDirNote').textContent = results.walkDir
+      ? 'Moment and ω share one sign convention, so they have the same sign exactly when power is positive. Anatomical names assume the usual sagittal-plane lower-limb geometry, with the subject travelling toward '+(results.walkDir > 0 ? '+' : '−')+'horizontal.'
+      : 'The subject barely moves horizontally in this trial, so moments are named by sign rather than anatomically.';
+    let rows = '';
+    phases.forEach(ph => {
+      const inside = bursts.filter(b => { const c = (b.a+b.b)/2; return c >= ph.a && c <= ph.b+0.5; });
+      let peak = 0; for (let t=ph.a;t<=ph.b;t++) if (Math.abs(j.M[t]) > Math.abs(peak)) peak = j.M[t];
+      rows += '<tr class="mphase"><td colspan="2">'+fmt(T[ph.a],3)+'–'+fmt(T[ph.b],3)+' s</td><td colspan="5">'
+        + esc(momentName(k, ph.s).replace(/^./, c => c.toUpperCase()))+' &nbsp;·&nbsp; peak '+fmt(dispM(peak), normalized()?3:1)+' '+uM
+        + (inside.length > 1 ? ' &nbsp;·&nbsp; <span style="color:var(--navy)">'+inside.length+' power phases inside one moment phase</span>' : '')+'</td></tr>';
+      inside.forEach(b => {
+        let wsum = 0; for (let t=b.a;t<=b.b;t++) wsum += j.omega[t]*Math.abs(j.P[t]);
+        let pk = 0; for (let t=b.a;t<=b.b;t++) if (Math.abs(j.P[t]) > Math.abs(pk)) pk = j.P[t];
+        const gen = b.s > 0;
+        rows += '<tr><td><strong>'+b.label+'</strong></td><td>'+fmt(T[b.a],3)+'–'+fmt(T[b.b],3)+' s</td>'
+          + '<td>'+esc(motionName(k, wsum))+'</td>'
+          + '<td class="'+(gen?'gen':'abs')+'">'+(gen ? 'Generation — concentric' : 'Absorption — eccentric')+'</td>'
+          + '<td class="num">'+fmt(dispP(pk), normalized()?2:1)+' '+uP+'</td>'
+          + '<td class="num">'+fmt(b.wi.net*mScaleDisp(), wDp)+' '+uW+'</td>'
+          + '<td><button type="button" class="ghost small" data-burst="'+b.a+','+b.b+'">Use as work phase</button></td></tr>';
+      });
+    });
+    const listed = new Set(); phases.forEach(ph => bursts.forEach(b => { const c = (b.a+b.b)/2; if (c >= ph.a && c <= ph.b+0.5) listed.add(b); }));
+    const orphan = bursts.filter(b => !listed.has(b));
+    if (orphan.length) rows += '<tr class="mphase"><td colspan="7">Bursts where the moment itself is too small to count as a phase</td></tr>' + orphan.map(b => '<tr><td><strong>'+b.label+'</strong></td><td>'+fmt(T[b.a],3)+'–'+fmt(T[b.b],3)+' s</td><td colspan="3"></td><td class="num">'+fmt(b.wi.net*mScaleDisp(), wDp)+' '+uW+'</td><td></td></tr>').join('');
+    el('mpTable').innerHTML = '<thead><tr><th>Burst</th><th>Time</th><th>Joint motion</th><th>Muscle action</th><th>Peak power</th><th>Work</th><th></th></tr></thead><tbody>'+rows+'</tbody>';
+    el('mpTable').querySelectorAll('button[data-burst]').forEach(btn => btn.addEventListener('click', function(){
+      const [a,b] = this.dataset.burst.split(',').map(Number);
+      jointPhase[k] = { mode:'custom', start: T[a].toFixed(4), end: T[b].toFixed(4) };
+      rebuildResults();
+    }));
+  }
+
+  // ---- power flow ----
+  function flowSeries(k, split){
+    const f = results.flow.joints[k], sc = mScaleDisp(), j = results.joints[k];
+    const below = segLabel(results.segments[k]), above = results.segments[k+1] ? segLabel(results.segments[k+1]) : null;
+    const d = [];
+    if (j.P) d.push(seriesLine(j.name+' joint power M·(ω_below − ω_above)', j.P.map(v => v*sc), '#16232C', {borderWidth:2.6}));
+    if (split){
+      d.push(seriesLine('→ '+below+': muscle M·ω', f.mBelow.map(v => v*sc), '#E8871E'));
+      d.push(seriesLine('→ '+below+': joint force F·v', f.fvBelow.map(v => v*sc), '#E8871E', {borderDash:[5,4]}));
+      if (above){
+        d.push(seriesLine('→ '+above+': muscle −M·ω', f.mAbove.map(v => v*sc), '#0B3D91'));
+        d.push(seriesLine('→ '+above+': joint force −F·v', f.fvAbove.map(v => v*sc), '#0B3D91', {borderDash:[5,4]}));
+      }
+    } else {
+      d.push(seriesLine('into the '+below+' (below)', f.below.map(v => v*sc), '#E8871E'));
+      if (above) d.push(seriesLine('into the '+above+' (above)', f.above.map(v => v*sc), '#0B3D91'));
+    }
+    return d;
+  }
+  function renderFlowPanel(){
+    const segs = results.segments, J = results.joints, uP = powerUnitLabel(), sc = mScaleDisp();
+    fillSelect('flowJoint', J.map((j,k) => [k, j.name]), true);
+    fillSelect('flowSeg', segs.map((sg,k) => [k, segLabel(sg)]), true);
+    const k = parseInt(el('flowJoint').value,10) || 0;
+    const win = sectionRefs[k] ? sectionRefs[k].win : null;
+    makeChart(el('flowChart'), flowSeries(k, el('flowSplit').checked), 'Power flow at the '+J[k].name+' (+ = into that segment, '+uP+')', uP, true, win);
+    const si = parseInt(el('flowSeg').value,10) || 0, se = results.flow.segE[si];
+    makeChart(el('flowSegChart'), [
+      seriesLine('dE/dt from the motion', se.dEdt.map(v => v*sc), '#8A99A6', {borderWidth:3}),
+      seriesLine('Σ power flowing in', se.sumIn.map(v => v*sc), '#1B8A5A', {borderWidth:1.6, borderDash:[5,3]})
+    ], segLabel(segs[si])+': energy rate vs. power in ('+uP+')', uP, true, null);
+    let e2 = 0, r2 = 0;
+    for (let t=2;t<results.T.length-2;t++){ e2 += Math.pow(se.dEdt[t]-se.sumIn[t],2); r2 += se.dEdt[t]*se.dEdt[t]; }
+    const sg = segs[si], dP = results.pointPos[sg.distalId], gP = results.pointPos[sg.geomProximalId];
+    let Lmin = Infinity, Lmax = -Infinity;
+    for (let t=0;t<results.T.length;t++){ const L = Math.hypot(gP.x[t]-dP.x[t], gP.y[t]-dP.y[t]); if (L < Lmin) Lmin = L; if (L > Lmax) Lmax = L; }
+    el('flowCheck').textContent = 'The two lines should overlap. RMS difference '+fmt(Math.sqrt(e2/(results.T.length-4))*sc, normalized()?3:1)+' '+uP
+      + ' vs. RMS dE/dt '+fmt(Math.sqrt(r2/(results.T.length-4))*sc, normalized()?3:1)+' '+uP+'. The model treats each segment as rigid, but markers move on the skin: this segment\'s length varies by '+fmt((Lmax-Lmin)*100,1)+' cm over the trial, and the joint force times that stretching velocity shows up as a mismatch (plus some from numerical differentiation). A mismatch as large as dE/dt itself usually means a wrong column or unit.';
+  }
+  function flowArrow(x, y1, y2, P, maxP, label){
+    // vertical arrow from y1 to y2 (the direction energy flows), width ∝ |P|, value to its right
+    const w = 2.5 + 15*Math.min(1, Math.abs(P)/Math.max(maxP,1e-9));
+    const col = '#5C7080';
+    const dir = Math.sign(y2-y1) || 1, head = Math.min(Math.abs(y2-y1)*0.45, Math.max(9, w*1.1));
+    const ye = y2 - dir*head;
+    let s = '<line x1="'+x+'" y1="'+y1.toFixed(1)+'" x2="'+x+'" y2="'+ye.toFixed(1)+'" stroke="'+col+'" stroke-width="'+w.toFixed(1)+'" opacity="0.85"/>';
+    s += '<polygon points="'+(x-w/2-5).toFixed(1)+','+ye.toFixed(1)+' '+(x+w/2+5).toFixed(1)+','+ye.toFixed(1)+' '+x+','+y2.toFixed(1)+'" fill="'+col+'" opacity="0.85"/>';
+    s += '<text x="'+(x+w/2+12).toFixed(1)+'" y="'+((y1+y2)/2+4).toFixed(1)+'" font-size="12" font-weight="600" fill="#16232C">'+esc(label)+'</text>';
+    return s;
+  }
+  function renderFlowDiagram(){
+    if (!results || !results.flow) return;
+    const i = frameIdx, segs = results.segments, J = results.joints, F = results.flow, sc = mScaleDisp(), uP = powerUnitLabel();
+    const dp = normalized() ? 2 : 0;
+    const f = v => (v >= 0 ? '+' : '−')+fmt(Math.abs(v*sc), dp);
+    const n = segs.length, W = 820, boxW = 230, boxH = 52, gap = 118, cx = 390;
+    const top = 50, H = top + 70 + n*(boxH+gap) + 30;
+    el('flowSvg').setAttribute('viewBox', '0 0 '+W+' '+H);
+    let maxP = 1e-9;
+    F.joints.forEach(fj => ['below','above'].forEach(key => { if (fj[key]) fj[key].forEach(v => { if (Math.abs(v) > maxP) maxP = Math.abs(v); }); }));
+    F.ground.forEach(v => { if (Math.abs(v) > maxP) maxP = Math.abs(v); });
+    const gy = H - 30;
+    const segY = k => gy - gap*0.75 - boxH - k*(boxH+gap); // top edge of segment box k
+    let svg = '<rect width="'+W+'" height="'+H+'" fill="#FBFCFD"/>';
+    svg += '<text x="16" y="26" font-size="13.5" font-weight="700" fill="#16232C">t = '+fmt(results.T[i],3)+' s &#183; '+(Math.abs(results.Fy[i]) > 0 ? 'stance' : 'swing')+' &#183; power in '+uP+' (arrows show which way energy is moving)</text>';
+    svg += '<line x1="'+(cx-170)+'" y1="'+gy+'" x2="'+(cx+170)+'" y2="'+gy+'" stroke="#8A99A6" stroke-width="3"/>';
+    svg += '<text x="'+(cx-180)+'" y="'+(gy+4)+'" font-size="12" fill="#5C7080" text-anchor="end">ground</text>';
+    const footBot = segY(0)+boxH, gP = F.ground[i];
+    if (Math.abs(results.Fy[i]) > 0)
+      svg += gP >= 0 ? flowArrow(cx, gy, footBot, gP, maxP, 'GRF power '+f(gP)) : flowArrow(cx, footBot, gy, gP, maxP, 'GRF power '+f(gP));
+    segs.forEach((sg,k) => {
+      const y = segY(k), se = F.segE[k];
+      svg += '<rect x="'+(cx-boxW/2)+'" y="'+y+'" width="'+boxW+'" height="'+boxH+'" rx="8" fill="#fff" stroke="#3A4750" stroke-width="2"/>';
+      svg += '<text x="'+cx+'" y="'+(y+21)+'" font-size="14" font-weight="700" fill="#16232C" text-anchor="middle">'+esc(segLabel(sg))+'</text>';
+      svg += '<text x="'+cx+'" y="'+(y+39)+'" font-size="11.5" fill="#5C7080" text-anchor="middle">dE/dt '+f(se.dEdt[i])+'  &#183;  &#931; power in '+f(se.sumIn[i])+'</text>';
+    });
+    const split = el('flowSplit').checked;
+    J.forEach((j,k) => {
+      const fj = F.joints[k];
+      const lowTop = segY(k), upBot = k+1 < n ? segY(k+1)+boxH : lowTop - gap*0.8;
+      const ny = (lowTop + upBot)/2;
+      const P = j.P ? j.P[i] : null;
+      const r = 8 + (P === null ? 0 : 13*Math.sqrt(Math.min(1, Math.abs(P)/maxP)));
+      const fill = P === null ? '#B8C4CC' : (P >= 0 ? '#1B8A5A' : '#D64545');
+      const bl = fj.below[i];
+      svg += bl >= 0 ? flowArrow(cx, ny+r, lowTop, bl, maxP, f(bl)+' into '+segLabel(segs[k])) : flowArrow(cx, lowTop, ny+r, bl, maxP, f(bl)+' out of '+segLabel(segs[k]));
+      if (fj.above){
+        const a = fj.above[i], up = segLabel(segs[k+1]);
+        svg += a >= 0 ? flowArrow(cx, ny-r, upBot, a, maxP, f(a)+' into '+up) : flowArrow(cx, upBot, ny-r, a, maxP, f(a)+' out of '+up);
+      }
+      svg += '<circle cx="'+cx+'" cy="'+ny.toFixed(1)+'" r="'+r.toFixed(1)+'" fill="'+fill+'" stroke="#fff" stroke-width="2"/>';
+      const lbl = P === null ? j.name+': no segment above, joint power n/a' : j.name+(P >= 0 ? ' muscles generating ' : ' muscles absorbing ')+fmt(Math.abs(P*sc), dp);
+      svg += '<text x="'+(cx-r-14)+'" y="'+(ny+4).toFixed(1)+'" font-size="12.5" font-weight="700" fill="'+(P === null ? '#5C7080' : fill)+'" text-anchor="end">'+esc(lbl)+'</text>';
+      if (split){
+        const t1 = 'below: M·ω '+f(fj.mBelow[i])+', F·v '+f(fj.fvBelow[i]);
+        svg += '<text x="'+(cx-r-14)+'" y="'+(ny+20).toFixed(1)+'" font-size="11" fill="#5C7080" text-anchor="end">'+esc(t1)+'</text>';
+        if (fj.above) svg += '<text x="'+(cx-r-14)+'" y="'+(ny-13).toFixed(1)+'" font-size="11" fill="#5C7080" text-anchor="end">'+esc('above: −M·ω '+f(fj.mAbove[i])+', −F·v '+f(fj.fvAbove[i]))+'</text>';
+      }
+    });
+    el('flowSvg').innerHTML = svg;
+  }
+  el('mpJoint').addEventListener('change', () => { if (results) rebuildResults(); });
+  el('flowJoint').addEventListener('change', () => { if (results) rebuildResults(); });
+  el('flowSeg').addEventListener('change', () => { if (results) rebuildResults(); });
+  el('flowSplit').addEventListener('change', () => { if (results) rebuildResults(); });
 
   // ---- results page ----
   function renderResults(){
@@ -1821,6 +2193,8 @@
   }
   function rebuildResults(){
     buildJointSections();
+    renderMomentPower();
+    renderFlowPanel();
     renderFrame();
     renderWorkTable();
     renderPeakTable();
@@ -1945,6 +2319,7 @@
       + '<select class="ph-mode">'
       +   '<option value="whole">Whole trial</option>'
       +   '<option value="stance">Stance (force above threshold)</option>'
+      +   '<option value="swing">Swing (force below threshold)</option>'
       +   '<option value="custom">Custom (start → end)</option>'
       + '</select>'
       + '<span class="ph-custom"'+(ph.mode === 'custom' ? '' : ' style="display:none"')+'>'
@@ -1980,6 +2355,7 @@
       r.svg.innerHTML = fbdSvgContent(k, maxF, r.H);
       if (r.eqDetails.open) r.eqHost.innerHTML = eqBlock(k);
     });
+    renderFlowDiagram();
     redrawFrameLines();
   }
 
